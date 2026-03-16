@@ -17,79 +17,267 @@
       </div>
     </div>
 
-    <!-- Filter -->
-    <div class="card p-6 flex flex-wrap gap-6 items-end">
-      <div class="flex flex-col gap-1.5 min-w-[200px]">
-        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Từ ngày</label>
-        <input v-model="filter.from" type="date" class="input-field py-2" />
+    <!-- Filter & View Mode -->
+    <div class="card p-6 flex flex-col lg:flex-row gap-6 items-end justify-between">
+      <div class="flex flex-wrap gap-6 items-end">
+        <div class="flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="flex flex-col gap-1.5 min-w-[200px]">
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phòng ban</label>
+            <select v-model="filter.departmentId" class="input-field py-2" @change="fetchData">
+              <option :value="null">Tất cả phòng ban</option>
+              <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+            </select>
+          </div>
+          <template v-if="viewMode === 'list'">
+            <div class="flex flex-col gap-1.5 min-w-[200px]">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Từ ngày</label>
+              <input v-model="filter.from" type="date" class="input-field py-2" />
+            </div>
+            <div class="flex flex-col gap-1.5 min-w-[200px]">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Đến ngày</label>
+              <input v-model="filter.to" type="date" class="input-field py-2" />
+            </div>
+          </template>
+          <template v-else>
+            <div class="flex flex-col gap-1.5 min-w-[200px]">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tháng báo cáo</label>
+              <input v-model="viewMonth" type="month" class="input-field py-2" @change="handleMonthChange" />
+            </div>
+            <div class="flex flex-col gap-1.5 min-w-[150px]">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Xem theo tuần</label>
+              <select v-model="viewWeek" class="input-field py-2 text-sm font-bold appearance-none bg-white">
+                <option :value="null">Toàn bộ tháng</option>
+                <option v-for="w in monthWeeks" :key="w.id" :value="w.id">{{ w.label }}</option>
+              </select>
+            </div>
+          </template>
+        </div>
+        <UiButton @click="fetchRecords" variant="secondary" class="bg-slate-900 text-white hover:bg-slate-800">
+          <Filter class="w-4 h-4" />
+          Lọc dữ liệu
+        </UiButton>
       </div>
-      <div class="flex flex-col gap-1.5 min-w-[200px]">
-        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Đến ngày</label>
-        <input v-model="filter.to" type="date" class="input-field py-2" />
+
+      <div class="flex bg-slate-100 p-1 rounded-xl shrink-0">
+        <button 
+          @click="viewMode = 'list'" 
+          :class="['px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all', viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600']"
+        >
+          Danh sách
+        </button>
+        <button 
+          @click="viewMode = 'matrix'" 
+          :class="['px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all', viewMode === 'matrix' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600']"
+        >
+          Bảng tổng hợp
+        </button>
       </div>
-      <UiButton @click="fetchRecords" variant="secondary" class="bg-slate-900 text-white hover:bg-slate-800">
-        <Filter class="w-4 h-4" />
-        Lọc dữ liệu
-      </UiButton>
     </div>
 
-    <!-- Table -->
+    <!-- Table / Matrix View -->
     <div class="card overflow-hidden">
       <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4">
         <div class="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
         <p class="text-slate-500 font-bold">Đang tải bản ghi...</p>
       </div>
 
-      <div v-else-if="records.length === 0" class="p-20 text-center space-y-4">
+      <div v-else-if="records.length === 0 && viewMode === 'list'" class="p-20 text-center space-y-4">
         <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-300">
           <History class="w-10 h-10" />
         </div>
         <p class="text-slate-500 font-bold">Chưa có sản lượng nào được ghi nhận.</p>
       </div>
 
-      <table v-else class="w-full text-left">
-        <thead>
-          <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-            <th class="px-8 py-5">Ngày</th>
-            <th class="px-8 py-5">Tổ sản xuất</th>
-            <th class="px-8 py-5">Sản phẩm</th>
-            <th class="px-8 py-5">Chất lượng</th>
-            <th class="px-8 py-5">Số lượng</th>
-            <th class="px-8 py-5 text-right">Thao tác</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          <tr v-for="r in records" :key="r.id" class="hover:bg-slate-50/50 transition-all group">
-            <td class="px-8 py-5 text-sm font-bold text-slate-500">{{ r.productionDate }}</td>
-            <td class="px-8 py-5 font-black text-slate-900">
-              <div class="flex flex-col">
-                <span>{{ r.team?.name }}</span>
-                <span class="text-[10px] text-slate-400 font-black uppercase tracking-tighter">{{ r.team?.productionStep?.name }}</span>
-              </div>
-            </td>
-            <td class="px-8 py-5">
-              <div class="flex flex-col">
-                <span class="font-bold text-primary-700">{{ r.product?.code }}</span>
-                <span class="text-[10px] text-slate-400 font-medium">
-                  {{ r.product?.thickness }}mm x {{ r.product?.length }}m x {{ r.product?.width }}m
+      <!-- List View -->
+      <div v-else-if="viewMode === 'list'" class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
+              <th class="px-8 py-5">Ngày</th>
+              <th class="px-8 py-5">Tổ sản xuất</th>
+              <th class="px-8 py-5">Sản phẩm</th>
+              <th class="px-8 py-5">Chất lượng</th>
+              <th class="px-8 py-5">Số lượng</th>
+              <th class="px-8 py-5 text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr v-for="r in records" :key="r.id" class="hover:bg-slate-50/50 transition-all group">
+              <td class="px-8 py-5 text-sm font-bold text-slate-500">{{ r.productionDate }}</td>
+              <td class="px-8 py-5 font-black text-slate-900">
+                <div class="flex flex-col">
+                  <span>{{ r.team?.name }}</span>
+                  <span class="text-[10px] text-slate-400 font-black uppercase tracking-tighter">{{ r.team?.productionStep?.name }}</span>
+                </div>
+              </td>
+              <td class="px-8 py-5">
+                <div class="flex flex-col">
+                  <span class="font-bold text-primary-700">{{ r.product?.code }}</span>
+                  <span class="text-[10px] text-slate-400 font-medium">
+                    {{ r.product?.thickness }}mm x {{ r.product?.length }}m x {{ r.product?.width }}m
+                  </span>
+                </div>
+              </td>
+              <td class="px-8 py-5">
+                <span class="px-2.5 py-1 bg-primary-100 rounded-lg text-[10px] font-black text-primary-700 uppercase tracking-widest">
+                  {{ r.quality?.code }}
                 </span>
+              </td>
+              <td class="px-8 py-5 font-black text-slate-900 text-lg">{{ r.quantity?.toLocaleString() }}</td>
+              <td class="px-8 py-5 text-right">
+                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button v-if="!isPastMonth" @click="openModal(r)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"><PencilLine class="w-4 h-4" /></button>
+                  <button v-if="!isPastMonth" @click="handleDelete(r.id)" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 class="w-4 h-4" /></button>
+                  <span v-else class="text-[10px] font-black text-slate-300 uppercase italic">Khoá</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Matrix View -->
+      <div v-else class="overflow-x-auto relative min-h-[500px] border border-slate-200 rounded-xl shadow-sm bg-white">
+        <div v-if="isPastMonth" class="bg-amber-50 p-2 text-center border-b border-amber-100">
+          <p class="text-[10px] font-bold text-amber-700">Dữ liệu tháng {{ viewMonth }} đã khoá. Chỉ cho phép xem, không thể chỉnh sửa.</p>
+        </div>
+        <table 
+          class="w-full text-left border-collapse"
+          :class="[viewWeek ? 'table-auto' : 'table-fixed min-w-[2000px]']"
+        >
+          <thead>
+            <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-200 sticky top-0 z-30">
+              <th class="px-4 py-4 w-40 min-w-[160px] sticky left-0 bg-slate-50 z-40 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-slate-200">Tổ đội</th>
+              <th v-for="day in displayedDays" :key="day" 
+                  class="px-2 py-3 text-center border-r border-slate-200 last:border-r-0"
+                  :class="[viewWeek ? '' : 'w-24', getDayHighlightClass(day, 'header'), isSunday(day) ? 'bg-blue-50/50' : '']"
+              >
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-slate-400 font-bold opacity-60">{{ getDayOfWeek(day) }}</span>
+                  <span class="text-[11px]">{{ day }}</span>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            <tr v-for="team in paginatedTeams" :key="team.id" class="hover:bg-slate-50/50 group">
+              <td class="px-4 py-4 font-black text-slate-900 text-xs sticky left-0 bg-white group-hover:bg-slate-50 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-slate-200">
+                <div class="flex flex-col gap-1.5">
+                  <span class="whitespace-nowrap">{{ team.name }}</span>
+                  <div class="mt-1 pt-1 border-t border-slate-100">
+                    <div class="text-[8px] text-slate-400 font-bold uppercase">Tổng:</div>
+                    <div class="text-xs font-black text-primary-600">{{ getTeamTotalQuantity(team.id).toLocaleString() }}</div>
+                  </div>
+                </div>
+              </td>
+              <td v-for="day in displayedDays" :key="day" 
+                  class="p-2 text-center border-r border-slate-200 last:border-r-0 cursor-pointer transition-all font-bold group/cell relative h-32 align-top"
+                  :class="[getDayHighlightClass(day, 'cell'), isSunday(day) ? 'bg-blue-50/30' : '']"
+                  @click="showCellDetails(team.id, day)"
+                  @mouseenter="setHoveredCell(team.id, day, $event)"
+                  @mouseleave="clearHoveredCell"
+              >
+                <div v-if="getMatrixCell(team.id, day).length > 0" class="flex flex-col h-full overflow-hidden">
+                  <span class="text-xs font-black text-primary-700 mb-1">{{ getMatrixCellQuantity(team.id, day).toLocaleString() }}</span>
+                  <div class="flex flex-col gap-0.5 items-center w-full grow overflow-y-auto no-scrollbar">
+                    <div v-for="r in getMatrixCell(team.id, day)" :key="r.id" class="w-full">
+                      <div class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md flex justify-between items-center whitespace-nowrap overflow-hidden">
+                        <span class="font-black truncate mr-1">{{ r.product?.code }}</span>
+                        <span class="text-[8px] font-bold text-slate-400 shrink-0">{{ r.quantity }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <span v-else class="text-slate-100">-</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Floating Tooltip -->
+        <div 
+          v-if="hoverTooltip.show" 
+          class="fixed z-[200] w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 pointer-events-none p-5 animate-in fade-in zoom-in duration-200"
+          :style="{ top: hoverTooltip.y + 'px', left: hoverTooltip.x + 'px' }"
+        >
+          <div class="flex flex-col gap-4">
+            <div class="flex justify-between items-start border-b border-slate-50 pb-3">
+              <div>
+                <h4 class="text-xs font-black text-slate-900 uppercase tracking-widest">{{ hoverTooltip.teamName }}</h4>
+                <p class="text-[10px] text-slate-400 font-bold">{{ hoverTooltip.date }}</p>
               </div>
-            </td>
-            <td class="px-8 py-5">
-              <span class="px-2.5 py-1 bg-primary-100 rounded-lg text-[10px] font-black text-primary-700 uppercase tracking-widest">
-                {{ r.quality?.code }}
-              </span>
-            </td>
-            <td class="px-8 py-5 font-black text-slate-900 text-lg">{{ r.quantity?.toLocaleString() }}</td>
-            <td class="px-8 py-5 text-right">
-              <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button @click="openModal(r)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"><PencilLine class="w-4 h-4" /></button>
-                <button @click="handleDelete(r.id)" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 class="w-4 h-4" /></button>
+              <div class="bg-primary-50 px-2 py-1 rounded-lg text-primary-700 text-xs font-black">
+                {{ hoverTooltip.totalQuantity?.toLocaleString() }}
               </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+
+            <div class="space-y-3">
+              <h5 class="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Sản phẩm & Chất lượng</h5>
+              <div class="space-y-1.5 rotate-0">
+                <div v-for="r in hoverTooltip.records" :key="r.id" class="flex items-center justify-between text-xs transition-transform transform-gpu">
+                  <div class="flex items-center gap-2">
+                    <span class="font-black text-slate-700">{{ r.product?.code }}</span>
+                    <span class="text-[8px] bg-amber-50 text-amber-600 px-1 rounded uppercase font-bold">{{ r.quality?.code }}</span>
+                  </div>
+                  <span class="font-bold text-slate-500">{{ r.quantity }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-3 border-t border-slate-50 pt-3">
+              <div class="flex justify-between items-center">
+                <h5 class="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Nhân sự tham gia ({{ hoverTooltip.employees.length }})</h5>
+              </div>
+              <div class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1 pb-1">
+                <div v-for="emp in hoverTooltip.employees" :key="emp.id" 
+                  :class="['text-[10px] px-2 py-1 rounded-full font-bold border truncate max-w-full flex items-center gap-1.5', 
+                           emp.isBorrowed ? 'bg-red-50 text-red-700 border-red-100' : 'bg-slate-50 text-slate-600 border-slate-100']"
+                  :title="emp.isBorrowed ? `Mượn từ: ${emp.fromTeam}` : 'Chính thức'"
+                >
+                  <ArrowRightLeft v-if="emp.isBorrowed" class="w-3 h-3 shrink-0" />
+                  <User v-else class="w-3 h-3 shrink-0 opacity-50" />
+                  {{ emp.name }}
+                </div>
+              </div>
+              <p v-if="hoverTooltip.employees.length === 0" class="text-[10px] text-slate-400 italic">Chưa có dữ liệu chấm công</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between sticky bottom-0 z-20">
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">
+            Hiển thị {{ paginatedTeams.length }} / {{ teams.length }} tổ
+          </div>
+          <div class="flex items-center gap-2">
+            <button 
+              @click="currentPage--" 
+              :disabled="currentPage === 1"
+              class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+            >
+              <ChevronLeft class="w-4 h-4" />
+            </button>
+            <div class="flex items-center gap-1">
+              <button 
+                v-for="p in totalPages" 
+                :key="p"
+                @click="currentPage = p"
+                :class="['w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black transition-all', 
+                         currentPage === p ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50']"
+              >
+                {{ p }}
+              </button>
+            </div>
+            <button 
+              @click="currentPage++" 
+              :disabled="currentPage === totalPages"
+              class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+            >
+              <ChevronRight class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Modal -->
@@ -222,19 +410,71 @@
         </div>
       </div>
     </div>
+    <!-- Cell Detail Modal -->
+    <div v-if="showDetailModal" class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+      <div class="card w-full max-w-3xl p-8 animate-in zoom-in slide-in-from-bottom duration-300">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-xl font-black text-slate-900 tracking-tight">Chi tiết ngày {{ detailContext.date }}</h3>
+            <p class="text-sm text-slate-500 font-medium">Tổ sản xuất: <strong class="text-slate-900">{{ detailContext.teamName }}</strong></p>
+          </div>
+          <button @click="showDetailModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-100 rounded-2xl">
+          <table class="w-full text-left">
+            <thead>
+              <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
+                <th class="px-6 py-4">Sản phẩm</th>
+                <th class="px-6 py-4">Chất lượng</th>
+                <th class="px-6 py-4">Số lượng</th>
+                <th class="px-6 py-4 text-right" v-if="!isPastMonth"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="rec in detailContext.items" :key="rec.id" class="hover:bg-slate-50/50">
+                <td class="px-6 py-4">
+                  <div class="font-bold text-sm text-slate-900">{{ rec.product?.code }}</div>
+                  <div class="text-[10px] text-slate-400">{{ rec.product?.thickness }}mm x {{ rec.product?.length }}m x {{ rec.product?.width }}m</div>
+                </td>
+                <td class="px-6 py-4">
+                  <span class="px-2 py-0.5 bg-primary-100 rounded text-[10px] font-black text-primary-700 uppercase">{{ rec.quality?.code }}</span>
+                </td>
+                <td class="px-6 py-4 font-black text-slate-900">{{ rec.quantity?.toLocaleString() }}</td>
+                <td class="px-6 py-4 text-right" v-if="!isPastMonth">
+                  <div class="flex justify-end gap-2">
+                    <button @click="editFromDetail(rec)" class="p-2 text-slate-400 hover:text-primary-600 transition-all"><PencilLine class="w-4 h-4" /></button>
+                    <button @click="deleteFromDetail(rec.id)" class="p-2 text-slate-400 hover:text-red-500 transition-all"><Trash2 class="w-4 h-4" /></button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-8 flex justify-end gap-3">
+          <UiButton v-if="!isPastMonth" @click="addFromDetail" class="bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-6 h-11">Thêm sản lượng mới</UiButton>
+          <UiButton @click="showDetailModal = false" variant="outline" class="px-8 h-11">Đóng</UiButton>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { 
-  PlusCircle, Filter, History, PencilLine, Trash2, X, ListPlus, Plus, Trash, AlertCircle 
+  History, Plus, ListPlus, Filter, Trash2, PencilLine, 
+  X, PlusCircle, AlertCircle, ShieldAlert, Package, 
+  Layers, Gavel, ChevronLeft, ChevronRight, User, ArrowRightLeft 
 } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const records = ref([]);
 const teams = ref([]);
+const departments = ref([]);
 const products = ref([]);
 const qualities = ref([]);
+const attendances = ref([]);
 
 const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t.name })));
 const productOptions = computed(() => products.value.map(p => ({ value: p.id, label: `${p.code} (${p.thickness}x${p.length}x${p.width})` })));
@@ -245,8 +485,9 @@ const saving = ref(false);
 const showModal = ref(false);
 
 const filter = reactive({
-  from: new Date(new Date().setDate(1)).toISOString().substr(0, 10), // Đầu tháng
-  to: new Date().toISOString().substr(0, 10)
+  from: new Date().toISOString().substr(0, 10),
+  to: new Date().toISOString().substr(0, 10),
+  departmentId: null
 });
 
 const form = reactive({
@@ -264,19 +505,281 @@ const bulkDate = ref(new Date().toISOString().substr(0, 10));
 const bulkRecords = ref([]);
 const bulkError = ref('');
 
+// Calendar View State
+const viewMode = ref('list'); // 'list' or 'matrix'
+const viewMonth = ref(new Date().toISOString().substr(0, 7)); // YYYY-MM
+const viewWeek = ref(null); 
+const showDetailModal = ref(false);
+
+onMounted(() => {
+  viewWeek.value = findCurrentWeekId(viewMonth.value);
+});
+
+const currentPage = ref(1);
+const itemsPerPage = 20;
+
+const totalPages = computed(() => Math.ceil(teams.value.length / itemsPerPage) || 1);
+
+const paginatedTeams = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return teams.value.slice(start, end);
+});
+
+const detailContext = reactive({
+  date: '',
+  teamId: null,
+  teamName: '',
+  items: []
+});
+
+const hoverTooltip = reactive({
+  show: false,
+  x: 0,
+  y: 0,
+  teamName: '',
+  date: '',
+  totalQuantity: 0,
+  records: [],
+  employees: []
+});
+
+const isPastMonth = computed(() => {
+  const nowStr = new Date().toISOString().substr(0, 7);
+  return viewMonth.value < nowStr;
+});
+
+const daysInMonth = computed(() => {
+  const [year, month] = viewMonth.value.split('-').map(Number);
+  return new Date(year, month, 0).getDate();
+});
+
+const monthWeeks = computed(() => {
+  const [year, month] = viewMonth.value.split('-').map(Number);
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const weeks = [];
+  
+  let currentStart = new Date(firstDay);
+  let weekNum = 1;
+  
+  while (currentStart <= lastDay) {
+    const weekEnd = new Date(currentStart);
+    weekEnd.setDate(currentStart.getDate() + (6 - currentStart.getDay()));
+    
+    const actualEnd = weekEnd > lastDay ? lastDay : weekEnd;
+    weeks.push({
+      id: weekNum,
+      label: `Tuần ${weekNum} (${currentStart.getDate()}/${month} - ${actualEnd.getDate()}/${month})`,
+      start: currentStart.getDate(),
+      end: actualEnd.getDate()
+    });
+    
+    currentStart = new Date(actualEnd);
+    currentStart.setDate(actualEnd.getDate() + 1);
+    weekNum++;
+  }
+  return weeks;
+});
+
+const findCurrentWeekId = (monthYearStr) => {
+  const now = new Date();
+  const nowMonthStr = now.toISOString().substr(0, 7);
+  
+  if (monthYearStr !== nowMonthStr) return null; // Nếu không phải tháng hiện tại thì mặc định xem cả tháng
+  
+  const today = now.getDate();
+  const week = monthWeeks.value.find(w => today >= w.start && today <= w.end);
+  return week ? week.id : null;
+};
+
+const displayedDays = computed(() => {
+  if (!viewWeek.value) return Array.from({ length: daysInMonth.value }, (_, i) => i + 1);
+  const week = monthWeeks.value.find(w => w.id === viewWeek.value);
+  if (!week) return Array.from({ length: daysInMonth.value }, (_, i) => i + 1);
+  
+  const days = [];
+  for (let d = week.start; d <= week.end; d++) days.push(d);
+  return days;
+});
+
+const getDayOfWeek = (day) => {
+  const [year, month] = viewMonth.value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  return days[date.getDay()];
+};
+
+const isSunday = (day) => {
+  const [year, month] = viewMonth.value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getDay() === 0;
+};
+
+const handleMonthChange = () => {
+  viewWeek.value = findCurrentWeekId(viewMonth.value);
+  if (viewMode.value === 'matrix') {
+    const [year, month] = viewMonth.value.split('-').map(Number);
+    filter.from = `${viewMonth.value}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    filter.to = `${viewMonth.value}-${lastDay}`;
+    fetchData();
+  }
+};
+
+const getDayHighlightClass = (day, type) => {
+  const dayStr = day < 10 ? `0${day}` : `${day}`;
+  const targetDate = `${viewMonth.value}-${dayStr}`;
+  
+  const now = new Date();
+  const todayStr = now.toISOString().substr(0, 10);
+  
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().substr(0, 10);
+  
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().substr(0, 10);
+
+  if (targetDate === todayStr) {
+    return type === 'cell' ? 'bg-amber-50/80 hover:bg-amber-100/90' : 'bg-amber-100/30 text-amber-700';
+  } else if (targetDate === yesterdayStr) {
+    return type === 'cell' ? 'bg-slate-50/80 hover:bg-slate-100/90' : 'bg-slate-100/30';
+  } else if (targetDate === tomorrowStr) {
+    return type === 'cell' ? 'bg-blue-50/60 hover:bg-blue-100/80' : 'bg-blue-100/20 text-blue-700';
+  }
+  
+  return type === 'cell' ? 'hover:bg-primary-50/50' : '';
+};
+
+watch(viewMode, (newVal) => {
+  if (newVal === 'matrix') {
+    handleMonthChange();
+  }
+});
+
+const getTeamTotalQuantity = (teamId) => {
+  const days = displayedDays.value;
+  let total = 0;
+  days.forEach(day => {
+    total += getMatrixCellQuantity(teamId, day);
+  });
+  return total;
+};
+
+const getMatrixCell = (teamId, day) => {
+  const dayStr = day < 10 ? `0${day}` : `${day}`;
+  const targetDate = `${viewMonth.value}-${dayStr}`;
+  return records.value.filter(r => r.team?.id === teamId && r.productionDate === targetDate);
+};
+
+const getMatrixCellQuantity = (teamId, day) => {
+  return getMatrixCell(teamId, day).reduce((sum, r) => sum + (r.quantity || 0), 0);
+};
+
+const getMatrixCellProducts = (teamId, day) => {
+  const items = getMatrixCell(teamId, day);
+  const codes = [...new Set(items.map(i => i.product?.code))];
+  return codes;
+};
+
+const setHoveredCell = (teamId, day, event) => {
+  const dayStr = day < 10 ? `0${day}` : `${day}`;
+  const targetDate = `${viewMonth.value}-${dayStr}`;
+  const cellRecords = getMatrixCell(teamId, day);
+  const team = teams.value.find(t => t.id === teamId);
+  
+  if (cellRecords.length === 0) return;
+
+  // Lấy nhân viên tham gia (bao gồm nhân sự mượn)
+  const teamEmployees = attendances.value
+    .filter(a => a.actualTeam?.id === teamId && a.attendanceDate === targetDate)
+    .map(a => ({
+      id: a.employee?.id,
+      name: a.employee?.fullName,
+      isBorrowed: a.originalTeam?.id !== a.actualTeam?.id,
+      fromTeam: a.originalTeam?.name
+    }));
+
+  hoverTooltip.teamName = team?.name || '';
+  hoverTooltip.date = targetDate;
+  hoverTooltip.totalQuantity = getMatrixCellQuantity(teamId, day);
+  hoverTooltip.records = cellRecords;
+  hoverTooltip.employees = teamEmployees;
+  
+  // Tính toán vị trí x, y (hiển thị sang phải hoặc trái tuỳ thuộc vào vị trí chuột)
+  const tooltipWidth = 288; // w-72 matches Tooltip width
+  const windowWidth = window.innerWidth;
+  
+  hoverTooltip.x = event.clientX + 20;
+  if (hoverTooltip.x + tooltipWidth > windowWidth) {
+    hoverTooltip.x = event.clientX - tooltipWidth - 20;
+  }
+  
+  hoverTooltip.y = event.clientY - 50;
+  hoverTooltip.show = true;
+};
+
+const clearHoveredCell = () => {
+  hoverTooltip.show = false;
+};
+
+const showCellDetails = (teamId, day) => {
+  const dayStr = day < 10 ? `0${day}` : `${day}`;
+  const targetDate = `${viewMonth.value}-${dayStr}`;
+  const items = getMatrixCell(teamId, day);
+  const team = teams.value.find(t => t.id === teamId);
+  
+  detailContext.date = targetDate;
+  detailContext.teamId = teamId;
+  detailContext.teamName = team?.name || '';
+  detailContext.items = items;
+  showDetailModal.value = true;
+};
+
+const editFromDetail = (rec) => {
+  showDetailModal.value = false;
+  openModal(rec);
+};
+
+const deleteFromDetail = async (id) => {
+  if (!confirm('Bạn có chắc chắn muốn xóa bản ghi này?')) return;
+  try {
+    await $api.delete(`/production-records/${id}`);
+    showDetailModal.value = false;
+    fetchData();
+  } catch (err) {
+    alert('Lỗi: ' + (err.response?.data?.message || err.message));
+  }
+};
+
+const addFromDetail = () => {
+  showDetailModal.value = false;
+  openModal();
+  form.productionDate = detailContext.date;
+  form.teamId = detailContext.teamId;
+};
+
 const fetchData = async () => {
   loading.value = true;
+  currentPage.value = 1; // Reset to page 1 on filter change
   try {
-    const [recRes, teamRes, prdRes, qualRes] = await Promise.all([
+    const [year, month] = viewMonth.value.split('-').map(Number);
+    const [recRes, teamRes, prdRes, qualRes, attRes, deptRes] = await Promise.all([
       $api.get('/production-records', { params: filter }),
-      $api.get('/teams'),
+      $api.get('/teams', { params: { departmentId: filter.departmentId } }),
       $api.get('/products'),
-      $api.get('/product-qualities')
+      $api.get('/product-qualities'),
+      $api.get('/attendances', { params: { month, year } }),
+      $api.get('/departments')
     ]);
     records.value = recRes.data;
     teams.value = teamRes.data;
     products.value = prdRes.data;
     qualities.value = qualRes.data;
+    attendances.value = attRes.data;
+    departments.value = deptRes.data;
   } catch (err) {
     console.error(err);
   } finally {

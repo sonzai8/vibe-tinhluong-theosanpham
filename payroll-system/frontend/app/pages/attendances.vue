@@ -112,7 +112,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
-                <tr v-for="att in filteredAttendances" :key="att.id" class="hover:bg-slate-50/50 transition-all group">
+                <tr v-for="att in paginatedAttendances" :key="att.id" class="hover:bg-slate-50/50 transition-all group">
                   <td class="px-8 py-5">
                     <div class="flex items-center gap-4">
                       <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-black text-slate-400 group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm">
@@ -149,6 +149,48 @@
                 </tr>
               </tbody>
             </table>
+
+            <!-- Pagination -->
+            <div v-if="filteredAttendances.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <div class="flex items-center gap-4">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hiển thị</span>
+                <select v-model="itemsPerPage" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 outline-none">
+                  <option :value="10">10 dòng</option>
+                  <option :value="20">20 dòng</option>
+                  <option :value="50">50 dòng</option>
+                </select>
+                <span class="text-xs font-bold text-slate-500">
+                  {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredAttendances.length) }} của {{ filteredAttendances.length }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button 
+                  @click="currentPage--" 
+                  :disabled="currentPage === 1"
+                  class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+                >
+                  <ChevronLeft class="w-4 h-4" />
+                </button>
+                <div class="flex items-center gap-1 overflow-x-auto max-w-[150px] md:max-w-none">
+                  <button 
+                    v-for="p in totalPages" 
+                    :key="p"
+                    @click="currentPage = p"
+                    :class="['w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black transition-all shrink-0', 
+                             currentPage === p ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm']"
+                  >
+                    {{ p }}
+                  </button>
+                </div>
+                <button 
+                  @click="currentPage++" 
+                  :disabled="currentPage === totalPages"
+                  class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+                >
+                  <ChevronRight class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -429,7 +471,7 @@
 <script setup>
 import { 
   CalendarPlus, Search, CalendarX, CheckCircle2, PencilLine, Trash2, X, Info,
-  Download, Upload, FileSpreadsheet, UserX, Users, Plus, Trash
+  Download, Upload, FileSpreadsheet, UserX, Users, Plus, Trash, ChevronLeft, ChevronRight
 } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
@@ -472,6 +514,21 @@ const filterDate = ref(new Date().toISOString().substr(0, 10));
 const filterDept = ref('');
 const filterTeam = ref('');
 const search = ref('');
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const totalPages = computed(() => Math.ceil(filteredAttendances.value.length / itemsPerPage.value) || 1);
+
+const paginatedAttendances = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return filteredAttendances.value.slice(start, end);
+});
+
+watch([filterDate, filterDept, filterTeam, search, itemsPerPage], () => {
+  currentPage.value = 1;
+});
 
 const form = reactive({
   employeeId: null,

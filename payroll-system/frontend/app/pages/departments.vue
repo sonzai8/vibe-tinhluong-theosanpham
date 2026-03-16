@@ -32,19 +32,44 @@
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
             <th class="px-6 py-4 w-20">ID</th>
             <th class="px-6 py-4">Tên phòng ban</th>
+            <th class="px-6 py-4 text-center">Số tổ đội</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <tr v-for="dept in departments" :key="dept.id" class="hover:bg-slate-50/50 transition-colors group">
+          <tr v-for="dept in paginatedDepartments" :key="dept.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4 text-sm font-black text-slate-400">#{{ dept.id }}</td>
-            <td class="px-6 py-4 font-bold text-slate-900">{{ dept.name }}</td>
+            <td class="px-6 py-4">
+              <NuxtLink :to="`/teams?departmentId=${dept.id}`" class="font-bold text-slate-900 hover:text-primary-600 flex items-center gap-2 group/link">
+                {{ dept.name }}
+                <ChevronRight class="w-3 h-3 opacity-0 group-hover/link:opacity-100 -translate-x-2 group-hover/link:translate-x-0 transition-all" />
+              </NuxtLink>
+            </td>
+            <td class="px-6 py-4 text-center">
+              <div 
+                v-if="dept.teamCount > 0"
+                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-black text-[10px] cursor-help relative group/tooltip"
+                :title="dept.teamNames?.join(', ')"
+              >
+                {{ dept.teamCount }} tổ
+                <!-- Custom Tooltip -->
+                <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-slate-900 text-white p-3 rounded-xl text-[10px] leading-relaxed shadow-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 text-left">
+                  <p class="font-black border-b border-white/10 pb-1.5 mb-1.5 uppercase tracking-widest text-white/50">Danh sách tổ đội:</p>
+                  <p v-for="name in dept.teamNames" :key="name" class="flex items-center gap-1.5 py-0.5 font-bold">
+                    <span class="w-1 h-1 rounded-full bg-primary-400"></span>
+                    {{ name }}
+                  </p>
+                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-8 border-transparent border-b-slate-900"></div>
+                </div>
+              </div>
+              <span v-else class="text-sm text-slate-300 italic">Chưa có tổ</span>
+            </td>
             <td class="px-6 py-4 text-right">
-              <div class="flex items-center justify-end gap-2">
-                <button @click="openModal(dept)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="Sửa">
+              <div class="flex items-center justify-end gap-2 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button @click="openModal(dept)" class="p-2 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="Sửa">
                   <PencilLine class="w-4 h-4" />
                 </button>
-                <button @click="handleDelete(dept.id)" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Xóa">
+                <button @click="handleDelete(dept.id)" class="p-2 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Xóa">
                   <Trash2 class="w-4 h-4" />
                 </button>
               </div>
@@ -52,6 +77,49 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="departments.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hiển thị</span>
+          <select v-model="itemsPerPage" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 outline-none">
+            <option :value="10">10 dòng</option>
+            <option :value="20">20 dòng</option>
+            <option :value="50">50 dòng</option>
+          </select>
+          <span class="text-xs font-bold text-slate-500">
+            {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, departments.length) }} của {{ departments.length }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage === 1"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronLeft class="w-4 h-4" />
+          </button>
+          <div class="flex items-center gap-1">
+            <button 
+              v-for="p in totalPages" 
+              :key="p"
+              @click="currentPage = p"
+              :class="['w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black transition-all', 
+                       currentPage === p ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm']"
+            >
+              {{ p }}
+            </button>
+          </div>
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage === totalPages"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronRight class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Modal -->
@@ -78,7 +146,7 @@
 </template>
 
 <script setup>
-import { Plus, Briefcase, PencilLine, Trash2, X } from 'lucide-vue-next';
+import { Plus, Briefcase, PencilLine, Trash2, X, ChevronRight, ChevronLeft } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const departments = ref([]);
@@ -89,6 +157,21 @@ const showModal = ref(false);
 const currentDept = ref({});
 const form = reactive({
   name: ''
+});
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const totalPages = computed(() => Math.ceil(departments.value.length / itemsPerPage.value) || 1);
+
+const paginatedDepartments = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return departments.value.slice(start, end);
+});
+
+watch(itemsPerPage, () => {
+  currentPage.value = 1;
 });
 
 const fetchDepartments = async () => {

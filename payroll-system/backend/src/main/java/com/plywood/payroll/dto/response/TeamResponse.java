@@ -10,6 +10,7 @@ public class TeamResponse {
     private DepartmentResponse department;
     private ProductionStepResponse productionStep;
     private Integer memberCount;
+    private java.util.List<String> memberNames;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

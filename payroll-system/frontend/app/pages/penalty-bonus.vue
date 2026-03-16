@@ -29,7 +29,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <tr v-for="item in items" :key="item.id" class="hover:bg-slate-50/50 transition-all group">
+          <tr v-for="item in paginatedItems" :key="item.id" class="hover:bg-slate-50/50 transition-all group">
             <td class="px-8 py-5 text-sm font-bold text-slate-500">{{ item.recordDate }}</td>
             <td class="px-8 py-5 font-black text-slate-900">{{ item.employee?.fullName }}</td>
             <td class="px-8 py-5">
@@ -50,6 +50,49 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="items.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hiển thị</span>
+          <select v-model="itemsPerPage" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 outline-none">
+            <option :value="10">10 dòng</option>
+            <option :value="20">20 dòng</option>
+            <option :value="50">50 dòng</option>
+          </select>
+          <span class="text-xs font-bold text-slate-500">
+            {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, items.length) }} của {{ items.length }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage === 1"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronLeft class="w-4 h-4" />
+          </button>
+          <div class="flex items-center gap-1">
+            <button 
+              v-for="p in totalPages" 
+              :key="p"
+              @click="currentPage = p"
+              :class="['w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black transition-all', 
+                       currentPage === p ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm']"
+            >
+              {{ p }}
+            </button>
+          </div>
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage === totalPages"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronRight class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Modal -->
@@ -104,7 +147,7 @@
 </template>
 
 <script setup>
-import { PlusCircle, PencilLine, Trash2, X } from 'lucide-vue-next';
+import { PlusCircle, PencilLine, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const items = ref([]);
@@ -118,6 +161,21 @@ const employeeOptions = computed(() => employees.value.map(e => ({
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const totalPages = computed(() => Math.ceil(items.value.length / itemsPerPage.value) || 1);
+
+const paginatedItems = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return items.value.slice(start, end);
+});
+
+watch(itemsPerPage, () => {
+  currentPage.value = 1;
+});
 
 const form = reactive({
   employeeId: null,

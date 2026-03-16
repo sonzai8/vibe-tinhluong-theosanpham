@@ -153,7 +153,19 @@ public class TeamService {
         response.setName(entity.getName());
         response.setDepartment(departmentService.mapToResponse(entity.getDepartment()));
         response.setProductionStep(productionStepService.mapToResponse(entity.getProductionStep()));
-        response.setMemberCount(entity.getMembers() != null ? entity.getMembers().size() : 0);
+        
+        // Thống kê thành viên dựa trên quan hệ trực tiếp ở Employee
+        if (employeeRepository != null) {
+            java.util.List<com.plywood.payroll.entity.Employee> teamEmps = employeeRepository.findAllByTeamId(entity.getId());
+            response.setMemberCount(teamEmps.size());
+            response.setMemberNames(teamEmps.stream()
+                .map(com.plywood.payroll.entity.Employee::getFullName)
+                .collect(java.util.stream.Collectors.toList()));
+        } else {
+            response.setMemberCount(0);
+            response.setMemberNames(new java.util.ArrayList<>());
+        }
+        
         response.setCreatedAt(entity.getCreatedAt());
         response.setUpdatedAt(entity.getUpdatedAt());
         return response;

@@ -24,9 +24,13 @@
         />
       </div>
       <div class="flex gap-3 w-full md:w-auto">
-        <select v-model="filterDept" class="bg-slate-50 border-none rounded-lg px-4 py-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500">
+        <select v-model="filterDept" class="bg-slate-50 border-none rounded-lg px-4 py-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 flex-1 md:flex-none">
           <option value="">Tất cả phòng ban</option>
           <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
+        </select>
+        <select v-model="filterTeamId" class="bg-slate-50 border-none rounded-lg px-4 py-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 flex-1 md:flex-none">
+          <option value="">Tất cả tổ đội</option>
+          <option v-for="t in teams" :key="t.id" :value="t.id">{{ t.name }}</option>
         </select>
         <select v-model="filterStatus" class="bg-slate-50 border-none rounded-lg px-4 py-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500">
           <option value="">Tất cả trạng thái</option>
@@ -55,7 +59,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <tr v-for="emp in filteredEmployees" :key="emp.id" class="hover:bg-slate-50/50 transition-colors group">
+          <tr v-for="emp in paginatedEmployees" :key="emp.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xs">
@@ -87,7 +91,7 @@
                 </span>
               </div>
             </td>
-            <td class="px-6 py-4 text-right">
+            <td class="px-6 py-4 text-right pr-6">
               <div class="flex items-center justify-end gap-2 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button @click="openModal(emp)" class="p-2 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="Sửa">
                   <PencilLine class="w-4 h-4" />
@@ -100,6 +104,48 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="filteredEmployees.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hiển thị</span>
+          <select v-model="itemsPerPage" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 outline-none">
+            <option :value="10">10 dòng</option>
+            <option :value="20">20 dòng</option>
+            <option :value="50">50 dòng</option>
+          </select>
+          <span class="text-xs font-bold text-slate-500">
+            {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredEmployees.length) }} của {{ filteredEmployees.length }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage === 1"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronLeft class="w-4 h-4" />
+          </button>
+          <div class="flex items-center gap-1 overflow-x-auto max-w-[200px] md:max-w-none">
+            <button 
+              v-for="p in totalPages" 
+              :key="p"
+              @click="currentPage = p"
+              :class="['w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black transition-all shrink-0', 
+                       currentPage === p ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm']"
+            >
+              {{ p }}
+            </button>
+          </div>
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage === totalPages"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronRight class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Employee Modal (Simplified) -->
@@ -159,8 +205,9 @@
 </template>
 
 <script setup>
-import { Plus, UserPlus, PencilLine, Trash2, X, Search, Briefcase } from 'lucide-vue-next';
+import { Plus, UserPlus, PencilLine, Trash2, X, Search, Briefcase, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
+const route = useRoute();
 const { $api } = useNuxtApp();
 const employees = ref([]);
 const departments = ref([]);
@@ -178,6 +225,22 @@ const showModal = ref(false);
 const searchQuery = ref('');
 const filterDept = ref('');
 const filterStatus = ref('');
+const filterTeamId = ref(route.query.teamId ? parseInt(route.query.teamId) : '');
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const totalPages = computed(() => Math.ceil(filteredEmployees.value.length / itemsPerPage.value) || 1);
+
+const paginatedEmployees = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return filteredEmployees.value.slice(start, end);
+});
+
+watch([searchQuery, filterDept, filterStatus, filterTeamId, itemsPerPage], () => {
+  currentPage.value = 1;
+});
 
 const currentEmp = ref({});
 const form = reactive({
@@ -225,9 +288,10 @@ const filteredEmployees = computed(() => {
   return employees.value.filter(e => {
     const matchSearch = e.fullName.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
                       e.code.toLowerCase().includes(searchQuery.value.toLowerCase());
-    const matchDept = !filterDept.value || e.department?.id === filterDept.value;
+    const matchDept = !filterDept.value || e.department?.id === parseInt(filterDept.value);
     const matchStatus = !filterStatus.value || e.status === filterStatus.value;
-    return matchSearch && matchDept && matchStatus;
+    const matchTeam = !filterTeamId.value || e.team?.id === parseInt(filterTeamId.value);
+    return matchSearch && matchDept && matchStatus && matchTeam;
   });
 });
 

@@ -36,7 +36,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <tr v-for="q in qualities" :key="q.id" class="hover:bg-slate-50/50 transition-colors group">
+          <tr v-for="q in paginatedQualities" :key="q.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4 font-black text-slate-900">{{ q.code }}</td>
             <td class="px-6 py-4 text-sm text-slate-500">{{ q.description || '---' }}</td>
             <td class="px-6 py-4">
@@ -59,6 +59,49 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="qualities.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hiển thị</span>
+          <select v-model="itemsPerPage" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 outline-none">
+            <option :value="10">10 dòng</option>
+            <option :value="20">20 dòng</option>
+            <option :value="50">50 dòng</option>
+          </select>
+          <span class="text-xs font-bold text-slate-500">
+            {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, qualities.length) }} của {{ qualities.length }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage === 1"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronLeft class="w-4 h-4" />
+          </button>
+          <div class="flex items-center gap-1">
+            <button 
+              v-for="p in totalPages" 
+              :key="p"
+              @click="currentPage = p"
+              :class="['w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black transition-all', 
+                       currentPage === p ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm']"
+            >
+              {{ p }}
+            </button>
+          </div>
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage === totalPages"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronRight class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Modal -->
@@ -121,7 +164,7 @@
 </template>
 
 <script setup>
-import { Plus, PencilLine, Trash2, X, PlusCircle, ShieldAlert } from 'lucide-vue-next';
+import { Plus, PencilLine, Trash2, X, PlusCircle, ShieldAlert, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const qualities = ref([]);
@@ -143,6 +186,21 @@ const form = reactive({
   code: '',
   description: '',
   layers: []
+});
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const totalPages = computed(() => Math.ceil(qualities.value.length / itemsPerPage.value) || 1);
+
+const paginatedQualities = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return qualities.value.slice(start, end);
+});
+
+watch(itemsPerPage, () => {
+  currentPage.value = 1;
 });
 
 const fetchData = async () => {

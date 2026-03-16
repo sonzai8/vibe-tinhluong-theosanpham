@@ -29,7 +29,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <tr v-for="step in steps" :key="step.id" class="hover:bg-slate-50/50 transition-colors group">
+          <tr v-for="step in paginatedSteps" :key="step.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4 text-sm font-black text-slate-400">#{{ step.id }}</td>
             <td class="px-6 py-4 font-bold text-primary-700">{{ step.name }}</td>
             <td class="px-6 py-4 text-sm text-slate-500 font-medium">{{ step.description || '---' }}</td>
@@ -46,6 +46,49 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="steps.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hiển thị</span>
+          <select v-model="itemsPerPage" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 outline-none">
+            <option :value="10">10 dòng</option>
+            <option :value="20">20 dòng</option>
+            <option :value="50">50 dòng</option>
+          </select>
+          <span class="text-xs font-bold text-slate-500">
+            {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, steps.length) }} của {{ steps.length }}
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage === 1"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronLeft class="w-4 h-4" />
+          </button>
+          <div class="flex items-center gap-1">
+            <button 
+              v-for="p in totalPages" 
+              :key="p"
+              @click="currentPage = p"
+              :class="['w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black transition-all', 
+                       currentPage === p ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm']"
+            >
+              {{ p }}
+            </button>
+          </div>
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage === totalPages"
+            class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <ChevronRight class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Modal -->
@@ -73,7 +116,7 @@
 </template>
 
 <script setup>
-import { Plus, Layers, PencilLine, Trash2, X } from 'lucide-vue-next';
+import { Plus, Layers, PencilLine, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const steps = ref([]);
@@ -85,6 +128,21 @@ const currentStep = ref({});
 const form = reactive({
   name: '',
   description: ''
+});
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const totalPages = computed(() => Math.ceil(steps.value.length / itemsPerPage.value) || 1);
+
+const paginatedSteps = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return steps.value.slice(start, end);
+});
+
+watch(itemsPerPage, () => {
+  currentPage.value = 1;
 });
 
 const fetchSteps = async () => {

@@ -22,15 +22,15 @@
       <table v-else class="w-full text-left border-collapse">
         <thead>
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-            <th class="px-6 py-4">Mã công đoạn</th>
+            <th class="px-6 py-4 w-20">ID</th>
             <th class="px-6 py-4">Tên công đoạn</th>
-            <th class="px-6 py-4">Mô tả</th>
+            <th class="px-6 py-4">Mô tả kỹ thuật</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="step in steps" :key="step.id" class="hover:bg-slate-50/50 transition-colors group">
-            <td class="px-6 py-4 font-black text-slate-900">{{ step.code }}</td>
+            <td class="px-6 py-4 text-sm font-black text-slate-400">#{{ step.id }}</td>
             <td class="px-6 py-4 font-bold text-primary-700">{{ step.name }}</td>
             <td class="px-6 py-4 text-sm text-slate-500 font-medium">{{ step.description || '---' }}</td>
             <td class="px-6 py-4 text-right">
@@ -59,7 +59,6 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <UiInput v-model="form.code" label="Mã công đoạn" placeholder="VD: CD-EP-NHIET" required />
           <UiInput v-model="form.name" label="Tên công đoạn" placeholder="VD: Ép Nhiệt" required />
           <UiInput v-model="form.description" label="Mô tả" placeholder="Mô tả về kỹ thuật công đoạn..." />
           
@@ -84,7 +83,6 @@ const showModal = ref(false);
 
 const currentStep = ref({});
 const form = reactive({
-  code: '',
   name: '',
   description: ''
 });
@@ -96,6 +94,7 @@ const fetchSteps = async () => {
     steps.value = res.data;
   } catch (err) {
     console.error(err);
+    alert(err.response?.data?.message || err.message || 'Không thể tải dữ liệu công đoạn. Vui lòng thử lại sau.');
   } finally {
     loading.value = false;
   }
@@ -104,12 +103,10 @@ const fetchSteps = async () => {
 const openModal = (step = null) => {
   if (step) {
     currentStep.value = { ...step };
-    form.code = step.code;
     form.name = step.name;
     form.description = step.description;
   } else {
     currentStep.value = {};
-    form.code = '';
     form.name = '';
     form.description = '';
   }
@@ -127,7 +124,7 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchSteps();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   } finally {
     saving.value = false;
   }
@@ -139,7 +136,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/production-steps/${id}`);
     fetchSteps();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   }
 };
 

@@ -61,12 +61,13 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-sm font-black text-slate-700">Nhân viên</label>
-            <select v-model="form.employeeId" class="input-field" required>
-              <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.fullName }} ({{ e.code }})</option>
-            </select>
-          </div>
+          <UiSelect 
+            v-model="form.employeeId" 
+            label="Nhân viên" 
+            :options="employeeOptions" 
+            placeholder="Chọn nhân viên"
+            required
+          />
           
           <div class="flex flex-col gap-1.5">
             <label class="text-sm font-black text-slate-700">Loại hình</label>
@@ -108,6 +109,12 @@ import { PlusCircle, PencilLine, Trash2, X } from 'lucide-vue-next';
 const { $api } = useNuxtApp();
 const items = ref([]);
 const employees = ref([]);
+
+const employeeOptions = computed(() => employees.value.map(e => ({
+  value: e.id,
+  label: `${e.fullName} (${e.code})`
+})));
+
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
@@ -126,7 +133,7 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const [res, empRes] = await Promise.all([
-      $api.get('/penalty-bonus'),
+      $api.get('/penalty-bonuses'),
       $api.get('/employees')
     ]);
     items.value = res.data;
@@ -161,9 +168,9 @@ const handleSubmit = async () => {
   saving.value = true;
   try {
     if (currentId.value) {
-      await $api.put(`/penalty-bonus/${currentId.value}`, form);
+      await $api.put(`/penalty-bonuses/${currentId.value}`, form);
     } else {
-      await $api.post('/penalty-bonus', form);
+      await $api.post('/penalty-bonuses', form);
     }
     showModal.value = false;
     fetchData();
@@ -177,7 +184,7 @@ const handleSubmit = async () => {
 const handleDelete = async (id) => {
   if (!confirm('Xóa bản ghi này?')) return;
   try {
-    await $api.delete(`/penalty-bonus/${id}`);
+    await $api.delete(`/penalty-bonuses/${id}`);
     fetchData();
   } catch (err) {
     alert(err.message);

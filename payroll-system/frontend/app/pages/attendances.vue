@@ -4,12 +4,12 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <h2 class="text-3xl font-black text-slate-900 tracking-tight">Nhật ký Chấm công</h2>
-        <p class="text-slate-500 font-medium">Ghi lại giờ công hàng ngày của toàn xưởng</p>
+        <p class="text-slate-500 font-medium">Ghi lại danh sách nhân viên đi làm hàng ngày</p>
       </div>
       <div class="flex gap-3">
         <UiButton @click="openModal()" class="shadow-lg shadow-emerald-100">
           <CalendarPlus class="w-4 h-4" />
-          Chấm công hôm nay
+          Chấm công mới
         </UiButton>
       </div>
     </div>
@@ -35,7 +35,7 @@
               </div>
             </div>
 
-            <UiButton @click="fetchAttendances" class="w-full h-11 bg-slate-900 hover:bg-slate-800">
+            <UiButton @click="fetchAttendances" class="w-full h-11 bg-slate-900 hover:bg-slate-800 transition-all font-black uppercase tracking-widest text-xs">
               Lọc dữ liệu
             </UiButton>
           </div>
@@ -48,7 +48,7 @@
               <CheckCircle2 class="w-5 h-5" />
             </div>
             <div>
-              <p class="text-[10px] font-black text-primary-600 uppercase">Tổng quân số</p>
+              <p class="text-[10px] font-black text-primary-600 uppercase">Quân số đi làm</p>
               <p class="text-lg font-black text-slate-900">{{ statistics.present }} / {{ statistics.total }}</p>
             </div>
           </div>
@@ -59,15 +59,15 @@
       <div class="lg:col-span-3 card">
         <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4">
           <div class="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-          <p class="text-slate-500 font-bold">Đang lấy dữ liệu chấm công...</p>
+          <p class="text-slate-500 font-bold animate-pulse">Đang lấy dữ liệu chấm công...</p>
         </div>
 
         <div v-else-if="attendances.length === 0" class="p-20 text-center space-y-4">
           <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-300">
             <CalendarX class="w-10 h-10" />
           </div>
-          <p class="text-slate-500 font-bold">Không tìm thấy dữ liệu trong ngày này.</p>
-          <UiButton @click="openModal()" variant="outline">Tạo bản ghi mới</UiButton>
+          <p class="text-slate-500 font-bold">Không tìm thấy dữ liệu trong ngày {{ filterDate }}.</p>
+          <UiButton @click="openModal()" variant="outline">Chấm công ngay</UiButton>
         </div>
 
         <div v-else class="overflow-x-auto">
@@ -75,9 +75,9 @@
             <thead>
               <tr class="bg-slate-50/50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
                 <th class="px-8 py-5">Nhân viên</th>
-                <th class="px-8 py-5">Giờ công</th>
-                <th class="px-8 py-5">Tổ sản xuất</th>
-                <th class="px-8 py-5">Ghi chú</th>
+                <th class="px-8 py-5">Tổ biên chế</th>
+                <th class="px-8 py-5">Tổ thực tế</th>
+                <th class="px-8 py-5">Trạng thái</th>
                 <th class="px-8 py-5 text-right">Thao tác</th>
               </tr>
             </thead>
@@ -90,15 +90,26 @@
                     </div>
                     <div>
                       <p class="font-black text-slate-900">{{ att.employee?.fullName }}</p>
-                      <p class="text-[10px] font-bold text-slate-400 uppercase">{{ att.employee?.code }}</p>
+                      <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{{ att.employee?.code }}</p>
                     </div>
                   </div>
                 </td>
-                <td class="px-8 py-5 font-black text-primary-700">{{ att.workHours }} <span class="text-[10px] text-slate-400 ml-1">giờ</span></td>
                 <td class="px-8 py-5">
-                  <span class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase">{{ att.team?.name || 'Văn phòng' }}</span>
+                  <span v-if="att.originalTeam" class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase">{{ att.originalTeam?.name }}</span>
+                  <span v-else class="text-slate-300 text-xs italic">Chưa gán tổ</span>
                 </td>
-                <td class="px-8 py-5 text-sm text-slate-400 italic">{{ att.note || '---' }}</td>
+                <td class="px-8 py-5">
+                  <span v-if="att.actualTeam" :class="`px-3 py-1 rounded-full text-[10px] font-black uppercase ${att.actualTeam?.id !== att.originalTeam?.id ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`">
+                    {{ att.actualTeam?.name }}
+                    <span v-if="att.actualTeam?.id !== att.originalTeam?.id" class="ml-1 text-[8px] opacity-70">(Mượn)</span>
+                  </span>
+                </td>
+                <td class="px-8 py-5">
+                   <span class="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase">
+                     <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                     Đã chấm công
+                   </span>
+                </td>
                 <td class="px-8 py-5 text-right">
                   <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button @click="openModal(att)" class="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"><PencilLine class="w-4 h-4" /></button>
@@ -112,38 +123,50 @@
       </div>
     </div>
 
-    <!-- Attendance Modal (Simplified) -->
+    <!-- Attendance Modal -->
     <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
       <div class="card w-full max-w-xl p-10 animate-in zoom-in slide-in-from-bottom duration-300">
         <div class="flex items-center justify-between mb-10">
-          <h3 class="text-2xl font-black text-slate-900 tracking-tight">Báo cáo chấm công</h3>
+          <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ currentId ? 'Sửa' : 'Báo cáo' }} chấm công</h3>
           <button @click="showModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-8">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-black text-slate-700 ml-1">Chọn nhân viên</label>
-              <select v-model="form.employeeId" class="input-field h-12" required>
-                <option :value="null" disabled>--- Chọn nhân viên ---</option>
-                <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.fullName }} ({{ e.code }})</option>
-              </select>
-            </div>
+            <UiSelect 
+            v-model="form.employeeId" 
+            label="Nhân viên" 
+            :options="employeeOptions" 
+            placeholder="Chọn nhân viên"
+            required
+          />
             
-            <UiInput v-model="form.date" label="Ngày chấm công" type="date" required />
-            
-            <UiInput v-model="form.workHours" label="Số giờ làm việc" type="number" step="0.5" placeholder="VD: 8.5" required />
-            
-            <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-black text-slate-700 ml-1">Tổ làm việc hôm nay</label>
-              <select v-model="form.teamId" class="input-field h-12">
-                <option :value="null">Mặc định / Văn phòng</option>
-                <option v-for="t in teams" :key="t.id" :value="t.id">{{ t.name }}</option>
-              </select>
-            </div>
+            <UiInput v-model="form.attendanceDate" label="Ngày chấm công" type="date" required />
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <UiSelect 
+              v-model="form.originalTeamId" 
+              label="Tổ biên chế" 
+              :options="teamOptions" 
+              placeholder="Chọn tổ"
+              required
+            />
+            <UiSelect 
+              v-model="form.actualTeamId" 
+              label="Tổ thực tế làm việc" 
+              :options="teamOptions" 
+              placeholder="Chọn tổ"
+              required
+            />
+          </div>
           </div>
 
-          <UiInput v-model="form.note" label="Ghi chú thêm" placeholder="Ví dụ: Làm thêm giờ, nghỉ sớm..." />
+          <div class="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+             <Info class="w-5 h-5 text-amber-600 shrink-0" />
+             <p class="text-xs text-amber-700 font-medium leading-relaxed">
+               Ghi chú: Nếu "Tổ làm việc thực tế" khác với "Tổ biên chế", nhân viên sẽ được tính là "Công nhân đi mượn" cho ngày hôm đó.
+             </p>
+          </div>
           
           <div class="flex gap-4 pt-6">
             <button type="button" @click="showModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">Đóng</button>
@@ -156,12 +179,16 @@
 </template>
 
 <script setup>
-import { CalendarPlus, Search, CalendarX, CheckCircle2, PencilLine, Trash2, X } from 'lucide-vue-next';
+import { CalendarPlus, Search, CalendarX, CheckCircle2, PencilLine, Trash2, X, Info } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const attendances = ref([]);
 const employees = ref([]);
 const teams = ref([]);
+
+const employeeOptions = computed(() => employees.value.map(e => ({ value: e.id, label: e.fullName })));
+const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t.name })));
+
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
@@ -171,10 +198,9 @@ const search = ref('');
 
 const form = reactive({
   employeeId: null,
-  teamId: null,
-  date: filterDate.value,
-  workHours: 8,
-  note: ''
+  originalTeamId: null,
+  actualTeamId: null,
+  attendanceDate: filterDate.value,
 });
 
 const currentId = ref(null);
@@ -183,7 +209,7 @@ const fetchData = async () => {
   loading.value = true;
   try {
     const [attRes, empRes, teamRes] = await Promise.all([
-      $api.get('/attendances', { params: { date: filterDate.value } }),
+      $api.get(`/attendances/date/${filterDate.value}`),
       $api.get('/employees'),
       $api.get('/teams')
     ]);
@@ -192,6 +218,8 @@ const fetchData = async () => {
     teams.value = teamRes.data;
   } catch (err) {
     console.error(err);
+    // fallback if date endpoint fails
+    if (err.response?.status === 404) attendances.value = [];
   } finally {
     loading.value = false;
   }
@@ -218,17 +246,15 @@ const openModal = (att = null) => {
   if (att) {
     currentId.value = att.id;
     form.employeeId = att.employee?.id;
-    form.teamId = att.team?.id;
-    form.date = att.date;
-    form.workHours = att.workHours;
-    form.note = att.note;
+    form.originalTeamId = att.originalTeam?.id || null;
+    form.actualTeamId = att.actualTeam?.id || null;
+    form.attendanceDate = att.attendanceDate;
   } else {
     currentId.value = null;
     form.employeeId = null;
-    form.teamId = null;
-    form.date = filterDate.value;
-    form.workHours = 8;
-    form.note = '';
+    form.originalTeamId = null;
+    form.actualTeamId = null;
+    form.attendanceDate = filterDate.value;
   }
   showModal.value = true;
 };
@@ -244,19 +270,19 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.message || 'Lỗi xử lý');
+    alert(err.response?.data?.message || err.message || 'Lỗi xử lý');
   } finally {
     saving.value = false;
   }
 };
 
 const handleDelete = async (id) => {
-  if (!confirm('Xóa bản ghi chấm công này?')) return;
+  if (!confirm('Bạn có chắc chắn muốn xóa bản ghi chấm công này?')) return;
   try {
     await $api.delete(`/attendances/${id}`);
     fetchData();
   } catch (err) {
-    alert(err.message);
+    alert(err.response?.data?.message || err.message || 'Lỗi');
   }
 };
 

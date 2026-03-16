@@ -30,21 +30,15 @@
       <table v-else class="w-full text-left border-collapse">
         <thead>
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-            <th class="px-6 py-4">Mã phòng ban</th>
+            <th class="px-6 py-4 w-20">ID</th>
             <th class="px-6 py-4">Tên phòng ban</th>
-            <th class="px-6 py-4">Mô tả</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="dept in departments" :key="dept.id" class="hover:bg-slate-50/50 transition-colors group">
-            <td class="px-6 py-4">
-              <span class="px-2 py-1 bg-slate-100 rounded text-xs font-black text-slate-600 group-hover:bg-primary-100 group-hover:text-primary-700 transition-colors">
-                {{ dept.code }}
-              </span>
-            </td>
+            <td class="px-6 py-4 text-sm font-black text-slate-400">#{{ dept.id }}</td>
             <td class="px-6 py-4 font-bold text-slate-900">{{ dept.name }}</td>
-            <td class="px-6 py-4 text-sm text-slate-500 font-medium">{{ dept.description || '---' }}</td>
             <td class="px-6 py-4 text-right">
               <div class="flex items-center justify-end gap-2">
                 <button @click="openModal(dept)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="Sửa">
@@ -60,7 +54,7 @@
       </table>
     </div>
 
-    <!-- Modal (Simplified for demo) -->
+    <!-- Modal -->
     <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
       <div class="card w-full max-w-md p-8 animate-in zoom-in duration-200 shadow-2xl">
         <div class="flex items-center justify-between mb-8">
@@ -71,9 +65,7 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <UiInput v-model="form.code" label="Mã phòng ban" placeholder="VD: PKT" required />
           <UiInput v-model="form.name" label="Tên phòng ban" placeholder="VD: Phòng Kỹ Thuật" required />
-          <UiInput v-model="form.description" label="Mô tả" placeholder="Nhập mô tả ngắn gọn..." />
           
           <div class="flex gap-3 pt-2">
             <button type="button" @click="showModal = false" class="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">Hủy</button>
@@ -96,9 +88,7 @@ const showModal = ref(false);
 
 const currentDept = ref({});
 const form = reactive({
-  code: '',
-  name: '',
-  description: ''
+  name: ''
 });
 
 const fetchDepartments = async () => {
@@ -116,14 +106,10 @@ const fetchDepartments = async () => {
 const openModal = (dept = null) => {
   if (dept) {
     currentDept.value = { ...dept };
-    form.code = dept.code;
     form.name = dept.name;
-    form.description = dept.description;
   } else {
     currentDept.value = {};
-    form.code = '';
     form.name = '';
-    form.description = '';
   }
   showModal.value = true;
 };
@@ -139,7 +125,7 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchDepartments();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   } finally {
     saving.value = false;
   }
@@ -151,7 +137,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/departments/${id}`);
     fetchDepartments();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   }
 };
 

@@ -35,18 +35,24 @@
       <table v-else class="w-full text-left border-collapse">
         <thead>
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-            <th class="px-6 py-4">Mã tổ</th>
+            <th class="px-6 py-4">ID</th>
             <th class="px-6 py-4">Tên tổ</th>
-            <th class="px-6 py-4">Trạng thái</th>
+            <th class="px-6 py-4">Công đoạn sản xuất</th>
+            <th class="px-6 py-4 text-center">Thành viên</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="team in teams" :key="team.id" class="hover:bg-slate-50/50 transition-colors group">
-            <td class="px-6 py-4 text-sm font-black text-primary-600">#{{ team.code }}</td>
+            <td class="px-6 py-4 text-sm font-black text-slate-400">#{{ team.id }}</td>
             <td class="px-6 py-4 font-bold text-slate-900">{{ team.name }}</td>
             <td class="px-6 py-4">
-              <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-wider">Hoạt động</span>
+              <span class="px-2.5 py-1 rounded-full bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-wider">
+                {{ team.productionStep?.name || '---' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-center">
+              <span class="font-bold text-slate-600">{{ team.memberCount || 0 }}</span>
             </td>
             <td class="px-6 py-4 text-right">
               <div class="flex items-center justify-end gap-2">
@@ -74,7 +80,13 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <UiInput v-model="form.code" label="Mã tổ" placeholder="VD: TO-SAY" required />
+          <UiSelect
+            v-model="form.productionStepId"
+            label="Công đoạn sản xuất"
+            :options="stepOptions"
+            placeholder="Chọn công đoạn..."
+            required
+          />
           <UiInput v-model="form.name" label="Tên tổ" placeholder="VD: Tổ Sấy Phôi" required />
           
           <div class="flex gap-3 pt-2">
@@ -92,21 +104,33 @@ import { Plus, Users2, PencilLine, Trash2, X } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const teams = ref([]);
+const productionSteps = ref([]);
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
 
 const currentTeam = ref({});
 const form = reactive({
-  code: '',
-  name: ''
+  name: '',
+  productionStepId: ''
 });
 
-const fetchTeams = async () => {
+const stepOptions = computed(() => 
+  productionSteps.value.map(step => ({
+    label: step.name,
+    value: step.id
+  }))
+);
+
+const fetchData = async () => {
   loading.value = true;
   try {
-    const res = await $api.get('/teams');
-    teams.value = res.data;
+    const [teamsRes, stepsRes] = await Promise.all([
+      $api.get('/teams'),
+      $api.get('/production-steps')
+    ]);
+    teams.value = teamsRes.data;
+    productionSteps.value = stepsRes.data;
   } catch (err) {
     console.error(err);
   } finally {
@@ -117,12 +141,12 @@ const fetchTeams = async () => {
 const openModal = (team = null) => {
   if (team) {
     currentTeam.value = { ...team };
-    form.code = team.code;
     form.name = team.name;
+    form.productionStepId = team.productionStep?.id || '';
   } else {
     currentTeam.value = {};
-    form.code = '';
     form.name = '';
+    form.productionStepId = '';
   }
   showModal.value = true;
 };
@@ -130,15 +154,20 @@ const openModal = (team = null) => {
 const handleSubmit = async () => {
   saving.value = true;
   try {
+    const payload = {
+      name: form.name,
+      productionStepId: parseInt(form.productionStepId)
+    };
+    
     if (currentTeam.value.id) {
-      await $api.put(`/teams/${currentTeam.value.id}`, form);
+      await $api.put(`/teams/${currentTeam.value.id}`, payload);
     } else {
-      await $api.post('/teams', form);
+      await $api.post('/teams', payload);
     }
     showModal.value = false;
-    fetchTeams();
+    fetchData();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   } finally {
     saving.value = false;
   }
@@ -148,11 +177,11 @@ const handleDelete = async (id) => {
   if (!confirm('Bạn có chắc chắn muốn xóa tổ này?')) return;
   try {
     await $api.delete(`/teams/${id}`);
-    fetchTeams();
+    fetchData();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   }
 };
 
-onMounted(fetchTeams);
+onMounted(fetchData);
 </script>

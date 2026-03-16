@@ -110,7 +110,8 @@
 <script setup>
 import { 
   LayoutGrid, LayoutDashboard, Users, Briefcase, Users2, Package, Layers, 
-  ClipboardCheck, History, Gavel, Wallet, LogOut, Bell, ChevronRight, Menu, Search, Settings2
+  ClipboardCheck, History, Gavel, Wallet, LogOut, Bell, ChevronRight, Menu, Search, Settings2,
+  ShieldCheck, Tags, ShieldAlert
 } from 'lucide-vue-next';
 
 const { user, logout } = useAuth();
@@ -139,6 +140,8 @@ const menuGroups = [
     title: 'Sản xuất',
     items: [
       { to: '/products', label: 'Danh mục Sản phẩm', icon: Package },
+      { to: '/quality-layers', label: 'Cấu hình Lớp lỗi', icon: Tags },
+      { to: '/product-qualities', label: 'Xếp hạng Chất lượng', icon: ShieldAlert },
       { to: '/production-steps', label: 'Công đoạn vận hành', icon: Layers },
       { to: '/penalty-bonus', label: 'Khen thưởng / Kỷ luật', icon: Gavel },
     ]

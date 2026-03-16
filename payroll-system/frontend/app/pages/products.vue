@@ -22,17 +22,27 @@
       <table v-else class="w-full text-left border-collapse">
         <thead>
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-            <th class="px-6 py-4">Mã SP</th>
-            <th class="px-6 py-4">Tên sản phẩm</th>
-            <th class="px-6 py-4">Quy cách/Mô tả</th>
+            <th class="px-6 py-4">Mã sản phẩm</th>
+            <th class="px-6 py-4">Thông số kỹ thuật (Dày x Dài x Rộng)</th>
+            <th class="px-6 py-4">Đơn vị</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="p in products" :key="p.id" class="hover:bg-slate-50/50 transition-colors group">
-            <td class="px-6 py-4 font-black text-slate-900">{{ p.code }}</td>
-            <td class="px-6 py-4 font-bold text-primary-700">{{ p.name }}</td>
-            <td class="px-6 py-4 text-sm text-slate-500 font-medium">{{ p.description || '---' }}</td>
+            <td class="px-6 py-4">
+              <span class="px-2 py-1 bg-primary-50 text-primary-700 rounded text-xs font-black uppercase">
+                {{ p.code }}
+              </span>
+            </td>
+            <td class="px-6 py-4 font-bold text-slate-900">
+              {{ p.thickness }}mm 
+              <span class="text-slate-400 font-medium mx-1">x</span> 
+              {{ p.length }}m 
+              <span class="text-slate-400 font-medium mx-1">x</span> 
+              {{ p.width }}m
+            </td>
+            <td class="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-tighter">Tấm</td>
             <td class="px-6 py-4 text-right">
               <div class="flex items-center justify-end gap-2">
                 <button @click="openModal(p)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="Sửa">
@@ -60,8 +70,11 @@
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
           <UiInput v-model="form.code" label="Mã sản phẩm" placeholder="VD: BE-12" required />
-          <UiInput v-model="form.name" label="Tên sản phẩm" placeholder="VD: Ván Birch 12mm" required />
-          <UiInput v-model="form.description" label="Quy cách/Mô tả" placeholder="Nhập quy cách sản phẩm..." />
+          <div class="grid grid-cols-3 gap-4">
+            <UiInput v-model="form.thickness" type="number" step="0.1" label="Độ dày (mm)" required />
+            <UiInput v-model="form.length" type="number" step="0.01" label="Dài (m)" required />
+            <UiInput v-model="form.width" type="number" step="0.01" label="Rộng (m)" required />
+          </div>
           
           <div class="flex gap-3 pt-2">
             <button type="button" @click="showModal = false" class="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">Hủy</button>
@@ -85,8 +98,9 @@ const showModal = ref(false);
 const currentPrd = ref({});
 const form = reactive({
   code: '',
-  name: '',
-  description: ''
+  thickness: 0,
+  length: 0,
+  width: 0
 });
 
 const fetchProducts = async () => {
@@ -105,13 +119,15 @@ const openModal = (p = null) => {
   if (p) {
     currentPrd.value = { ...p };
     form.code = p.code;
-    form.name = p.name;
-    form.description = p.description;
+    form.thickness = p.thickness;
+    form.length = p.length;
+    form.width = p.width;
   } else {
     currentPrd.value = {};
     form.code = '';
-    form.name = '';
-    form.description = '';
+    form.thickness = 0;
+    form.length = 0;
+    form.width = 0;
   }
   showModal.value = true;
 };
@@ -119,15 +135,22 @@ const openModal = (p = null) => {
 const handleSubmit = async () => {
   saving.value = true;
   try {
+    const payload = {
+      ...form,
+      thickness: parseFloat(form.thickness),
+      length: parseFloat(form.length),
+      width: parseFloat(form.width)
+    };
+
     if (currentPrd.value.id) {
-      await $api.put(`/products/${currentPrd.value.id}`, form);
+      await $api.put(`/products/${currentPrd.value.id}`, payload);
     } else {
-      await $api.post('/products', form);
+      await $api.post('/products', payload);
     }
     showModal.value = false;
     fetchProducts();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   } finally {
     saving.value = false;
   }
@@ -139,7 +162,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/products/${id}`);
     fetchProducts();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   }
 };
 

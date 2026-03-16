@@ -30,8 +30,8 @@
         </select>
         <select v-model="filterStatus" class="bg-slate-50 border-none rounded-lg px-4 py-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500">
           <option value="">Tất cả trạng thái</option>
-          <option value="ACTIVE text-emerald-600">Đang làm việc</option>
-          <option value="INACTIVE text-slate-400">Đã nghỉ việc</option>
+          <option value="ACTIVE">Đang làm việc</option>
+          <option value="INACTIVE">Đã nghỉ việc</option>
         </select>
       </div>
     </div>
@@ -109,7 +109,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <UiInput v-model="form.code" label="Mã nhân viên" placeholder="VD: NV001" required />
             <UiInput v-model="form.fullName" label="Họ và tên" placeholder="VD: Nguyễn Văn A" required />
-            <UiInput v-model="form.username" label="Tên đăng nhập" placeholder="VD: vana.nguyen" required />
+            <UiInput v-model="form.password" type="password" label="Mật khẩu" :placeholder="currentEmp.id ? 'Để trống nếu không đổi' : 'Nhập mật khẩu'" :required="!currentEmp.id" />
             
             <div class="flex flex-col gap-1.5">
               <label class="text-sm font-semibold text-slate-700 ml-1">Trạng thái</label>
@@ -119,21 +119,19 @@
               </select>
             </div>
 
-            <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-slate-700 ml-1">Phòng ban</label>
-              <select v-model="form.departmentId" class="input-field py-2.5">
-                <option :value="null">Không thuộc phòng ban</option>
-                <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-              </select>
-            </div>
+            <UiSelect 
+              v-model="form.departmentId" 
+              label="Phòng ban" 
+              :options="deptOptions" 
+              placeholder="Chọn phòng ban"
+            />
 
-            <div class="flex flex-col gap-1.5">
-              <label class="text-sm font-semibold text-slate-700 ml-1">Chức vụ</label>
-              <select v-model="form.roleId" class="input-field py-2.5">
-                <option :value="null">Không có chức vụ</option>
-                <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</option>
-              </select>
-            </div>
+            <UiSelect 
+              v-model="form.roleId" 
+              label="Chức vụ" 
+              :options="roleOptions" 
+              placeholder="Chọn chức vụ"
+            />
           </div>
           
           <div class="flex gap-4 pt-4 border-t border-slate-100">
@@ -153,6 +151,10 @@ const { $api } = useNuxtApp();
 const employees = ref([]);
 const departments = ref([]);
 const roles = ref([]);
+
+const deptOptions = computed(() => departments.value.map(d => ({ value: d.id, label: d.name })));
+const roleOptions = computed(() => roles.value.map(r => ({ value: r.id, label: r.name })));
+
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
@@ -166,6 +168,7 @@ const form = reactive({
   code: '',
   fullName: '',
   username: '',
+  password: '',
   status: 'ACTIVE',
   departmentId: null,
   roleId: null
@@ -194,7 +197,7 @@ const filteredEmployees = computed(() => {
     const matchSearch = e.fullName.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
                       e.code.toLowerCase().includes(searchQuery.value.toLowerCase());
     const matchDept = !filterDept.value || e.department?.id === filterDept.value;
-    const matchStatus = !filterStatus.value || e.status === filterStatus.value.split(' ')[0];
+    const matchStatus = !filterStatus.value || e.status === filterStatus.value;
     return matchSearch && matchDept && matchStatus;
   });
 });
@@ -205,6 +208,7 @@ const openModal = (emp = null) => {
     form.code = emp.code;
     form.fullName = emp.fullName;
     form.username = emp.username;
+    form.password = '';
     form.status = emp.status;
     form.departmentId = emp.department?.id || null;
     form.roleId = emp.role?.id || null;
@@ -213,6 +217,7 @@ const openModal = (emp = null) => {
     form.code = '';
     form.fullName = '';
     form.username = '';
+    form.password = '';
     form.status = 'ACTIVE';
     form.departmentId = null;
     form.roleId = null;
@@ -223,15 +228,21 @@ const openModal = (emp = null) => {
 const handleSubmit = async () => {
   saving.value = true;
   try {
+    // If password is empty in edit mode, don't send it or handle based on backend
+    const payload = { ...form };
+    if (currentEmp.value.id && !payload.password) {
+      delete payload.password;
+    }
+
     if (currentEmp.value.id) {
-      await $api.put(`/employees/${currentEmp.value.id}`, form);
+      await $api.put(`/employees/${currentEmp.value.id}`, payload);
     } else {
-      await $api.post('/employees', form);
+      await $api.post('/employees', payload);
     }
     showModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   } finally {
     saving.value = false;
   }

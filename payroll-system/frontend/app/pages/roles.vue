@@ -30,21 +30,23 @@
       <table v-else class="w-full text-left border-collapse">
         <thead>
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-            <th class="px-6 py-4">Mã chức vụ</th>
+            <th class="px-6 py-4 w-20">ID</th>
             <th class="px-6 py-4">Tên chức vụ</th>
-            <th class="px-6 py-4">Mô tả</th>
+            <th class="px-6 py-4">Phụ cấp/Ngày</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="role in roles" :key="role.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4">
-              <span class="px-2 py-1 bg-slate-100 rounded text-xs font-black text-slate-600 group-hover:bg-primary-100 group-hover:text-primary-700 transition-colors">
-                {{ role.code }}
-              </span>
+              <span class="text-xs font-black text-slate-400">#{{ role.id }}</span>
             </td>
             <td class="px-6 py-4 font-bold text-slate-900">{{ role.name }}</td>
-            <td class="px-6 py-4 text-sm text-slate-500 font-medium">{{ role.description || '---' }}</td>
+            <td class="px-6 py-4">
+              <span class="px-2 py-1 bg-emerald-50 text-emerald-600 rounded text-xs font-black">
+                {{ new Intl.NumberFormat('vi-VN').format(role.dailyBenefit) }}đ
+              </span>
+            </td>
             <td class="px-6 py-4 text-right">
               <div class="flex items-center justify-end gap-2">
                 <button @click="openModal(role)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="Sửa">
@@ -71,10 +73,8 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <UiInput v-model="form.code" label="Mã chức vụ" placeholder="VD: GDS" required />
           <UiInput v-model="form.name" label="Tên chức vụ" placeholder="VD: Giám Đốc Xưởng" required />
-          <UiInput v-model="form.dailyBenefit" label="Phụ cấp hằng ngày" placeholder="VD: 100000" required />
-          <UiInput v-model="form.description" label="Mô tả" placeholder="Mô tả chức năng nhiệm vụ..." />
+          <UiInput v-model="form.dailyBenefit" type="number" label="Phụ cấp hằng ngày (VNĐ)" placeholder="VD: 100000" required />
           
           <div class="flex gap-3 pt-2">
             <button type="button" @click="showModal = false" class="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">Hủy</button>
@@ -97,10 +97,8 @@ const showModal = ref(false);
 
 const currentRole = ref({});
 const form = reactive({
-  code: '',
   name: '',
-  dailyBenefit: 0,
-  description: ''
+  dailyBenefit: 0
 });
 
 const fetchRoles = async () => {
@@ -118,14 +116,12 @@ const fetchRoles = async () => {
 const openModal = (role = null) => {
   if (role) {
     currentRole.value = { ...role };
-    form.code = role.code;
     form.name = role.name;
-    form.description = role.description;
+    form.dailyBenefit = role.dailyBenefit;
   } else {
     currentRole.value = {};
-    form.code = '';
     form.name = '';
-    form.description = '';
+    form.dailyBenefit = 0;
   }
   showModal.value = true;
 };
@@ -141,7 +137,7 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchRoles();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   } finally {
     saving.value = false;
   }
@@ -153,7 +149,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/roles/${id}`);
     fetchRoles();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
   }
 };
 

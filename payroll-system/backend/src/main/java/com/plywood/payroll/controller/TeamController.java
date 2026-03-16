@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -77,6 +78,7 @@ public class TeamController {
     }
 
     @DeleteMapping("/{id}/members/{employeeId}")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Xóa nhân viên khỏi biên chế tổ")
     public ResponseEntity<ApiResponse<Void>> removeMember(
             @PathVariable("id") Long id, 
@@ -84,4 +86,50 @@ public class TeamController {
         teamService.removeMember(id, employeeId);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Xuất danh sách tổ sản xuất ra Excel")
+    public ResponseEntity<byte[]> export() throws java.io.IOException {
+        List<TeamResponse> list = teamService.getAll();
+        String[] headers = {"ID", "Tên tổ đội", "Phòng ban", "Số thành viên", "Ngày tạo"};
+        List<List<String>> data = list.stream().map(t -> java.util.Arrays.asList(
+                t.getId().toString(),
+                t.getName(),
+                t.getDepartment() != null ? t.getDepartment().getName() : "",
+                String.valueOf(t.getMemberCount()),
+                t.getCreatedAt() != null ? t.getCreatedAt().toString() : ""
+        )).collect(java.util.stream.Collectors.toList());
+
+        byte[] bytes = excelService.exportGeneric("ToDoi", headers, data);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=danh_sach_to_doi.xlsx")
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(bytes);
+    }
+
+    @GetMapping("/download-template")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Tải file mẫu nhập tổ đội")
+    public ResponseEntity<byte[]> downloadTemplate() throws java.io.IOException {
+        String[] headers = {"Tên tổ đội", "Tên phòng ban"};
+        byte[] bytes = excelService.getGenericTemplate("MauNhap", headers);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=mau_nhap_to_doi.xlsx")
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(bytes);
+    }
+
+    @PostMapping("/import")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Nhập danh sách tổ đội từ Excel")
+    public ResponseEntity<ApiResponse<Void>> importExcel(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        List<TeamRequest> requests = excelService.importTeams(file);
+        for (TeamRequest req : requests) {
+            teamService.create(req);
+        }
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_CREATE, null));
+    }
+
+    private final com.plywood.payroll.service.ExcelService excelService;
 }

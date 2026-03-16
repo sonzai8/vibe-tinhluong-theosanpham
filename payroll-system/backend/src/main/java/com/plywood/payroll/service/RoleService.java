@@ -35,6 +35,7 @@ public class RoleService {
         Role role = new Role();
         role.setName(request.getName());
         role.setDailyBenefit(request.getDailyBenefit());
+        role.setPermissions(request.getPermissions() != null ? new java.util.HashSet<>(request.getPermissions()) : new java.util.HashSet<>());
         return mapToResponse(roleRepository.save(role));
     }
 
@@ -44,6 +45,9 @@ public class RoleService {
                 .orElseThrow(() -> new ResourceNotFoundException("Chức vụ", id));
         role.setName(request.getName());
         role.setDailyBenefit(request.getDailyBenefit());
+        if (request.getPermissions() != null) {
+            role.setPermissions(new java.util.HashSet<>(request.getPermissions()));
+        }
         return mapToResponse(roleRepository.save(role));
     }
 
@@ -63,6 +67,7 @@ public class RoleService {
         response.setDailyBenefit(entity.getDailyBenefit());
         response.setCreatedAt(entity.getCreatedAt());
         response.setUpdatedAt(entity.getUpdatedAt());
+        response.setPermissions(entity.getPermissions());
         return response;
     }
 }

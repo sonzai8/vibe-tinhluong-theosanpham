@@ -3,6 +3,7 @@ package com.plywood.payroll.dto.response;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Data
 public class RoleResponse {
@@ -11,4 +12,5 @@ public class RoleResponse {
     private BigDecimal dailyBenefit;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Set<String> permissions;
 }

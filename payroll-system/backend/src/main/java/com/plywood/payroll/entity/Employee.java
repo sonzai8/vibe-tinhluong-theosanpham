@@ -35,4 +35,6 @@ public class Employee extends BaseEntity {
     // Tài khoản đăng nhập (nếu người dùng hệ thống)
     private String username;
     private String password;
+
+    private boolean canLogin = false;
 }

@@ -1,12 +1,16 @@
 package com.plywood.payroll.service;
 
-import com.plywood.payroll.dto.request.DailyAttendanceRequest;
+import com.plywood.payroll.dto.request.*;
 import com.plywood.payroll.dto.response.DailyAttendanceResponse;
-import com.plywood.payroll.entity.Employee;
-import com.plywood.payroll.repository.EmployeeRepository;
-import com.plywood.payroll.repository.TeamRepository;
+import com.plywood.payroll.repository.*;
+import com.plywood.payroll.utils.ExcelHelper;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -26,19 +30,20 @@ public class ExcelService {
 
     private final EmployeeRepository employeeRepository;
     private final TeamRepository teamRepository;
+    private final RoleRepository roleRepository;
+    private final DepartmentRepository departmentRepository;
 
-    private static final String IMPORT_TEMPLATE = "templates/attendance/import/import_template.xlsx";
-    private static final String EXPORT_TEMPLATE = "templates/attendance/export/export_template.xlsx";
+    private static final String ATTENDANCE_IMPORT_TEMPLATE = "templates/attendance/import/import_template.xlsx";
+    private static final String ATTENDANCE_EXPORT_TEMPLATE = "templates/attendance/export/export_template.xlsx";
+    private static final String EMPLOYEE_TEMPLATE = "templates/employee/employee_template.xlsx";
 
     public byte[] exportAttendances(List<DailyAttendanceResponse> attendances) throws IOException {
-        ClassPathResource resource = new ClassPathResource(EXPORT_TEMPLATE);
-        try (InputStream is = resource.getInputStream(); 
-             Workbook workbook = new XSSFWorkbook(is); 
+        ClassPathResource resource = new ClassPathResource(ATTENDANCE_EXPORT_TEMPLATE);
+        try (InputStream is = resource.getInputStream();
+             Workbook workbook = ExcelHelper.createWorkbook(is);
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            
+
             Sheet sheet = workbook.getSheetAt(0);
-            
-            // Data Rows start from index 1 (Row 2 in Excel)
             int rowIdx = 1;
             for (DailyAttendanceResponse att : attendances) {
                 Row row = sheet.getRow(rowIdx);
@@ -52,79 +57,142 @@ public class ExcelService {
                 row.createCell(4).setCellValue(att.getActualTeam() != null ? att.getActualTeam().getName() : "");
             }
 
-            // Auto-size columns (optional, template might already be sized)
-            for (int i = 0; i < 5; i++) {
-                sheet.autoSizeColumn(i);
-            }
-
             workbook.write(out);
             return out.toByteArray();
         }
     }
 
     public byte[] getImportTemplate() throws IOException {
-        ClassPathResource resource = new ClassPathResource(IMPORT_TEMPLATE);
-        try (InputStream is = resource.getInputStream(); 
+        return getTemplateBytes(ATTENDANCE_IMPORT_TEMPLATE);
+    }
+
+    public byte[] getEmployeeTemplate() throws IOException {
+        // Nếu template file chưa tồn tại, ta có thể generate động hoặc trả về file trắng có header
+        try {
+            return getTemplateBytes(EMPLOYEE_TEMPLATE);
+        } catch (IOException e) {
+            // Fallback: Generate template dynamically if file missing
+            return generateDynamicEmployeeTemplate();
+        }
+    }
+
+    private byte[] getTemplateBytes(String path) throws IOException {
+        ClassPathResource resource = new ClassPathResource(path);
+        try (InputStream is = resource.getInputStream();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[1024];
-            int length;
-            while ((length = is.read(buffer)) != -1) {
-                out.write(buffer, 0, length);
-            }
+            is.transferTo(out);
             return out.toByteArray();
+        }
+    }
+
+    private byte[] generateDynamicEmployeeTemplate() throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Nhân viên");
+            Row header = sheet.createRow(0);
+            String[] headers = {"Mã NV", "Họ Tên", "Tên đăng nhập", "Mật khẩu", "Phòng ban", "Tổ đội", "Chức vụ", "Quyền Đăng nhập (Y/N)"};
+            
+            CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
+            // Dropdown list for Departments (column 4 - "Phòng ban")
+            String[] depts = departmentRepository.findAll().stream()
+                    .map(com.plywood.payroll.entity.Department::getName)
+                    .toArray(String[]::new);
+            ExcelHelper.addDataValidation(sheet, depts, 1, 1000, 4, 4);
+
+            // Dropdown list for Teams (column 5 - "Tổ đội")
+            String[] teams = teamRepository.findAll().stream()
+                    .map(com.plywood.payroll.entity.Team::getName)
+                    .toArray(String[]::new);
+            ExcelHelper.addDataValidation(sheet, teams, 1, 1000, 5, 5);
+
+            // Dropdown list for Roles (column 6 - "Chức vụ")
+            String[] roles = roleRepository.findAll().stream()
+                    .map(com.plywood.payroll.entity.Role::getName)
+                    .toArray(String[]::new);
+            ExcelHelper.addDataValidation(sheet, roles, 1, 1000, 6, 6);
+
+            // Dropdown for Access (column 7 - "Quyền Đăng nhập")
+            ExcelHelper.addDataValidation(sheet, new String[]{"Y", "N", "Có", "Không"}, 1, 1000, 7, 7);
+            
+            return ExcelHelper.createWorkbookBytes(workbook);
         }
     }
 
     public List<DailyAttendanceRequest> importAttendances(MultipartFile file) throws IOException {
         List<DailyAttendanceRequest> requests = new ArrayList<>();
-        try (InputStream is = file.getInputStream(); Workbook workbook = new XSSFWorkbook(is)) {
+        try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
             Sheet sheet = workbook.getSheetAt(0);
             Iterator<Row> rows = sheet.iterator();
 
-            // Skip header (Row 0)
-            if (rows.hasNext()) rows.next();
+            if (rows.hasNext()) rows.next(); // Skip header
 
             while (rows.hasNext()) {
                 Row currentRow = rows.next();
-                
-                // Validate if row is empty
-                Cell firstCell = currentRow.getCell(0);
-                if (firstCell == null || firstCell.getCellType() == CellType.BLANK) continue;
+                if (isRowEmpty(currentRow)) continue;
 
-                String empCode = getCellValueAsString(firstCell);
+                String empCode = ExcelHelper.getCellValueAsString(currentRow.getCell(0));
                 if (empCode == null || empCode.isEmpty()) continue;
 
-                Employee emp = employeeRepository.findByCode(empCode)
-                        .orElse(null);
-                
-                if (emp == null) continue;
+                employeeRepository.findByCode(empCode).ifPresent(emp -> {
+                    DailyAttendanceRequest req = new DailyAttendanceRequest();
+                    req.setEmployeeId(emp.getId());
+                    
+                    String dateStr = ExcelHelper.getCellValueAsString(currentRow.getCell(2));
+                    req.setAttendanceDate(dateStr != null ? LocalDate.parse(dateStr) : LocalDate.now());
 
-                DailyAttendanceRequest req = new DailyAttendanceRequest();
-                req.setEmployeeId(emp.getId());
-                
-                String dateStr = getCellValueAsString(currentRow.getCell(2));
-                if (dateStr != null) {
-                    try {
-                        req.setAttendanceDate(LocalDate.parse(dateStr));
-                    } catch (Exception e) {
-                        req.setAttendanceDate(LocalDate.now());
-                    }
-                } else {
-                    req.setAttendanceDate(LocalDate.now());
-                }
+                    String origTeamName = ExcelHelper.getCellValueAsString(currentRow.getCell(3));
+                    if (origTeamName != null) teamRepository.findByName(origTeamName).ifPresent(t -> req.setOriginalTeamId(t.getId()));
+                    
+                    String actualTeamName = ExcelHelper.getCellValueAsString(currentRow.getCell(4));
+                    if (actualTeamName != null) teamRepository.findByName(actualTeamName).ifPresent(t -> req.setActualTeamId(t.getId()));
+                    else req.setActualTeamId(req.getOriginalTeamId());
 
-                // Import Team by Name if provided
-                String origTeamName = getCellValueAsString(currentRow.getCell(3));
-                if (origTeamName != null && !origTeamName.isEmpty()) {
-                    teamRepository.findByName(origTeamName).ifPresent(t -> req.setOriginalTeamId(t.getId()));
-                }
+                    requests.add(req);
+                });
+            }
+        }
+        return requests;
+    }
+
+    public List<EmployeeRequest> importEmployees(MultipartFile file) throws IOException {
+        List<EmployeeRequest> requests = new ArrayList<>();
+        try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> rows = sheet.iterator();
+
+            if (rows.hasNext()) rows.next(); // Skip header
+
+            while (rows.hasNext()) {
+                Row currentRow = rows.next();
+                if (isRowEmpty(currentRow)) continue;
+
+                String code = ExcelHelper.getCellValueAsString(currentRow.getCell(0));
+                String name = ExcelHelper.getCellValueAsString(currentRow.getCell(1));
+                if (code == null || code.isEmpty() || name == null || name.isEmpty()) continue;
+
+                EmployeeRequest req = new EmployeeRequest();
+                req.setCode(code);
+                req.setFullName(name);
+                req.setUsername(ExcelHelper.getCellValueAsString(currentRow.getCell(2)));
+                req.setPassword(ExcelHelper.getCellValueAsString(currentRow.getCell(3)));
                 
-                String actualTeamName = getCellValueAsString(currentRow.getCell(4));
-                if (actualTeamName != null && !actualTeamName.isEmpty()) {
-                    teamRepository.findByName(actualTeamName).ifPresent(t -> req.setActualTeamId(t.getId()));
-                } else {
-                    req.setActualTeamId(req.getOriginalTeamId());
-                }
+                String deptName = ExcelHelper.getCellValueAsString(currentRow.getCell(4));
+                if (deptName != null) departmentRepository.findByName(deptName).ifPresent(d -> req.setDepartmentId(d.getId()));
+
+                String teamName = ExcelHelper.getCellValueAsString(currentRow.getCell(5));
+                if (teamName != null) teamRepository.findByName(teamName).ifPresent(t -> req.setTeamId(t.getId()));
+
+                String roleName = ExcelHelper.getCellValueAsString(currentRow.getCell(6));
+                if (roleName != null) roleRepository.findByName(roleName).ifPresent(r -> req.setRoleId(r.getId()));
+
+                String canLogin = ExcelHelper.getCellValueAsString(currentRow.getCell(7));
+                req.setCanLogin("Y".equalsIgnoreCase(canLogin) || "Có".equalsIgnoreCase(canLogin) || "1".equals(canLogin));
 
                 requests.add(req);
             }
@@ -132,12 +200,169 @@ public class ExcelService {
         return requests;
     }
 
-    private String getCellValueAsString(Cell cell) {
-        if (cell == null) return null;
-        switch (cell.getCellType()) {
-            case STRING: return cell.getStringCellValue();
-            case NUMERIC: return String.valueOf((int)cell.getNumericCellValue());
-            default: return null;
+    // --- UNIVERSAL METHODS ---
+
+    public byte[] exportGeneric(String sheetName, String[] headers, List<List<String>> data) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet(sheetName);
+            Row headerRow = sheet.createRow(0);
+            CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
+            int rowIdx = 1;
+            for (List<String> rowData : data) {
+                Row row = sheet.createRow(rowIdx++);
+                for (int i = 0; i < rowData.size(); i++) {
+                    row.createCell(i).setCellValue(rowData.get(i));
+                }
+            }
+
+            return ExcelHelper.createWorkbookBytes(workbook);
         }
+    }
+
+    public byte[] getGenericTemplate(String sheetName, String[] headers) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet(sheetName);
+            Row headerRow = sheet.createRow(0);
+            CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
+
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+            return ExcelHelper.createWorkbookBytes(workbook);
+        }
+    }
+
+    public List<DepartmentRequest> importDepartments(MultipartFile file) throws IOException {
+        List<DepartmentRequest> requests = new ArrayList<>();
+        try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> rows = sheet.iterator();
+            if (rows.hasNext()) rows.next();
+            while (rows.hasNext()) {
+                Row row = rows.next();
+                if (isRowEmpty(row)) continue;
+                String name = ExcelHelper.getCellValueAsString(row.getCell(0));
+                if (name != null && !name.isEmpty()) {
+                    DepartmentRequest req = new DepartmentRequest();
+                    req.setName(name);
+                    requests.add(req);
+                }
+            }
+        }
+        return requests;
+    }
+
+    public List<RoleRequest> importRoles(MultipartFile file) throws IOException {
+        List<RoleRequest> requests = new ArrayList<>();
+        try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> rows = sheet.iterator();
+            if (rows.hasNext()) rows.next();
+            while (rows.hasNext()) {
+                Row row = rows.next();
+                if (isRowEmpty(row)) continue;
+                String name = ExcelHelper.getCellValueAsString(row.getCell(0));
+                String benefit = ExcelHelper.getCellValueAsString(row.getCell(1));
+                if (name != null && !name.isEmpty()) {
+                    RoleRequest req = new RoleRequest();
+                    req.setName(name);
+                    req.setDailyBenefit(benefit != null ? new java.math.BigDecimal(benefit) : java.math.BigDecimal.ZERO);
+                    requests.add(req);
+                }
+            }
+        }
+        return requests;
+    }
+
+    public List<com.plywood.payroll.dto.request.TeamRequest> importTeams(MultipartFile file) throws IOException {
+        List<com.plywood.payroll.dto.request.TeamRequest> requests = new ArrayList<>();
+        try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> rows = sheet.iterator();
+            if (rows.hasNext()) rows.next();
+            while (rows.hasNext()) {
+                Row row = rows.next();
+                if (isRowEmpty(row)) continue;
+                String name = ExcelHelper.getCellValueAsString(row.getCell(0));
+                String deptName = ExcelHelper.getCellValueAsString(row.getCell(1));
+                if (name != null && !name.isEmpty()) {
+                    com.plywood.payroll.dto.request.TeamRequest req = new com.plywood.payroll.dto.request.TeamRequest();
+                    req.setName(name);
+                    if (deptName != null) {
+                        departmentRepository.findByName(deptName).ifPresent(d -> req.setDepartmentId(d.getId()));
+                    }
+                    requests.add(req);
+                }
+            }
+        }
+        return requests;
+    }
+
+    public List<ProductRequest> importProducts(MultipartFile file) throws IOException {
+        List<ProductRequest> requests = new ArrayList<>();
+        try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> rows = sheet.iterator();
+            if (rows.hasNext()) rows.next();
+            while (rows.hasNext()) {
+                Row row = rows.next();
+                if (isRowEmpty(row)) continue;
+                String code = ExcelHelper.getCellValueAsString(row.getCell(0));
+                String thickness = ExcelHelper.getCellValueAsString(row.getCell(1));
+                String length = ExcelHelper.getCellValueAsString(row.getCell(2));
+                String width = ExcelHelper.getCellValueAsString(row.getCell(3));
+                
+                if (code != null && !code.isEmpty()) {
+                    ProductRequest req = new ProductRequest();
+                    req.setCode(code);
+                    req.setThickness(thickness != null ? new java.math.BigDecimal(thickness) : java.math.BigDecimal.ZERO);
+                    req.setLength(length != null ? new java.math.BigDecimal(length) : java.math.BigDecimal.ZERO);
+                    req.setWidth(width != null ? new java.math.BigDecimal(width) : java.math.BigDecimal.ZERO);
+                    requests.add(req);
+                }
+            }
+        }
+        return requests;
+    }
+
+    public List<ProductionStepRequest> importProductionSteps(MultipartFile file) throws IOException {
+        List<ProductionStepRequest> requests = new ArrayList<>();
+        try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> rows = sheet.iterator();
+            if (rows.hasNext()) rows.next();
+            while (rows.hasNext()) {
+                Row row = rows.next();
+                if (isRowEmpty(row)) continue;
+                String name = ExcelHelper.getCellValueAsString(row.getCell(0));
+                String desc = ExcelHelper.getCellValueAsString(row.getCell(1));
+                if (name != null && !name.isEmpty()) {
+                    ProductionStepRequest req = new ProductionStepRequest();
+                    req.setName(name);
+                    req.setDescription(desc);
+                    requests.add(req);
+                }
+            }
+        }
+        return requests;
+    }
+
+    // Specific mapping helpers can be added here or in the controllers calling generic methods
+
+    private boolean isRowEmpty(Row row) {
+        if (row == null) return true;
+        Cell firstCell = row.getCell(0);
+        return firstCell == null || firstCell.getCellType() == CellType.BLANK;
     }
 }

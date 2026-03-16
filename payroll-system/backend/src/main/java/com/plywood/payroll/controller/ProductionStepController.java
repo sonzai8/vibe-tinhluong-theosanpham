@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -51,9 +52,55 @@ public class ProductionStepController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Xóa công đoạn")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         productionStepService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Xuất danh sách công đoạn ra Excel")
+    public ResponseEntity<byte[]> export() throws java.io.IOException {
+        List<ProductionStepResponse> list = productionStepService.getAll();
+        String[] headers = {"ID", "Tên công đoạn", "Mô tả", "Ngày tạo"};
+        List<List<String>> data = list.stream().map(s -> java.util.Arrays.asList(
+                s.getId().toString(),
+                s.getName(),
+                s.getDescription() != null ? s.getDescription() : "",
+                s.getCreatedAt() != null ? s.getCreatedAt().toString() : ""
+        )).collect(java.util.stream.Collectors.toList());
+
+        byte[] bytes = excelService.exportGeneric("CongDoan", headers, data);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=danh_sach_cong_doan.xlsx")
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(bytes);
+    }
+
+    @GetMapping("/download-template")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Tải file mẫu nhập công đoạn")
+    public ResponseEntity<byte[]> downloadTemplate() throws java.io.IOException {
+        String[] headers = {"Tên công đoạn", "Mô tả"};
+        byte[] bytes = excelService.getGenericTemplate("MauNhap", headers);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=mau_nhap_cong_doan.xlsx")
+                .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                .body(bytes);
+    }
+
+    @PostMapping("/import")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Nhập danh sách công đoạn từ Excel")
+    public ResponseEntity<ApiResponse<Void>> importExcel(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        List<ProductionStepRequest> requests = excelService.importProductionSteps(file);
+        for (ProductionStepRequest req : requests) {
+            productionStepService.create(req);
+        }
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_CREATE, null));
+    }
+
+    private final com.plywood.payroll.service.ExcelService excelService;
 }

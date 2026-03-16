@@ -70,6 +70,7 @@ public class EmployeeService {
         employee.setFullName(request.getFullName());
         employee.setStatus(request.getStatus());
         employee.setUsername(request.getUsername());
+        employee.setCanLogin(request.isCanLogin());
 
         // Gán Tổ trực tiếp
         if (request.getTeamId() != null) {
@@ -107,6 +108,7 @@ public class EmployeeService {
         response.setFullName(entity.getFullName());
         response.setStatus(entity.getStatus());
         response.setUsername(entity.getUsername());
+        response.setCanLogin(entity.isCanLogin());
         response.setCreatedAt(entity.getCreatedAt());
         response.setUpdatedAt(entity.getUpdatedAt());
 

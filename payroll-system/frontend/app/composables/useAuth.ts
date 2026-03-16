@@ -14,7 +14,9 @@ export const useAuth = () => {
         token.value = response.data.token;
         user.value = {
           id: response.data.employeeId,
-          fullName: response.data.fullName
+          fullName: response.data.fullName,
+          role: response.data.roleName,
+          permissions: response.data.permissions || []
         };
         router.push('/');
         return { success: true };
@@ -43,12 +45,20 @@ export const useAuth = () => {
     router.push('/login');
   };
 
+  const hasPermission = (permission: string) => {
+    if (!user.value || !user.value.permissions) return false;
+    // SYSTEM_ADMIN có tất cả các quyền
+    if (user.value.permissions.includes('SYSTEM_ADMIN')) return true;
+    return user.value.permissions.includes(permission);
+  };
+
   return {
     token,
     user,
     isLoggedIn,
     login,
     register,
-    logout
+    logout,
+    hasPermission
   };
 }

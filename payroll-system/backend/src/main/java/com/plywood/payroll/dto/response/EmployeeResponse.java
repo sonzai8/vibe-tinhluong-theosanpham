@@ -14,6 +14,7 @@ public class EmployeeResponse {
     private RoleResponse role;
     private String status;
     private String username;
+    private boolean canLogin;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

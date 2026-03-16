@@ -14,6 +14,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.core.io.ByteArrayResource;
@@ -33,6 +34,7 @@ public class DailyAttendanceController {
     private final ExcelService excelService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ATTENDANCE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Danh sách điểm danh trong tháng/năm")
     public ResponseEntity<ApiResponse<List<DailyAttendanceResponse>>> getByMonthAndYear(
             @RequestParam("month") int month,
@@ -41,6 +43,7 @@ public class DailyAttendanceController {
     }
     
     @GetMapping("/date/{date}")
+    @PreAuthorize("hasAuthority('ATTENDANCE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Danh sách điểm danh theo ngày")
     public ResponseEntity<ApiResponse<List<DailyAttendanceResponse>>> getByDate(
             @PathVariable("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -48,12 +51,14 @@ public class DailyAttendanceController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ATTENDANCE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Lấy điểm danh theo ID")
     public ResponseEntity<ApiResponse<DailyAttendanceResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, attendanceService.getById(id)));
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ATTENDANCE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Thêm một bản ghi điểm danh")
     public ResponseEntity<ApiResponse<DailyAttendanceResponse>> create(@Valid @RequestBody DailyAttendanceRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -61,6 +66,7 @@ public class DailyAttendanceController {
     }
     
     @PostMapping("/batch")
+    @PreAuthorize("hasAuthority('ATTENDANCE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Thêm nhiều bản ghi điểm danh cùng lúc")
     public ResponseEntity<ApiResponse<List<DailyAttendanceResponse>>> createBatch(@RequestBody List<@Valid DailyAttendanceRequest> requests) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -68,12 +74,14 @@ public class DailyAttendanceController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ATTENDANCE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Cập nhật bản ghi điểm danh")
     public ResponseEntity<ApiResponse<DailyAttendanceResponse>> update(@PathVariable Long id, @Valid @RequestBody DailyAttendanceRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, attendanceService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ATTENDANCE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Xóa điểm danh")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         attendanceService.delete(id);
@@ -81,6 +89,7 @@ public class DailyAttendanceController {
     }
 
     @GetMapping("/export")
+    @PreAuthorize("hasAuthority('ATTENDANCE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Xuất file Excel chấm công")
     public ResponseEntity<Resource> export(
             @RequestParam("month") int month,
@@ -101,6 +110,7 @@ public class DailyAttendanceController {
     }
 
     @GetMapping("/download-template")
+    @PreAuthorize("hasAuthority('ATTENDANCE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Tải file mẫu nhập chấm công")
     public ResponseEntity<Resource> downloadTemplate() throws IOException {
         byte[] templateContent = excelService.getImportTemplate();
@@ -115,6 +125,7 @@ public class DailyAttendanceController {
     }
 
     @PostMapping("/import")
+    @PreAuthorize("hasAuthority('ATTENDANCE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Nhập file Excel chấm công")
     public ResponseEntity<ApiResponse<List<DailyAttendanceResponse>>> importExcel(@RequestParam("file") MultipartFile file) throws IOException {
         List<DailyAttendanceRequest> requests = excelService.importAttendances(file);

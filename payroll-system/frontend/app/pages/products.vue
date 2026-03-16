@@ -6,10 +6,33 @@
         <h2 class="text-2xl font-black text-slate-900">Quản lý Sản phẩm</h2>
         <p class="text-slate-500 font-medium">Danh mục các loại ván ép gỗ Plywood</p>
       </div>
-      <UiButton @click="openModal()">
-        <Plus class="w-4 h-4" />
-        Thêm sản phẩm
-      </UiButton>
+      <div class="flex items-center gap-2">
+        <UiButton variant="outline" @click="handleExport">
+          <Download class="w-4 h-4" />
+          Xuất Excel
+        </UiButton>
+        <div class="relative group">
+          <UiButton variant="outline">
+            <Upload class="w-4 h-4" />
+            Nhập Excel
+          </UiButton>
+          <div class="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-2">
+            <button @click="downloadTemplate" class="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2">
+              <FileDown class="w-4 h-4" />
+              Tải file mẫu
+            </button>
+            <label class="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2 cursor-pointer">
+              <FileUp class="w-4 h-4" />
+              Chọn file nhập
+              <input type="file" class="hidden" accept=".xlsx, .xls" @change="handleImport" />
+            </label>
+          </div>
+        </div>
+        <UiButton @click="openModal()">
+          <Plus class="w-4 h-4" />
+          Thêm sản phẩm
+        </UiButton>
+      </div>
     </div>
 
     <!-- Table -->
@@ -130,14 +153,47 @@
 </template>
 
 <script setup>
-import { Plus, Package, PencilLine, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Plus, Package, PencilLine, Trash2, X, ChevronLeft, ChevronRight, Download, Upload, FileDown, FileUp } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
+const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
 const products = ref([]);
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
 
+const handleExport = async () => {
+  try {
+    await exportExcel('/products/export', 'danh_sach_san_pham.xlsx');
+  } catch (err) {
+    alert('Không thể xuất dữ liệu');
+  }
+};
+
+const downloadTemplate = async () => {
+  try {
+    await dlTemplate('/products/download-template', 'mau_nhap_san_pham.xlsx');
+  } catch (err) {
+    alert('Không thể tải file mẫu');
+  }
+};
+
+const handleImport = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  try {
+    loading.value = true;
+    await importExcel('/products/import', file);
+    alert('Nhập dữ liệu thành công');
+    fetchProducts();
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi nhập dữ liệu');
+  } finally {
+    loading.value = false;
+    event.target.value = ''; // Reset input
+  }
+};
 const currentPrd = ref({});
 const form = reactive({
   code: '',

@@ -12,4 +12,6 @@ public class RoleRequest {
 
     @NotNull(message = "Phụ cấp chức vụ không được để trống")
     private BigDecimal dailyBenefit;
+
+    private java.util.Set<String> permissions;
 }

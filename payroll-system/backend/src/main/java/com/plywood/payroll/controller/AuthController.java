@@ -47,7 +47,18 @@ public class AuthController {
         String token = jwtUtil.generateToken(username);
         Employee emp = employeeRepository.findByUsername(username).orElseThrow();
 
-        LoginResponse response = new LoginResponse(token, emp.getId(), emp.getFullName());
+        if (!emp.isCanLogin()) {
+            throw new BusinessException("Tài khoản này không có quyền đăng nhập hệ thống");
+        }
+
+        LoginResponse response = new LoginResponse();
+        response.setToken(token);
+        response.setEmployeeId(emp.getId());
+        response.setFullName(emp.getFullName());
+        if (emp.getRole() != null) {
+            response.setRoleName(emp.getRole().getName());
+            response.setPermissions(emp.getRole().getPermissions());
+        }
         
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_LOGIN, response));
     }

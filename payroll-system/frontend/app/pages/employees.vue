@@ -6,10 +6,33 @@
         <h2 class="text-2xl font-black text-slate-900">Quản lý Nhân viên</h2>
         <p class="text-slate-500 font-medium">Danh sách toàn bộ cán bộ công nhân viên trong xưởng</p>
       </div>
-      <UiButton @click="openModal()">
-        <UserPlus class="w-4 h-4" />
-        Thêm nhân viên
-      </UiButton>
+      <div class="flex items-center gap-2">
+        <UiButton v-if="hasPermission('EMPLOYEE_VIEW')" variant="outline" @click="handleExport">
+          <Download class="w-4 h-4" />
+          Xuất Excel
+        </UiButton>
+        <div v-if="hasPermission('EMPLOYEE_EDIT')" class="relative group">
+          <UiButton variant="outline">
+            <Upload class="w-4 h-4" />
+            Nhập Excel
+          </UiButton>
+          <div class="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-2">
+            <button @click="handleDownloadTemplate" class="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2">
+              <FileDown class="w-4 h-4" />
+              Tải file mẫu
+            </button>
+            <label class="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2 cursor-pointer">
+              <FileUp class="w-4 h-4" />
+              Chọn file nhập
+              <input type="file" class="hidden" accept=".xlsx, .xls" @change="handleImport" />
+            </label>
+          </div>
+        </div>
+        <UiButton v-if="hasPermission('EMPLOYEE_EDIT')" @click="openModal()">
+          <UserPlus class="w-4 h-4" />
+          Thêm nhân viên
+        </UiButton>
+      </div>
     </div>
 
     <!-- Filters & Search -->
@@ -54,6 +77,7 @@
             <th class="px-6 py-4">Phòng ban</th>
             <th class="px-6 py-4">Tổ đội</th>
             <th class="px-6 py-4">Chức vụ</th>
+            <th class="px-6 py-4">Hệ thống</th>
             <th class="px-6 py-4">Trạng thái</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
@@ -84,6 +108,13 @@
               <span class="text-sm font-medium text-slate-500">{{ emp.role?.name || '---' }}</span>
             </td>
             <td class="px-6 py-4">
+              <span 
+                :class="`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${emp.canLogin ? 'bg-primary-50 text-primary-700 border border-primary-100' : 'bg-slate-50 text-slate-400 border border-slate-100'}`"
+              >
+                {{ emp.canLogin ? 'Có quyền' : 'Không' }}
+              </span>
+            </td>
+            <td class="px-6 py-4">
               <div class="flex items-center gap-1.5">
                 <div :class="`w-2 h-2 rounded-full ${emp.status === 'ACTIVE' ? 'bg-emerald-500 shadow-sm shadow-emerald-200' : 'bg-slate-300'}`"></div>
                 <span :class="`text-xs font-black uppercase tracking-wider ${emp.status === 'ACTIVE' ? 'text-emerald-600' : 'text-slate-400'}`">
@@ -92,7 +123,7 @@
               </div>
             </td>
             <td class="px-6 py-4 text-right pr-6">
-              <div class="flex items-center justify-end gap-2 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div v-if="hasPermission('EMPLOYEE_EDIT')" class="flex items-center justify-end gap-2 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button @click="openModal(emp)" class="p-2 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" title="Sửa">
                   <PencilLine class="w-4 h-4" />
                 </button>
@@ -100,6 +131,7 @@
                   <Trash2 class="w-4 h-4" />
                 </button>
               </div>
+              <span v-else class="text-[10px] font-bold text-slate-300 uppercase italic">Chỉ xem</span>
             </td>
           </tr>
         </tbody>
@@ -192,6 +224,20 @@
               :options="roleOptions" 
               placeholder="Chọn chức vụ"
             />
+
+            <!-- Quyền đăng nhập -->
+            <div class="col-span-1 md:col-span-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-black text-slate-900 text-sm">Cho phép đăng nhập hệ thống</p>
+                  <p class="text-[10px] font-medium text-slate-500">Chỉ bật cho nhân viên cần sử dụng phần mềm</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" v-model="form.canLogin" class="sr-only peer">
+                  <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                </label>
+              </div>
+            </div>
           </div>
           
           <div class="flex gap-4 pt-4 border-t border-slate-100">
@@ -205,7 +251,21 @@
 </template>
 
 <script setup>
-import { Plus, UserPlus, PencilLine, Trash2, X, Search, Briefcase, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { 
+  Plus, UserPlus, PencilLine, Trash2, X, Search, Briefcase, 
+  ChevronLeft, ChevronRight, Download, Upload, FileDown, FileUp 
+} from 'lucide-vue-next';
+
+const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
+const { hasPermission } = useAuth();
+
+const handleExport = async () => {
+  try {
+    await exportExcel('/employees/export', 'danh_sach_nhan_vien.xlsx');
+  } catch (err) {
+    alert('Không thể xuất dữ liệu');
+  }
+};
 
 const route = useRoute();
 const { $api } = useNuxtApp();
@@ -251,7 +311,8 @@ const form = reactive({
   status: 'ACTIVE',
   departmentId: null,
   teamId: null,
-  roleId: null
+  roleId: null,
+  canLogin: false
 });
 
 // Tự động chọn phòng ban khi chọn tổ đội
@@ -306,6 +367,7 @@ const openModal = (emp = null) => {
     form.departmentId = emp.department?.id || null;
     form.teamId = emp.team?.id || null;
     form.roleId = emp.role?.id || null;
+    form.canLogin = emp.canLogin || false;
   } else {
     currentEmp.value = {};
     form.code = '';
@@ -316,6 +378,7 @@ const openModal = (emp = null) => {
     form.departmentId = null;
     form.teamId = null;
     form.roleId = null;
+    form.canLogin = false;
   }
   showModal.value = true;
 };
@@ -350,6 +413,31 @@ const handleDelete = async (id) => {
     fetchData();
   } catch (err) {
     alert(err.message || 'Có lỗi xảy ra');
+  }
+};
+
+const handleDownloadTemplate = async () => {
+  try {
+    await dlTemplate('/employees/download-template', 'mau_nhap_nhan_vien.xlsx');
+  } catch (err) {
+    alert('Không thể tải file mẫu');
+  }
+};
+
+const handleImport = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    loading.value = true;
+    const res = await importExcel('/employees/import', file);
+    alert('Nhập dữ liệu thành công');
+    fetchData();
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi nhập file Excel');
+  } finally {
+    loading.value = false;
+    event.target.value = ''; // Reset input
   }
 };
 

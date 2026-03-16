@@ -21,6 +21,10 @@
         </UiButton>
         <input type="file" ref="fileInput" class="hidden" accept=".xlsx, .xls" @change="handleImport" />
         
+        <UiButton @click="openBulkModal" variant="outline" >
+          <Users class="w-4 h-4" />
+          Chấm công theo tổ
+        </UiButton>
         <UiButton @click="() => openModal(null)" class="shadow-lg shadow-emerald-100">
           <CalendarPlus class="w-4 h-4" />
           Chấm công mới
@@ -298,13 +302,134 @@
         </div>
       </div>
     </div>
+
+    <!-- Bulk Attendance Modal -->
+    <div v-if="showBulkModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+      <div class="card w-full max-w-5xl p-8 animate-in zoom-in slide-in-from-bottom duration-300 max-h-[95vh] flex flex-col">
+        <div class="flex items-center justify-between mb-6 shrink-0">
+          <div>
+            <h3 class="text-2xl font-black text-slate-900 tracking-tight">Chấm công hàng loạt</h3>
+            <p class="text-sm text-slate-500 mt-1">Ngày chấm công: <strong class="text-emerald-600">{{ filterDate }}</strong></p>
+          </div>
+          <button @click="showBulkModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
+        </div>
+
+        <div class="overflow-y-auto flex-1 pr-2 space-y-8">
+          <!-- Filters for Bulk -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+            <UiSelect 
+              v-model="bulkForm.departmentId" 
+              label="Lọc theo phòng ban" 
+              :options="deptOptions" 
+              placeholder="Tất cả phòng ban"
+              @update:modelValue="loadBulkEmployees"
+            />
+            <UiSelect 
+              v-model="bulkForm.teamId" 
+              label="Tổ biên chế" 
+              :options="teamFilterOptions" 
+              placeholder="Chọn tổ để nạp danh sách"
+              @update:modelValue="loadBulkEmployees"
+            />
+          </div>
+
+          <!-- Primary Employees -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-lg font-black text-slate-800">Danh sách nhân sự chính thức</h4>
+              <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{{ bulkEmployees.filter(e => e.selected).length }} / {{ bulkEmployees.length }} đã chọn</span>
+            </div>
+            
+            <div v-if="bulkEmployees.length === 0" class="text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl">
+              <p class="text-slate-500 text-sm font-medium">Không có nhân viên nào chưa chấm công phù hợp với bộ lọc.</p>
+            </div>
+            <div v-else class="border border-slate-200 rounded-2xl overflow-hidden">
+              <table class="w-full text-left">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                  <tr class="text-[10px] font-black uppercase text-slate-500 tracking-widest">
+                    <th class="px-4 py-3 w-12 text-center">
+                      <input type="checkbox" :checked="isAllBulkSelected" @change="toggleAllBulk" class="rounded text-primary-600 focus:ring-primary-500" />
+                    </th>
+                    <th class="px-4 py-3">Nhân viên</th>
+                    <th class="px-4 py-3">Tổ biên chế</th>
+                    <th class="px-4 py-3 w-48">Tổ thực tế làm việc</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-for="emp in bulkEmployees" :key="emp.employee.id" :class="{'bg-primary-50/10': emp.selected, 'hover:bg-slate-50': true}">
+                    <td class="px-4 py-3 text-center">
+                      <input type="checkbox" v-model="emp.selected" class="rounded text-primary-600 focus:ring-primary-500" />
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="font-bold text-sm text-slate-900">{{ emp.employee.fullName }}</div>
+                      <div class="text-[10px] text-slate-500 font-bold uppercase">{{ emp.employee.code }}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">{{ emp.originalTeam?.name || 'Không có' }}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <select v-model="emp.actualTeamId" class="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+                        <option v-for="opt in teamOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                      </select>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Borrowed Employees -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="text-lg font-black text-slate-800">Nhân sự mượn thêm</h4>
+              <UiButton @click="addBorrowedEmployee" variant="outline" class="h-8 px-3 text-xs border-dashed border-slate-300">
+                <Plus class="w-3.5 h-3.5 mr-1" /> Thêm người
+              </UiButton>
+            </div>
+
+            <div v-if="borrowedEmployees.length === 0" class="text-center p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
+              <p class="text-slate-400 text-sm font-medium">Chưa có nhân sự mượn thêm</p>
+            </div>
+            <div v-else class="space-y-3">
+              <div v-for="(b, index) in borrowedEmployees" :key="index" class="flex gap-4 items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                <div class="flex-1">
+                  <UiSelect 
+                    v-model="b.employeeId" 
+                    :options="availableBorrowedEmployees(index)" 
+                    placeholder="Chọn nhân sự mượn..." 
+                    @update:modelValue="e => onBorrowedEmployeeSelect(e, index)"
+                  />
+                </div>
+                <div class="w-48">
+                  <UiSelect 
+                    v-model="b.actualTeamId" 
+                    :options="teamOptions" 
+                    placeholder="Tổ đến làm" 
+                  />
+                </div>
+                <button @click="removeBorrowedEmployee(index)" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0">
+                  <Trash class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-4 mt-8 pt-6 border-t border-slate-100 shrink-0">
+          <button type="button" @click="showBulkModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">Hủy bỏ</button>
+          <UiButton @click="handleBulkSubmit" class="flex-[2] h-14 text-lg shadow-xl shadow-primary-200" :loading="saving" :disabled="totalBulkSelected === 0">
+            Lưu chấm công ({{ totalBulkSelected }} người)
+          </UiButton>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { 
   CalendarPlus, Search, CalendarX, CheckCircle2, PencilLine, Trash2, X, Info,
-  Download, Upload, FileSpreadsheet, UserX
+  Download, Upload, FileSpreadsheet, UserX, Users, Plus, Trash
 } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
@@ -332,6 +457,16 @@ const showModal = ref(false);
 const showAbsentModal = ref(false);
 const showDuplicateModal = ref(false);
 const duplicateRecord = ref(null);
+
+const showBulkModal = ref(false);
+
+const bulkForm = reactive({
+  departmentId: '',
+  teamId: '',
+});
+
+const bulkEmployees = ref([]);
+const borrowedEmployees = ref([]);
 
 const filterDate = ref(new Date().toISOString().substr(0, 10));
 const filterDept = ref('');
@@ -492,6 +627,108 @@ const handleSubmit = async () => {
     } else {
       alert('Lỗi xử lý: ' + msg);
     }
+  } finally {
+    saving.value = false;
+  }
+};
+
+const openBulkModal = () => {
+  bulkForm.departmentId = filterDept.value;
+  bulkForm.teamId = filterTeam.value;
+  borrowedEmployees.value = [];
+  loadBulkEmployees();
+  showBulkModal.value = true;
+};
+
+const loadBulkEmployees = () => {
+  const attendedIds = new Set(attendances.value.map(a => a.employee?.id));
+  
+  bulkEmployees.value = employees.value
+    .filter(e => {
+      if (e.status !== 'ACTIVE') return false;
+      if (attendedIds.has(e.id)) return false;
+      
+      const matchDept = !isFilterActive(bulkForm.departmentId) || (e.department?.id || e.team?.department?.id) == bulkForm.departmentId;
+      const matchTeam = !isFilterActive(bulkForm.teamId) || e.team?.id == bulkForm.teamId;
+      
+      return matchDept && matchTeam;
+    })
+    .map(e => ({
+      selected: true,
+      employee: e,
+      originalTeam: e.team,
+      actualTeamId: e.team?.id || null
+    }));
+};
+
+const isAllBulkSelected = computed(() => bulkEmployees.value.length > 0 && bulkEmployees.value.every(e => e.selected));
+const toggleAllBulk = (e) => {
+  const val = e.target.checked;
+  bulkEmployees.value.forEach(emp => emp.selected = val);
+};
+
+const totalBulkSelected = computed(() => {
+  return bulkEmployees.value.filter(e => e.selected).length + borrowedEmployees.value.filter(b => b.employeeId).length;
+});
+
+const addBorrowedEmployee = () => {
+  borrowedEmployees.value.push({ employeeId: null, actualTeamId: bulkForm.teamId || null });
+};
+const removeBorrowedEmployee = (index) => {
+  borrowedEmployees.value.splice(index, 1);
+};
+
+const onBorrowedEmployeeSelect = (empId, index) => {
+  if (!empId) return;
+  const emp = employees.value.find(e => e.id == empId);
+  if (emp && !borrowedEmployees.value[index].actualTeamId && bulkForm.teamId) {
+    borrowedEmployees.value[index].actualTeamId = bulkForm.teamId;
+  } else if (emp && !borrowedEmployees.value[index].actualTeamId) {
+    borrowedEmployees.value[index].actualTeamId = emp.team?.id || null;
+  }
+};
+
+const availableBorrowedEmployees = (index) => {
+  const attendedIds = new Set(attendances.value.map(a => a.employee?.id));
+  const primaryIds = new Set(bulkEmployees.value.map(e => e.employee.id));
+  const otherBorrowedIds = new Set(borrowedEmployees.value.filter((b, i) => i !== index && b.employeeId).map(b => b.employeeId));
+  
+  return employees.value
+    .filter(e => e.status === 'ACTIVE' && !attendedIds.has(e.id) && !primaryIds.has(e.id) && !otherBorrowedIds.has(e.id))
+    .map(e => ({ value: e.id, label: `${e.fullName} (${e.code}) - Tổ: ${e.team?.name || 'N/A'}` }));
+};
+
+const handleBulkSubmit = async () => {
+  const payload = [];
+  
+  bulkEmployees.value.filter(e => e.selected).forEach(e => {
+    payload.push({
+      employeeId: e.employee.id,
+      originalTeamId: e.originalTeam?.id || null,
+      actualTeamId: e.actualTeamId,
+      attendanceDate: filterDate.value
+    });
+  });
+  
+  borrowedEmployees.value.filter(b => b.employeeId).forEach(b => {
+    const emp = employees.value.find(e => e.id == b.employeeId);
+    payload.push({
+      employeeId: b.employeeId,
+      originalTeamId: emp?.team?.id || null,
+      actualTeamId: b.actualTeamId,
+      attendanceDate: filterDate.value
+    });
+  });
+  
+  if (payload.length === 0) return;
+  
+  saving.value = true;
+  try {
+    await $api.post('/attendances/batch', payload);
+    showBulkModal.value = false;
+    fetchData();
+  } catch (err) {
+    alert(err.response?.data?.message || err.message || 'Lỗi xử lý');
   } finally {
     saving.value = false;
   }

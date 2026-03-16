@@ -163,8 +163,8 @@ const menuGroups = [
     title: 'Sản xuất',
     items: [
       { to: '/products', label: 'Danh mục Sản phẩm', icon: Package },
-      { to: '/quality-layers', label: 'Cấu hình Lớp lỗi', icon: Tags },
-      { to: '/product-qualities', label: 'Xếp hạng Chất lượng', icon: ShieldAlert },
+      { to: '/quality-layers', label: 'Định Nghĩa Lớp Gỗ', icon: Tags },
+      { to: '/product-qualities', label: 'Cấu Hình Chất lượng', icon: ShieldAlert },
       { to: '/production-steps', label: 'Công đoạn vận hành', icon: Layers },
       { to: '/penalty-bonus', label: 'Khen thưởng / Kỷ luật', icon: Gavel },
     ]

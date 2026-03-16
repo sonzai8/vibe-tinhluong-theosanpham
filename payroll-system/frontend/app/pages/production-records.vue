@@ -5,10 +5,16 @@
         <h2 class="text-3xl font-black text-slate-900 tracking-tight">Nhật ký Sản lượng</h2>
         <p class="text-slate-500 font-medium">Ghi nhận năng suất theo tổ đội sản xuất</p>
       </div>
-      <UiButton @click="openModal()" class="shadow-lg shadow-primary-100">
-        <PlusCircle class="w-4 h-4" />
-        Ghi nhận sản lượng
-      </UiButton>
+      <div class="flex gap-3">
+        <UiButton @click="openBulkModal" variant="outline" >
+          <ListPlus class="w-4 h-4" />
+          Nhập nhiều tổ
+        </UiButton>
+        <UiButton @click="openModal()" class="shadow-lg shadow-primary-100">
+          <PlusCircle class="w-4 h-4" />
+          Ghi nhận sản lượng
+        </UiButton>
+      </div>
     </div>
 
     <!-- Filter -->
@@ -134,11 +140,95 @@
         </form>
       </div>
     </div>
+
+    <!-- Bulk Entry Modal -->
+    <div v-if="showBulkModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+      <div class="card w-full max-w-6xl p-8 animate-in zoom-in slide-in-from-bottom duration-300 max-h-[95vh] flex flex-col pl-4 pr-6">
+        <div class="flex items-center justify-between mb-6 shrink-0 pl-4">
+          <div>
+            <h3 class="text-2xl font-black text-slate-900 tracking-tight">Nhập nhật ký sản lượng đa tổ</h3>
+            <p class="text-sm text-slate-500 mt-1">Báo cáo năng suất của nhiều tổ cùng một lúc</p>
+          </div>
+          <button @click="showBulkModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
+        </div>
+
+        <div class="overflow-y-auto flex-1 pl-4 pr-2 space-y-6">
+          <div class="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 w-full max-w-sm">
+            <label class="text-xs font-black text-slate-500 uppercase tracking-widest shrink-0">Ngày sản xuất</label>
+            <input v-model="bulkDate" type="date" class="input-field py-2 text-sm font-bold flex-1" />
+          </div>
+
+          <div v-if="bulkError" class="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-xl border border-red-100 flex items-start gap-3">
+            <AlertCircle class="w-5 h-5 shrink-0 mt-0.5" />
+            <div v-html="bulkError"></div>
+          </div>
+
+          <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <table class="w-full text-left bg-white">
+              <thead class="bg-slate-50 border-b border-slate-200">
+                <tr class="text-[10px] font-black uppercase text-slate-500 tracking-widest divide-x divide-slate-100">
+                  <th class="px-4 py-3 w-12 text-center">#</th>
+                  <th class="px-4 py-3 w-[25%]">Tổ sản xuất</th>
+                  <th class="px-4 py-3">Sản phẩm</th>
+                  <th class="px-4 py-3 w-[20%]">Chất lượng</th>
+                  <th class="px-4 py-3 w-32">Số lượng</th>
+                  <th class="px-3 py-3 w-12 text-center"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="(row, index) in bulkRecords" :key="index" class="hover:bg-slate-50/50 transition-colors divide-x divide-slate-50">
+                  <td class="px-4 py-2 text-center text-xs font-black text-slate-300">{{ index + 1 }}</td>
+                  <td class="px-4 py-2">
+                    <select v-model="row.teamId" class="w-full text-sm font-bold bg-transparent border-none focus:ring-0 cursor-pointer text-slate-700 outline-none">
+                      <option disabled value="null">-- Chọn Tổ --</option>
+                      <option v-for="opt in teamOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </td>
+                  <td class="px-4 py-2">
+                    <select v-model="row.productId" class="w-full text-sm font-bold bg-transparent border-none focus:ring-0 cursor-pointer text-slate-700 outline-none">
+                      <option disabled value="null">-- Chọn Sản Phẩm --</option>
+                      <option v-for="opt in productOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </td>
+                  <td class="px-4 py-2">
+                    <select v-model="row.qualityId" class="w-full text-sm font-bold bg-transparent border-none focus:ring-0 cursor-pointer text-slate-700 outline-none">
+                      <option disabled value="null">-- Chọn CL --</option>
+                      <option v-for="opt in qualityOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </td>
+                  <td class="px-4 py-2">
+                    <input v-model.number="row.quantity" type="number" min="1" class="w-full text-lg font-black bg-transparent border-none focus:ring-0 text-slate-900 outline-none text-right" placeholder="0" />
+                  </td>
+                  <td class="px-3 py-2 text-center">
+                    <button @click="removeBulkRow(index)" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" :disabled="bulkRecords.length === 1 && index === 0" :class="{'opacity-50 cursor-not-allowed': bulkRecords.length === 1 && index === 0}">
+                      <Trash class="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+             <UiButton @click="addBulkRow" variant="outline" >
+               <Plus class="w-4 h-4 mr-1.5" /> Thêm dòng mới
+             </UiButton>
+          </div>
+        </div>
+
+        <div class="flex gap-4 mt-8 pt-6 border-t border-slate-100 shrink-0 pl-4">
+          <button type="button" @click="showBulkModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">Hủy bỏ</button>
+          <UiButton @click="handleBulkSubmit" class="flex-[2] h-14 text-lg shadow-xl shadow-primary-200" :loading="saving">Lưu toàn bộ sản lượng</UiButton>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { PlusCircle, Filter, History, PencilLine, Trash2, X } from 'lucide-vue-next';
+import { 
+  PlusCircle, Filter, History, PencilLine, Trash2, X, ListPlus, Plus, Trash, AlertCircle 
+} from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const records = ref([]);
@@ -168,6 +258,11 @@ const form = reactive({
 });
 
 const currentId = ref(null);
+
+const showBulkModal = ref(false);
+const bulkDate = ref(new Date().toISOString().substr(0, 10));
+const bulkRecords = ref([]);
+const bulkError = ref('');
 
 const fetchData = async () => {
   loading.value = true;
@@ -240,6 +335,105 @@ const handleDelete = async (id) => {
     fetchData();
   } catch (err) {
     alert(err.response?.data?.message || err.message || 'Lỗi');
+  }
+};
+
+const openBulkModal = () => {
+  bulkDate.value = new Date().toISOString().substr(0, 10);
+  bulkRecords.value = [{
+    teamId: null,
+    productId: null,
+    qualityId: null,
+    quantity: 0
+  }];
+  bulkError.value = '';
+  showBulkModal.value = true;
+};
+
+const addBulkRow = () => {
+  const lastRow = bulkRecords.value[bulkRecords.value.length - 1];
+  bulkRecords.value.push({
+    teamId: null,
+    productId: lastRow ? lastRow.productId : null,
+    qualityId: lastRow ? lastRow.qualityId : null,
+    quantity: 0
+  });
+};
+
+const removeBulkRow = (index) => {
+  if (bulkRecords.value.length > 1) {
+    bulkRecords.value.splice(index, 1);
+  }
+};
+
+const validateBulkRecords = () => {
+  bulkError.value = '';
+  const lines = bulkRecords.value;
+  
+  // 1. Kiểm tra dòng trống
+  for (let i = 0; i < lines.length; i++) {
+    const row = lines[i];
+    if (!row.teamId || !row.productId || !row.qualityId || !row.quantity || row.quantity <= 0) {
+      bulkError.value = `Dòng số ${i + 1} điền thiếu thông tin hoặc số lượng không hợp lệ.`;
+      return false;
+    }
+  }
+
+  // 2. Kiểm tra trùng lặp trên Form hiện tại
+  const seenMap = new Map();
+  for (let i = 0; i < lines.length; i++) {
+    const row = lines[i];
+    const key = `${row.teamId}_${row.productId}_${row.qualityId}`;
+    if (seenMap.has(key)) {
+      const prevLine = seenMap.get(key);
+      bulkError.value = `Lỗi nhập đúp: Dòng số ${prevLine} và Dòng số ${i + 1} đang nhập cùng một tổ, cùng sản phẩm và chất lượng. Vui lòng cộng gộp số lượng vào 1 dòng.`;
+      return false;
+    }
+    seenMap.set(key, i + 1);
+  }
+
+  // 3. Kiểm tra trùng lặp với Database đã hiển thị ở bảng (Tạm thời)
+  for (let i = 0; i < lines.length; i++) {
+    const row = lines[i];
+    const existing = records.value.find(r => 
+      r.productionDate === bulkDate.value &&
+      r.team?.id === row.teamId &&
+      r.product?.id === row.productId &&
+      r.quality?.id === row.qualityId
+    );
+    if (existing) {
+      const teamName = teamOptions.value.find(t => t.value === row.teamId)?.label || 'Tổ';
+      bulkError.value = `Trùng SQL: <b>${teamName}</b> đã được báo cáo sản lượng mã rập và chất lượng này trong ngày <b>${bulkDate.value}</b> rồi. Hãy ra ngoài sửa bản ghi có sẵn thay vì thêm mới.`;
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const handleBulkSubmit = async () => {
+  if (!validateBulkRecords()) return;
+
+  saving.value = true;
+  try {
+    const payload = bulkRecords.value.map(row => ({
+      teamId: row.teamId,
+      productId: row.productId,
+      qualityId: row.qualityId,
+      quantity: parseInt(row.quantity),
+      productionDate: bulkDate.value
+    }));
+
+    await $api.post('/production-records/batch', payload);
+    showBulkModal.value = false;
+    fetchData();
+  } catch (err) {
+    const msg = err.response?.data?.message || err.message || 'Có lỗi xảy ra';
+    bulkError.value = msg.includes("Duplicate") || msg.includes("constraint") 
+      ? 'Dữ liệu này đã tồn tại trong Database, không thể ghi đè.'
+      : 'Lỗi Database: ' + msg;
+  } finally {
+    saving.value = false;
   }
 };
 

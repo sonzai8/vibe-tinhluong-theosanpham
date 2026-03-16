@@ -24,20 +24,16 @@
     </div>
 
     <!-- Analytics Dashboard Tiles -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div v-if="loading" class="flex justify-center py-10">
+      <div class="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+    </div>
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div v-for="(stat, idx) in mainStats" :key="idx" 
         class="card p-6 group hover:scale-[1.02] hover:shadow-xl hover:shadow-primary-100 transition-all duration-300 cursor-pointer border-b-4"
         :class="stat.border">
         <div class="flex items-center justify-between mb-6">
           <div :class="`w-14 h-14 rounded-2xl ${stat.bg} flex items-center justify-center transition-transform group-hover:rotate-6`">
             <component :is="stat.icon" class="w-7 h-7" :class="stat.text" />
-          </div>
-          <div class="text-right">
-             <div :class="`text-xs font-black px-2.5 py-1 rounded-full flex items-center gap-1 ${stat.trend > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`">
-              <ArrowUpRight v-if="stat.trend > 0" class="w-3 h-3" />
-              <ArrowDownRight v-else class="w-3 h-3" />
-              {{ Math.abs(stat.trend) }}%
-            </div>
           </div>
         </div>
         <div class="space-y-1">
@@ -66,15 +62,16 @@
             </select>
           </div>
           
-          <!-- Mock Chart UI -->
-          <div class="h-64 flex items-end justify-between gap-4 px-2">
-            <div v-for="(h, i) in [45, 78, 56, 92, 63, 84, 75]" :key="i" class="flex-1 flex flex-col items-center gap-3 group">
-              <div :class="`w-full rounded-t-xl transition-all duration-500 group-hover:bg-primary-500 relative ${i === 3 ? 'bg-primary-600 h-[calc(100%*0.92)]' : 'bg-primary-100 h-[calc(100%*0.'+h+')]'}`">
-                <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                  {{ h*100 }}
+          <!-- Real Chart UI -->
+          <div v-if="!loading" class="h-64 flex items-end justify-between gap-4 px-2">
+            <div v-for="(day, i) in chartData" :key="i" class="flex-1 flex flex-col items-center gap-3 group">
+              <div :class="`w-full rounded-t-xl transition-all duration-500 group-hover:bg-primary-500 relative ${i === 6 ? 'bg-primary-600' : 'bg-primary-100'}`"
+                   :style="`height: ${Math.max(10, day.percentage)}%`">
+                <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                  {{ day.quantity.toLocaleString() }}
                 </div>
               </div>
-              <span class="text-[10px] font-black text-slate-400 uppercase">{{ ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][i] }}</span>
+              <span class="text-[10px] font-black text-slate-400 uppercase">{{ day.shortDate }}</span>
             </div>
           </div>
         </div>
@@ -97,23 +94,26 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-50">
-                <tr v-for="i in 4" :key="i" class="hover:bg-slate-50/50 transition-colors group">
+                <tr v-if="latestRecords.length === 0" class="text-center py-4">
+                  <td colspan="5" class="px-8 py-5 text-sm text-slate-400 font-medium">Chưa có nhật ký sản xuất</td>
+                </tr>
+                <tr v-for="(r, i) in latestRecords" :key="i" class="hover:bg-slate-50/50 transition-colors group">
                   <td class="px-8 py-5">
                     <div class="flex items-center gap-4">
                       <div class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-xs font-black text-slate-500 group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm">
-                        NV
+                        {{ r.employeeName.substring(0, 1).toUpperCase() }}
                       </div>
-                      <span class="text-sm font-bold text-slate-700">Lê Minh {{ i }}</span>
+                      <span class="text-sm font-bold text-slate-700">{{ r.employeeName }}</span>
                     </div>
                   </td>
-                  <td class="px-8 py-5 text-sm text-slate-500 font-medium">Ván Birch tiêu chuẩn</td>
+                  <td class="px-8 py-5 text-sm text-slate-500 font-medium">{{ r.productName }}</td>
                   <td class="px-8 py-5">
-                    <span class="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-500 uppercase">Sấy phôi</span>
+                    <span class="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-black text-slate-500 uppercase">{{ r.stepName }}</span>
                   </td>
-                  <td class="px-8 py-5 font-black text-slate-900">{{ (1200 + i * 150).toLocaleString() }}</td>
+                  <td class="px-8 py-5 font-black text-slate-900">{{ (r.quantity).toLocaleString() }}</td>
                   <td class="px-8 py-5">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block mr-2 shadow-sm shadow-emerald-200"></span>
-                    <span class="text-[10px] font-black text-emerald-600 uppercase">Hợp lệ</span>
+                    <span class="text-[10px] font-black text-emerald-600 uppercase">{{ r.status }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -142,22 +142,25 @@
         <div class="card p-8">
           <h3 class="font-black text-slate-900 mb-6">Phòng ban tiêu biểu</h3>
           <div class="space-y-6">
-            <div v-for="dept in depts" :key="dept.name" class="space-y-3">
+            <div v-if="topDepts.length === 0" class="text-sm text-slate-400">Chưa có dữ liệu phòng ban.</div>
+            <div v-for="(dept, index) in topDepts" :key="index" class="space-y-3">
               <div class="flex justify-between items-center">
                 <div class="flex items-center gap-3">
-                  <div :class="`w-2 h-2 rounded-full ${dept.color}`"></div>
+                  <div :class="`w-2 h-2 rounded-full ${deptColors[index % deptColors.length]}`"></div>
                   <span class="text-sm font-bold text-slate-700">{{ dept.name }}</span>
                 </div>
                 <span class="text-xs font-black text-slate-500 uppercase">{{ dept.employees }} Nhân sự</span>
               </div>
               <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div :class="`h-full rounded-full ${dept.bg}`" :style="`width: ${dept.percent}%`"></div>
+                <div :class="`h-full rounded-full ${deptColors[index % deptColors.length]}`" :style="`width: ${dept.percentage}%`"></div>
               </div>
             </div>
           </div>
-          <UiButton class="w-full mt-8 bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900">
-            Xem cấu trúc tổ chức
-          </UiButton>
+          <NuxtLink to="/departments" class="block w-full mt-8">
+            <UiButton class="w-full bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900">
+              Xem cấu trúc tổ chức
+            </UiButton>
+          </NuxtLink>
         </div>
       </div>
     </div>
@@ -183,6 +186,7 @@ import {
   Menu
 } from 'lucide-vue-next';
 
+const { $api } = useNuxtApp();
 const { user } = useAuth();
 
 const todayFormatted = computed(() => {
@@ -194,12 +198,23 @@ const todayFormatted = computed(() => {
   }).format(new Date());
 });
 
-const mainStats = [
-  { label: 'Nhân sự Active', value: '1,280', icon: Users, bg: 'bg-emerald-100', text: 'text-emerald-600', border: 'border-emerald-500', trend: 4.2 },
-  { label: 'Sản lượng/Giờ', value: '4,520', icon: Package, bg: 'bg-sky-100', text: 'text-sky-600', border: 'border-sky-500', trend: 12.5 },
-  { label: 'Quỹ lương Dự kiến', value: '4.85B', icon: CreditCard, bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-500', trend: -2.1 },
-  { label: 'Năng suất Hệ thống', value: '98.5%', icon: TrendingUp, bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-500', trend: 0.8 },
-];
+const loading = ref(true);
+const statsData = ref({
+  activeEmployees: 0,
+  todayProduction: 0,
+  totalDepartments: 0,
+  totalTeams: 0
+});
+const chartData = ref([]);
+const latestRecords = ref([]);
+const topDepts = ref([]);
+
+const mainStats = computed(() => [
+  { label: 'Nhân sự Active', value: statsData.value.activeEmployees.toLocaleString(), icon: Users, bg: 'bg-emerald-100', text: 'text-emerald-600', border: 'border-emerald-500' },
+  { label: 'Sản lượng hôm nay', value: statsData.value.todayProduction.toLocaleString(), icon: Package, bg: 'bg-sky-100', text: 'text-sky-600', border: 'border-sky-500' },
+  { label: 'Tổng số tổ đội', value: statsData.value.totalTeams.toLocaleString(), icon: CreditCard, bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-500' },
+  { label: 'Tổng số phòng ban', value: statsData.value.totalDepartments.toLocaleString(), icon: TrendingUp, bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-500' },
+]);
 
 const shortcuts = [
   { to: '/employees', label: 'Nhân viên', icon: Users },
@@ -208,12 +223,52 @@ const shortcuts = [
   { to: '/payrolls', label: 'Bảng lương', icon: CreditCard },
 ];
 
-const depts = [
-  { name: 'Khối Sản Xuất', employees: 950, percent: 85, color: 'bg-emerald-500', bg: 'bg-emerald-500' },
-  { name: 'Khối Kỹ Thuật', employees: 120, percent: 45, color: 'bg-blue-500', bg: 'bg-blue-500' },
-  { name: 'Khối Văn Phòng', employees: 85, percent: 30, color: 'bg-orange-500', bg: 'bg-orange-500' },
-  { name: 'Bộ phận Kho', employees: 125, percent: 60, color: 'bg-indigo-500', bg: 'bg-indigo-500' },
-];
+const deptColors = ['bg-emerald-500', 'bg-blue-500', 'bg-orange-500', 'bg-indigo-500'];
+
+const fetchDashboardData = async () => {
+  loading.value = true;
+  try {
+    const res = await $api.get('/dashboard/stats');
+    const data = res.data;
+    
+    statsData.value = {
+      activeEmployees: data.activeEmployees || 0,
+      todayProduction: data.todayProduction || 0,
+      totalDepartments: data.totalDepartments || 0,
+      totalTeams: data.totalTeams || 0
+    };
+    
+    latestRecords.value = data.latestRecords || [];
+    
+    // Calculate dept percentages
+    const maxEmp = Math.max(...(data.topDepartments.map(d => d.employees) || [1]));
+    topDepts.value = (data.topDepartments || []).map(d => ({
+      ...d,
+      percentage: maxEmp > 0 ? (d.employees / maxEmp) * 100 : 0
+    }));
+
+    // Calculate chart height percentages & format dates
+    const rawChart = data.productionChart || [];
+    const maxQty = Math.max(...rawChart.map(c => c.quantity), 1);
+    chartData.value = rawChart.map(c => {
+      const d = new Date(c.date);
+      return {
+        ...c,
+        percentage: (c.quantity / maxQty) * 100,
+        shortDate: d.toLocaleDateString('vi-VN', { weekday: 'short' })
+      };
+    });
+    
+  } catch (err) {
+    console.error('Lỗi khi tải dữ liệu dashboard', err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchDashboardData();
+});
 </script>
 
 <style scoped>

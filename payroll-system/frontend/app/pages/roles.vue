@@ -73,6 +73,7 @@
         <form @submit.prevent="handleSubmit" class="space-y-6">
           <UiInput v-model="form.code" label="Mã chức vụ" placeholder="VD: GDS" required />
           <UiInput v-model="form.name" label="Tên chức vụ" placeholder="VD: Giám Đốc Xưởng" required />
+          <UiInput v-model="form.dailyBenefit" label="Phụ cấp hằng ngày" placeholder="VD: 100000" required />
           <UiInput v-model="form.description" label="Mô tả" placeholder="Mô tả chức năng nhiệm vụ..." />
           
           <div class="flex gap-3 pt-2">
@@ -98,6 +99,7 @@ const currentRole = ref({});
 const form = reactive({
   code: '',
   name: '',
+  dailyBenefit: 0,
   description: ''
 });
 

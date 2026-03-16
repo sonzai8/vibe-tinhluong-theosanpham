@@ -21,21 +21,27 @@
         <div v-for="group in menuGroups" :key="group.title" class="pb-6">
           <p class="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{{ group.title }}</p>
           <div class="space-y-1">
-            <Component
-              v-for="item in group.items"
-              :key="item.to"
-              :is="item.to ? 'NuxtLink' : 'div'"
-              :to="item.to"
-              class="nav-link-v2"
-              active-class="nav-link-v2-active"
-            >
-              <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-sm"
-                :class="route.path === item.to ? 'bg-primary-600 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600'">
-                <component :is="item.icon" class="w-5 h-5" />
+            <template v-for="item in group.items" :key="item.to">
+              <NuxtLink
+                v-if="item.to"
+                :to="item.to"
+                class="nav-link-v2 group"
+                active-class="nav-link-v2-active"
+              >
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-sm"
+                  :class="route.path === item.to ? 'bg-primary-600 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600'">
+                  <component :is="item.icon" class="w-5 h-5" />
+                </div>
+                <span class="flex-1 font-bold text-[13.5px] tracking-tight">{{ item.label }}</span>
+                <ChevronRight class="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity" />
+              </NuxtLink>
+              <div v-else class="nav-link-v2 opacity-50 cursor-not-allowed">
+                <div class="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shadow-sm">
+                  <component :is="item.icon" class="w-5 h-5" />
+                </div>
+                <span class="flex-1 font-bold text-[13.5px] tracking-tight">{{ item.label }}</span>
               </div>
-              <span class="flex-1 font-bold text-[13.5px] tracking-tight">{{ item.label }}</span>
-              <ChevronRight v-if="item.to" class="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity" />
-            </Component>
+            </template>
           </div>
         </div>
       </nav>
@@ -160,7 +166,7 @@ onMounted(() => {
 <style>
 /* Custom CMS Styles */
 .nav-link-v2 {
-  @apply flex items-center gap-4 px-4 py-2.5 text-slate-500 hover:text-primary-600 rounded-2xl transition-all duration-300 group;
+  @apply flex items-center gap-4 px-4 py-2.5 text-slate-500 hover:text-primary-600 rounded-2xl transition-all duration-300;
 }
 
 .nav-link-v2-active {

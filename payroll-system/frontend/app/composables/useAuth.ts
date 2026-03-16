@@ -9,7 +9,6 @@ export const useAuth = () => {
     const { $api } = useNuxtApp();
     try {
       const response: any = await $api.post('/auth/login', loginData);
-      console.log(response)
       // Backend trả về map chứa token, employeeId, fullName trực tiếp
       if (response && response.data.token) {
         token.value = response.data.token;

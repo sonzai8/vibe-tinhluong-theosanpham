@@ -35,7 +35,7 @@ public class TeamController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin tổ theo ID")
-    public ResponseEntity<ApiResponse<TeamResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<TeamResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, teamService.getById(id)));
     }
 
@@ -48,13 +48,13 @@ public class TeamController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật tổ sản xuất")
-    public ResponseEntity<ApiResponse<TeamResponse>> update(@PathVariable Long id, @Valid @RequestBody TeamRequest request) {
+    public ResponseEntity<ApiResponse<TeamResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody TeamRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, teamService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa tổ sản xuất")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         teamService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }
@@ -63,14 +63,14 @@ public class TeamController {
 
     @GetMapping("/{id}/members")
     @Operation(summary = "Danh sách nhân viên trong tổ")
-    public ResponseEntity<ApiResponse<List<TeamMemberResponse>>> getMembers(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<TeamMemberResponse>>> getMembers(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, teamService.getMembers(id)));
     }
 
     @PostMapping("/{id}/members")
     @Operation(summary = "Thêm nhân viên vào biên chế tổ")
     public ResponseEntity<ApiResponse<TeamMemberResponse>> addMember(
-            @PathVariable Long id, 
+            @PathVariable("id") Long id, 
             @Valid @RequestBody TeamMemberRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(MessageConstants.SUCCESS_CREATE, teamService.addMember(id, request)));
@@ -79,8 +79,8 @@ public class TeamController {
     @DeleteMapping("/{id}/members/{employeeId}")
     @Operation(summary = "Xóa nhân viên khỏi biên chế tổ")
     public ResponseEntity<ApiResponse<Void>> removeMember(
-            @PathVariable Long id, 
-            @PathVariable Long employeeId) {
+            @PathVariable("id") Long id, 
+            @PathVariable("employeeId") Long employeeId) {
         teamService.removeMember(id, employeeId);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

@@ -33,7 +33,7 @@ public class PenaltyBonusController {
     
     @GetMapping("/employee/{employeeId}")
     @Operation(summary = "Danh sách khen thưởng/kỷ luật của một nhân viên")
-    public ResponseEntity<ApiResponse<List<PenaltyBonusResponse>>> getByEmployee(@PathVariable Long employeeId) {
+    public ResponseEntity<ApiResponse<List<PenaltyBonusResponse>>> getByEmployee(@PathVariable("employeeId") Long employeeId) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, penaltyBonusService.getByEmployee(employeeId)));
     }
 
@@ -46,13 +46,13 @@ public class PenaltyBonusController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật khoản khen thưởng/kỷ luật")
-    public ResponseEntity<ApiResponse<PenaltyBonusResponse>> update(@PathVariable Long id, @Valid @RequestBody PenaltyBonusRequest request) {
+    public ResponseEntity<ApiResponse<PenaltyBonusResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody PenaltyBonusRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, penaltyBonusService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa khoản khen thưởng/kỷ luật")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         penaltyBonusService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

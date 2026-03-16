@@ -7,6 +7,20 @@
         <p class="text-slate-500 font-medium">Ghi lại danh sách nhân viên đi làm hàng ngày</p>
       </div>
       <div class="flex gap-3">
+        <UiButton variant="outline" @click="handleDownloadTemplate" >
+          <FileSpreadsheet class="w-4 h-4" />
+          Tải file mẫu
+        </UiButton>
+        <UiButton variant="outline" @click="handleExport" :loading="exporting">
+          <Download class="w-4 h-4" />
+          Xuất Excel
+        </UiButton>
+        <UiButton variant="outline" @click="$refs.fileInput.click()" :loading="importing">
+          <Upload class="w-4 h-4" />
+          Nhập Excel
+        </UiButton>
+        <input type="file" ref="fileInput" class="hidden" accept=".xlsx, .xls" @change="handleImport" />
+        
         <UiButton @click="openModal()" class="shadow-lg shadow-emerald-100">
           <CalendarPlus class="w-4 h-4" />
           Chấm công mới
@@ -24,7 +38,17 @@
           <div class="space-y-4">
             <div class="flex flex-col gap-1.5">
               <label class="text-xs font-black text-slate-400 uppercase">Ngày chấm công</label>
-              <input v-model="filterDate" type="date" class="input-field py-2 text-sm font-bold" />
+              <input v-model="filterDate" type="date" class="input-field py-2 text-sm font-bold" @change="fetchData" />
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-black text-slate-400 uppercase">Phòng ban</label>
+              <UiSelect 
+                v-model="filterDept"
+                :options="deptOptions"
+                placeholder="Tất cả phòng ban"
+                class="!py-0"
+              />
             </div>
 
             <div class="flex flex-col gap-1.5">
@@ -179,21 +203,32 @@
 </template>
 
 <script setup>
-import { CalendarPlus, Search, CalendarX, CheckCircle2, PencilLine, Trash2, X, Info } from 'lucide-vue-next';
+import { 
+  CalendarPlus, Search, CalendarX, CheckCircle2, PencilLine, Trash2, X, Info,
+  Download, Upload, FileSpreadsheet
+} from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const attendances = ref([]);
 const employees = ref([]);
 const teams = ref([]);
+const departments = ref([]);
 
 const employeeOptions = computed(() => employees.value.map(e => ({ value: e.id, label: e.fullName })));
 const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t.name })));
+const deptOptions = computed(() => [
+  { value: null, label: 'Tất cả phòng ban' },
+  ...departments.value.map(d => ({ value: d.id, label: d.name }))
+]);
 
 const loading = ref(true);
 const saving = ref(false);
+const exporting = ref(false);
+const importing = ref(false);
 const showModal = ref(false);
 
 const filterDate = ref(new Date().toISOString().substr(0, 10));
+const filterDept = ref(null);
 const search = ref('');
 
 const form = reactive({
@@ -208,14 +243,16 @@ const currentId = ref(null);
 const fetchData = async () => {
   loading.value = true;
   try {
-    const [attRes, empRes, teamRes] = await Promise.all([
+    const [attRes, empRes, teamRes, deptRes] = await Promise.all([
       $api.get(`/attendances/date/${filterDate.value}`),
       $api.get('/employees'),
-      $api.get('/teams')
+      $api.get('/teams'),
+      $api.get('/departments')
     ]);
     attendances.value = attRes.data;
     employees.value = empRes.data;
     teams.value = teamRes.data;
+    departments.value = deptRes.data;
   } catch (err) {
     console.error(err);
     // fallback if date endpoint fails
@@ -228,11 +265,13 @@ const fetchData = async () => {
 const fetchAttendances = () => fetchData();
 
 const filteredAttendances = computed(() => {
-  if (!search.value) return attendances.value;
-  return attendances.value.filter(a => 
-    a.employee?.fullName.toLowerCase().includes(search.value.toLowerCase()) ||
-    a.employee?.code.toLowerCase().includes(search.value.toLowerCase())
-  );
+  return attendances.value.filter(a => {
+    const matchSearch = !search.value || 
+                       a.employee?.fullName.toLowerCase().includes(search.value.toLowerCase()) ||
+                       a.employee?.code.toLowerCase().includes(search.value.toLowerCase());
+    const matchDept = !filterDept.value || a.employee?.department?.id === filterDept.value;
+    return matchSearch && matchDept;
+  });
 });
 
 const statistics = computed(() => {
@@ -273,6 +312,73 @@ const handleSubmit = async () => {
     alert(err.response?.data?.message || err.message || 'Lỗi xử lý');
   } finally {
     saving.value = false;
+  }
+};
+
+const handleExport = async () => {
+  exporting.value = true;
+  try {
+    const month = new Date(filterDate.value).getMonth() + 1;
+    const year = new Date(filterDate.value).getFullYear();
+    
+    const response = await $api.get('/attendances/export', {
+      params: { month, year, departmentId: filterDept.value },
+      responseType: 'blob'
+    });
+    
+    // Vì axios interceptor đã trả về response.data, nên ở đây data chính là Blob
+    const url = window.URL.createObjectURL(new Blob([response]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `ChamCong_${month}_${year}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    alert('Lỗi xuất file: ' + err.message);
+  } finally {
+    exporting.value = false;
+  }
+};
+
+const handleDownloadTemplate = async () => {
+  try {
+    const response = await $api.get('/attendances/download-template', {
+      responseType: 'blob'
+    });
+    
+    // Vì axios interceptor đã trả về response.data, nên ở đây data chính là Blob
+    const url = window.URL.createObjectURL(new Blob([response]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'Mau_Nhap_Cham_Cong.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    alert('Lỗi tải file mẫu: ' + err.message);
+  }
+};
+
+const handleImport = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  importing.value = true;
+  try {
+    await $api.post('/attendances/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    alert('Nhập dữ liệu thành công!');
+    fetchData();
+  } catch (err) {
+    alert('Lỗi nhập file: ' + err.response?.data?.message || err.message);
+  } finally {
+    importing.value = false;
+    event.target.value = ''; // Reset input
   }
 };
 

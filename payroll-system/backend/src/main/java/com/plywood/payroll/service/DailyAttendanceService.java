@@ -32,6 +32,12 @@ public class DailyAttendanceService {
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
+
+    public List<DailyAttendanceResponse> getByMonthYearAndDepartment(int month, int year, Long deptId) {
+        return attendanceRepository.findByMonthYearAndDepartment(month, year, deptId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
     
     public List<DailyAttendanceResponse> getByDate(LocalDate date) {
         return attendanceRepository.findByAttendanceDate(date).stream()

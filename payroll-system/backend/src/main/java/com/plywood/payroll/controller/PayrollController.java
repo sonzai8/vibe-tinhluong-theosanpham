@@ -38,8 +38,8 @@ public class PayrollController {
     @GetMapping("/{year}/{month}/items")
     @Operation(summary = "Lấy chi tiết bảng lương từng người trong tháng")
     public ResponseEntity<ApiResponse<List<PayrollItemResponse>>> getPayrollItems(
-            @PathVariable int month,
-            @PathVariable int year) {
+            @PathVariable("month") int month,
+            @PathVariable("year") int year) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Lấy chi tiết lương tháng " + month + "/" + year,
                 payrollService.getPayrollItems(month, year)
@@ -48,7 +48,7 @@ public class PayrollController {
     
     @PutMapping("/{id}/confirm")
     @Operation(summary = "Xác nhận chốt bảng lương")
-    public ResponseEntity<ApiResponse<PayrollResponse>> confirmPayroll(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<PayrollResponse>> confirmPayroll(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(
                 "Đã chốt bảng lương",
                 payrollService.confirmPayroll(id)

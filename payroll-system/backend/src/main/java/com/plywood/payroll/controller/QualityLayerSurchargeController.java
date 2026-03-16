@@ -33,7 +33,7 @@ public class QualityLayerSurchargeController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin mức phạt theo ID")
-    public ResponseEntity<ApiResponse<QualityLayerSurchargeResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<QualityLayerSurchargeResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, surchargeService.getById(id)));
     }
 
@@ -46,13 +46,13 @@ public class QualityLayerSurchargeController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật mức phạt")
-    public ResponseEntity<ApiResponse<QualityLayerSurchargeResponse>> update(@PathVariable Long id, @Valid @RequestBody QualityLayerSurchargeRequest request) {
+    public ResponseEntity<ApiResponse<QualityLayerSurchargeResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody QualityLayerSurchargeRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, surchargeService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa mức phạt")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         surchargeService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

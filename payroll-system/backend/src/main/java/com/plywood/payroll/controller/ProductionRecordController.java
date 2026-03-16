@@ -30,8 +30,8 @@ public class ProductionRecordController {
     @GetMapping
     @Operation(summary = "Lấy danh sách bản ghi theo khoảng thời gian")
     public ResponseEntity<ApiResponse<List<ProductionRecordResponse>>> getByDateRange(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return ResponseEntity.ok(ApiResponse.success(
                 MessageConstants.SUCCESS_GET_LIST, 
                 recordService.getByDateRange(from, to)
@@ -40,7 +40,7 @@ public class ProductionRecordController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy chi tiết bản ghi sản xuất theo ID")
-    public ResponseEntity<ApiResponse<ProductionRecordResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ProductionRecordResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, recordService.getById(id)));
     }
 
@@ -60,13 +60,13 @@ public class ProductionRecordController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật bản ghi sản lượng")
-    public ResponseEntity<ApiResponse<ProductionRecordResponse>> update(@PathVariable Long id, @Valid @RequestBody ProductionRecordRequest request) {
+    public ResponseEntity<ApiResponse<ProductionRecordResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody ProductionRecordRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, recordService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa bản ghi sản lượng")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         recordService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

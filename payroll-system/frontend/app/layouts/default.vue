@@ -1,13 +1,18 @@
 <template>
-  <div class="h-screen flex flex-col md:flex-row bg-[#F8FAFC]">
+  <div class="h-screen flex flex-col md:flex-row bg-[#F8FAFC] overflow-hidden">
     <!-- CMS Sidebar -->
-    <aside class="w-full md:w-80 bg-white border-r border-[#E2E8F0] flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+    <aside 
+      :class="[
+        'bg-white border-r border-[#E2E8F0] flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out h-full overflow-hidden',
+        isSidebarCollapsed ? 'w-24' : 'w-full md:w-80'
+      ]"
+    >
       <!-- Logo Section -->
-      <div class="p-8 flex items-center gap-4">
-        <div class="w-12 h-12 bg-primary-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-primary-200 rotate-3 group-hover:rotate-0 transition-transform duration-500">
+      <div :class="['p-8 flex items-center gap-4 transition-all duration-300', isSidebarCollapsed ? 'justify-center' : '']">
+        <div class="w-12 h-12 bg-primary-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-primary-200 rotate-3 group-hover:rotate-0 transition-transform duration-500 shrink-0">
           <LayoutGrid class="w-7 h-7" />
         </div>
-        <div>
+        <div v-if="!isSidebarCollapsed" class="animate-in fade-in duration-500">
           <h1 class="font-black text-2xl text-slate-900 leading-tight tracking-tighter italic">PLYWOOD</h1>
           <div class="flex items-center gap-1.5">
             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
@@ -17,29 +22,36 @@
       </div>
 
       <!-- Navigation Menu -->
-      <nav class="flex-1 px-6 py-4 space-y-1.5 overflow-y-auto">
+      <nav class="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden custom-scrollbar">
         <div v-for="group in menuGroups" :key="group.title" class="pb-6">
-          <p class="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{{ group.title }}</p>
+          <p v-if="!isSidebarCollapsed" class="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 animate-in fade-in duration-300">{{ group.title }}</p>
+          <div v-else class="h-px bg-slate-100 my-4 mx-2"></div>
+          
           <div class="space-y-1">
             <template v-for="item in group.items" :key="item.to">
               <NuxtLink
                 v-if="item.to"
                 :to="item.to"
-                class="nav-link-v2 group"
+                class="nav-link-v2 group relative"
                 active-class="nav-link-v2-active"
               >
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-sm"
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-sm shrink-0"
                   :class="route.path === item.to ? 'bg-primary-600 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600'">
                   <component :is="item.icon" class="w-5 h-5" />
                 </div>
-                <span class="flex-1 font-bold text-[13.5px] tracking-tight">{{ item.label }}</span>
-                <ChevronRight class="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity" />
+                <span v-if="!isSidebarCollapsed" class="flex-1 font-bold text-[13.5px] tracking-tight whitespace-nowrap animate-in slide-in-from-left-2 duration-300">{{ item.label }}</span>
+                <ChevronRight v-if="!isSidebarCollapsed" class="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity" />
+                
+                <!-- Tooltip for collapsed mode -->
+                <div v-if="isSidebarCollapsed" class="absolute left-full ml-4 px-3 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[60] whitespace-nowrap shadow-xl">
+                  {{ item.label }}
+                </div>
               </NuxtLink>
               <div v-else class="nav-link-v2 opacity-50 cursor-not-allowed">
-                <div class="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shadow-sm">
+                <div class="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shadow-sm shrink-0">
                   <component :is="item.icon" class="w-5 h-5" />
                 </div>
-                <span class="flex-1 font-bold text-[13.5px] tracking-tight">{{ item.label }}</span>
+                <span v-if="!isSidebarCollapsed" class="flex-1 font-bold text-[13.5px] tracking-tight">{{ item.label }}</span>
               </div>
             </template>
           </div>
@@ -48,15 +60,15 @@
 
       <!-- User Profile (Bottom) -->
       <div class="p-6 border-t border-slate-100 bg-slate-50/30">
-        <div class="flex items-center gap-4 p-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group">
-          <div class="w-10 h-10 rounded-xl bg-primary-900 flex items-center justify-center text-white font-black shadow-lg">
+        <div :class="['flex items-center gap-4 transition-all duration-300', isSidebarCollapsed ? 'p-0 bg-transparent border-none' : 'p-3 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md cursor-pointer group']">
+          <div :class="['w-10 h-10 rounded-xl bg-primary-900 flex items-center justify-center text-white font-black shadow-lg shrink-0', isSidebarCollapsed ? 'mx-auto' : '']">
             {{ userInitials }}
           </div>
-          <div class="flex-1 min-w-0">
+          <div v-if="!isSidebarCollapsed" class="flex-1 min-w-0 animate-in fade-in duration-300">
             <p class="text-[13px] font-black text-slate-900 truncate tracking-tight">{{ user?.fullName || 'Admin' }}</p>
             <p class="text-[9px] text-primary-600 font-bold uppercase tracking-widest">Administrator</p>
           </div>
-          <button @click="logout" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+          <button v-if="!isSidebarCollapsed" @click="logout" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all animate-in fade-in duration-300">
             <LogOut class="w-4 h-4" />
           </button>
         </div>
@@ -64,11 +76,21 @@
     </aside>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-full overflow-hidden">
+    <main class="flex-1 flex flex-col h-full overflow-hidden transition-all duration-300">
       <!-- Floating Header -->
       <header class="h-24 bg-white/70 backdrop-blur-xl border-b border-slate-100 px-10 flex items-center justify-between sticky top-0 z-40 transition-all duration-300">
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-6">
+          <!-- Toggle Button -->
+          <button 
+            @click="isSidebarCollapsed = !isSidebarCollapsed"
+            class="hidden md:flex w-10 h-10 items-center justify-center bg-slate-50 hover:bg-white hover:shadow-md border border-slate-100 rounded-xl text-slate-400 hover:text-primary-600 transition-all group"
+          >
+            <Menu v-if="isSidebarCollapsed" class="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <ChevronLeft v-else class="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
+          
           <button class="md:hidden p-2 text-slate-500"><Menu /></button>
+          
           <div class="flex flex-col">
             <h2 class="text-2xl font-black text-slate-900 tracking-tighter">{{ pageTitle }}</h2>
             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ route.path === '/' ? 'Home Center' : 'Management' }}</p>
@@ -111,11 +133,12 @@
 import { 
   LayoutGrid, LayoutDashboard, Users, Briefcase, Users2, Package, Layers, 
   ClipboardCheck, History, Gavel, Wallet, LogOut, Bell, ChevronRight, Menu, Search, Settings2,
-  ShieldCheck, Tags, ShieldAlert
+  ShieldCheck, Tags, ShieldAlert, ChevronLeft
 } from 'lucide-vue-next';
 
 const { user, logout } = useAuth();
 const route = useRoute();
+const isSidebarCollapsed = ref(false);
 
 const menuGroups = [
   {
@@ -158,7 +181,9 @@ const pageTitle = computed(() => {
 
 const userInitials = computed(() => {
   if (!user.value?.fullName) return 'AD';
-  return user.value.fullName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  const names = user.value.fullName.split(' ');
+  if (names.length === 1) return names[0].substring(0, 2).toUpperCase();
+  return (names[0][0] + names[names.length - 1][0]).toUpperCase();
 });
 
 onMounted(() => {

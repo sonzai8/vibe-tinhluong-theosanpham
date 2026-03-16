@@ -33,7 +33,7 @@ public class ProductController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin sản phẩm theo ID")
-    public ResponseEntity<ApiResponse<ProductResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ProductResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, productService.getById(id)));
     }
 
@@ -46,13 +46,13 @@ public class ProductController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật sản phẩm")
-    public ResponseEntity<ApiResponse<ProductResponse>> update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
+    public ResponseEntity<ApiResponse<ProductResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody ProductRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, productService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa sản phẩm")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         productService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

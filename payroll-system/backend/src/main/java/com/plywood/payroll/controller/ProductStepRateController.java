@@ -33,7 +33,7 @@ public class ProductStepRateController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin đơn giá theo ID")
-    public ResponseEntity<ApiResponse<ProductStepRateResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ProductStepRateResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, rateService.getById(id)));
     }
 
@@ -46,13 +46,13 @@ public class ProductStepRateController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật đơn giá")
-    public ResponseEntity<ApiResponse<ProductStepRateResponse>> update(@PathVariable Long id, @Valid @RequestBody ProductStepRateRequest request) {
+    public ResponseEntity<ApiResponse<ProductStepRateResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody ProductStepRateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, rateService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa đơn giá")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         rateService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

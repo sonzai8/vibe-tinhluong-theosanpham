@@ -14,6 +14,10 @@ public interface DailyAttendanceRepository extends JpaRepository<DailyAttendance
     @Query("SELECT a FROM DailyAttendance a WHERE FUNCTION('MONTH', a.attendanceDate) = :month AND FUNCTION('YEAR', a.attendanceDate) = :year")
     List<DailyAttendance> findByMonthAndYear(@Param("month") int month, @Param("year") int year);
 
+    @Query("SELECT a FROM DailyAttendance a WHERE FUNCTION('MONTH', a.attendanceDate) = :month AND FUNCTION('YEAR', a.attendanceDate) = :year " +
+           "AND (:deptId IS NULL OR a.employee.department.id = :deptId)")
+    List<DailyAttendance> findByMonthYearAndDepartment(@Param("month") int month, @Param("year") int year, @Param("deptId") Long deptId);
+
     // Lấy danh sách biên chế tổ gốc có đi làm trong ngày (kể cả người đi mượn tổ khác)
     List<DailyAttendance> findByOriginalTeamIdAndAttendanceDate(Long teamId, LocalDate date);
 

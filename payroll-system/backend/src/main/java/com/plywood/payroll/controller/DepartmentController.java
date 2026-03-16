@@ -33,7 +33,7 @@ public class DepartmentController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin phòng ban theo ID")
-    public ResponseEntity<ApiResponse<DepartmentResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<DepartmentResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, departmentService.getById(id)));
     }
 
@@ -46,13 +46,13 @@ public class DepartmentController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật phòng ban")
-    public ResponseEntity<ApiResponse<DepartmentResponse>> update(@PathVariable Long id, @Valid @RequestBody DepartmentRequest request) {
+    public ResponseEntity<ApiResponse<DepartmentResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody DepartmentRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, departmentService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa phòng ban")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         departmentService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

@@ -33,7 +33,7 @@ public class ProductionStepController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin công đoạn theo ID")
-    public ResponseEntity<ApiResponse<ProductionStepResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ProductionStepResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, productionStepService.getById(id)));
     }
 
@@ -46,13 +46,13 @@ public class ProductionStepController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật công đoạn")
-    public ResponseEntity<ApiResponse<ProductionStepResponse>> update(@PathVariable Long id, @Valid @RequestBody ProductionStepRequest request) {
+    public ResponseEntity<ApiResponse<ProductionStepResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody ProductionStepRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, productionStepService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa công đoạn")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         productionStepService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

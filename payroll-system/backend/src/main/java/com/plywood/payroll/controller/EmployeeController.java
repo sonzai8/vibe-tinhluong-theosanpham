@@ -33,7 +33,7 @@ public class EmployeeController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin nhân viên theo ID")
-    public ResponseEntity<ApiResponse<EmployeeResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<EmployeeResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, employeeService.getById(id)));
     }
 
@@ -46,13 +46,13 @@ public class EmployeeController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật nhân viên")
-    public ResponseEntity<ApiResponse<EmployeeResponse>> update(@PathVariable Long id, @Valid @RequestBody EmployeeRequest request) {
+    public ResponseEntity<ApiResponse<EmployeeResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody EmployeeRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, employeeService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa nhân viên")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         employeeService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

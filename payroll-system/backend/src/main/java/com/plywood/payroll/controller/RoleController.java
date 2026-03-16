@@ -33,7 +33,7 @@ public class RoleController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin chức vụ theo ID")
-    public ResponseEntity<ApiResponse<RoleResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<RoleResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, roleService.getById(id)));
     }
 
@@ -46,13 +46,13 @@ public class RoleController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật chức vụ")
-    public ResponseEntity<ApiResponse<RoleResponse>> update(@PathVariable Long id, @Valid @RequestBody RoleRequest request) {
+    public ResponseEntity<ApiResponse<RoleResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody RoleRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, roleService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa chức vụ")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         roleService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

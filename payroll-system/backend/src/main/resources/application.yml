@@ -20,9 +20,18 @@ spring:
       enabled: false
 
 jwt:
-  secret: aVeryLongAndSecretKeyFor_PlywoodPayrollSystem2026_MustBeAtLeast256BitsLong_Security
+  secret: aVeryLongAndSecretKeyForPlywoodPayrollSystem2026MustBeAtLeast256BitsLongSecurity
   expiration: 86400000
 
 app:
   cors:
     allowed-origins: http://localhost:3000
+
+# Swagger / OpenAPI Properties
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha

@@ -1,6 +1,9 @@
 package com.plywood.payroll.service;
 
+import com.plywood.payroll.dto.response.PayrollItemResponse;
+import com.plywood.payroll.dto.response.PayrollResponse;
 import com.plywood.payroll.entity.*;
+import com.plywood.payroll.exception.ResourceNotFoundException;
 import com.plywood.payroll.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,9 +29,11 @@ public class PayrollService {
     private final DailyAttendanceRepository dailyAttendanceRepository;
     private final TeamDailyFundRepository teamDailyFundRepository;
     private final EmployeeRepository employeeRepository;
+    private final PenaltyBonusRepository penaltyBonusRepository;
+    private final EmployeeService employeeService;
 
     @Transactional
-    public Payroll calculatePayroll(int month, int year) {
+    public PayrollResponse calculatePayroll(int month, int year) {
         log.info("Bắt đầu tính lương tháng {}/{}", month, year);
 
         // Tạo hoặc lấy bản ghi Payroll
@@ -38,6 +44,11 @@ public class PayrollService {
                     p.setYear(year);
                     return payrollRepository.save(p);
                 });
+
+        // Chỉ cho phép tính lại nếu đang DRAFT
+        if (!"DRAFT".equals(payroll.getStatus())) {
+            throw new RuntimeException("Bảng lương đã chốt, không thể tính lại");
+        }
 
         // Xóa kết quả cũ nếu tính lại
         payrollItemRepository.deleteByPayrollId(payroll.getId());
@@ -76,12 +87,9 @@ public class PayrollService {
         }
 
         // BƯỚC 3: Luân chuyển tiền lính đánh thuê - tính "giá trị mỗi người" tại tổ thực tế
-        // Map: teamId -> date -> [{employee, salaryCreditToOriginalTeam}]
-        // Lưu trữ: originalTeamId -> date -> rented_fund (tiền lính thuê mang về)
         Map<Long, Map<LocalDate, BigDecimal>> rentedFundMap = new HashMap<>();
-
-        // Lấy tất cả attendance trong tháng
         List<DailyAttendance> allAttendances = dailyAttendanceRepository.findByMonthAndYear(month, year);
+        
         // Nhóm theo ngày và tổ thực tế
         Map<Long, Map<LocalDate, List<DailyAttendance>>> actualTeamDayMap = new HashMap<>();
         for (DailyAttendance att : allAttendances) {
@@ -93,7 +101,6 @@ public class PayrollService {
                     .add(att);
         }
 
-        // Với mỗi tổ + ngày có production fund, tính giá trị mỗi đầu người
         for (Map.Entry<Long, Map<LocalDate, BigDecimal>> teamEntry : teamDateFundMap.entrySet()) {
             Long actualTeamId = teamEntry.getKey();
             for (Map.Entry<LocalDate, BigDecimal> dateEntry : teamEntry.getValue().entrySet()) {
@@ -115,23 +122,16 @@ public class PayrollService {
                     Long originalTeamId = att.getOriginalTeam().getId();
 
                     if (!originalTeamId.equals(actualTeamId)) {
-                        // Đây là lính đánh thuê -> tiền về tổ gốc
                         rentedFundMap
                                 .computeIfAbsent(originalTeamId, k -> new HashMap<>())
                                 .merge(date, valuePerWorker, BigDecimal::add);
                     }
                 }
-
-                // Lưu TeamDailyFund để báo cáo
-                saveTeamDailyFund(actualTeamId, date, workingFund, BigDecimal.ZERO, headcount);
             }
         }
 
         // BƯỚC 4: Tổng hợp quỹ mỗi tổ gốc trong từng ngày và chia đều
-        // Map: employeeId -> totalSalary
         Map<Long, BigDecimal> employeeSalaryMap = new HashMap<>();
-
-        // Thu thập tất cả ngày làm của mỗi tổ gốc (những người có attendance trong tháng)
         Map<Long, Map<LocalDate, List<DailyAttendance>>> originalTeamDayMap = new HashMap<>();
         for (DailyAttendance att : allAttendances) {
             if (att.getOriginalTeam() == null) continue;
@@ -142,14 +142,12 @@ public class PayrollService {
                     .add(att);
         }
 
-        // Với mỗi tổ gốc + ngày, lấy quỹ own + rented rồi chia đều
         for (Map.Entry<Long, Map<LocalDate, List<DailyAttendance>>> teamEntry : originalTeamDayMap.entrySet()) {
             Long origTeamId = teamEntry.getKey();
             for (Map.Entry<LocalDate, List<DailyAttendance>> dateEntry : teamEntry.getValue().entrySet()) {
                 LocalDate date = dateEntry.getKey();
                 List<DailyAttendance> members = dateEntry.getValue();
 
-                // Own fund: giá trị những thành viên tổ này làm tại chính tổ mình
                 BigDecimal ownFund = BigDecimal.ZERO;
                 if (teamDateFundMap.containsKey(origTeamId) && teamDateFundMap.get(origTeamId).containsKey(date)) {
                     long ownWorkerCount = members.stream()
@@ -181,7 +179,7 @@ public class PayrollService {
             }
         }
 
-        // BƯỚC 5: Tính phụ cấp chức vụ theo ngày
+        // BƯỚC 5: Tính phụ cấp chức vụ
         Map<Long, BigDecimal> benefitMap = new HashMap<>();
         for (DailyAttendance att : allAttendances) {
             Long empId = att.getEmployee().getId();
@@ -191,7 +189,27 @@ public class PayrollService {
             benefitMap.merge(empId, dailyBenefit, BigDecimal::add);
         }
 
-        // BƯỚC 6: Tạo PayrollItem cho từng nhân viên
+        // BƯỚC 6: Lấy khen thưởng/kỷ luật trong tháng
+        YearMonth ym = YearMonth.of(year, month);
+        LocalDate startDate = ym.atDay(1);
+        LocalDate endDate = ym.atEndOfMonth();
+        
+        Map<Long, BigDecimal> bonusMap = new HashMap<>();
+        Map<Long, BigDecimal> penaltyMap = new HashMap<>();
+        
+        List<PenaltyBonus> penaltyBonuses = penaltyBonusRepository.findAll(); // Lọc ở BE cho nhanh với DB nhỏ
+        for (PenaltyBonus pb : penaltyBonuses) {
+            if (!pb.getRecordDate().isBefore(startDate) && !pb.getRecordDate().isAfter(endDate)) {
+                Long empId = pb.getEmployee().getId();
+                if (pb.getAmount().compareTo(BigDecimal.ZERO) >= 0) {
+                    bonusMap.merge(empId, pb.getAmount(), BigDecimal::add);
+                } else {
+                    penaltyMap.merge(empId, pb.getAmount().abs(), BigDecimal::add); // Lưu số dương cho penalty
+                }
+            }
+        }
+
+        // BƯỚC 7: Tạo PayrollItem
         Set<Long> involvedEmployees = new HashSet<>();
         involvedEmployees.addAll(employeeSalaryMap.keySet());
         involvedEmployees.addAll(benefitMap.keySet());
@@ -202,18 +220,24 @@ public class PayrollService {
 
             BigDecimal stepSalary = employeeSalaryMap.getOrDefault(empId, BigDecimal.ZERO);
             BigDecimal benefit = benefitMap.getOrDefault(empId, BigDecimal.ZERO);
+            BigDecimal bonus = bonusMap.getOrDefault(empId, BigDecimal.ZERO);
+            BigDecimal penalty = penaltyMap.getOrDefault(empId, BigDecimal.ZERO);
+            
+            BigDecimal netSalary = stepSalary.add(benefit).add(bonus).subtract(penalty);
 
             PayrollItem item = new PayrollItem();
             item.setPayroll(payroll);
             item.setEmployee(emp);
             item.setTotalStepSalary(stepSalary);
             item.setTotalBenefit(benefit);
-            item.setNetSalary(stepSalary.add(benefit));
+            item.setTotalBonus(bonus);
+            item.setTotalPenalty(penalty);
+            item.setNetSalary(netSalary);
             payrollItemRepository.save(item);
         }
 
         log.info("Hoàn thành tính lương tháng {}/{}, có {} nhân viên", month, year, involvedEmployees.size());
-        return payroll;
+        return mapToResponse(payroll);
     }
 
     private BigDecimal calculateSurcharge(ProductQuality quality) {
@@ -223,14 +247,45 @@ public class PayrollService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private void saveTeamDailyFund(Long teamId, LocalDate date, BigDecimal ownFund, BigDecimal rentedFund, int headcount) {
-        // Chỉ lưu để báo cáo nếu cần
-        log.debug("Team {} ngày {} - Own: {}, Rented: {}, Headcount: {}", teamId, date, ownFund, rentedFund, headcount);
+    public List<PayrollItemResponse> getPayrollItems(int month, int year) {
+        return payrollRepository.findByMonthAndYear(month, year)
+                .map(p -> payrollItemRepository.findByPayrollId(p.getId()).stream()
+                            .map(this::mapItemToResponse)
+                            .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+    }
+    
+    @Transactional
+    public PayrollResponse confirmPayroll(Long id) {
+        Payroll payroll = payrollRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Bảng lương", id));
+        payroll.setStatus("CONFIRMED");
+        return mapToResponse(payrollRepository.save(payroll));
     }
 
-    public List<PayrollItem> getPayrollItems(int month, int year) {
-        return payrollRepository.findByMonthAndYear(month, year)
-                .map(p -> payrollItemRepository.findByPayrollId(p.getId()))
-                .orElse(Collections.emptyList());
+    public PayrollResponse mapToResponse(Payroll entity) {
+        if (entity == null) return null;
+        PayrollResponse response = new PayrollResponse();
+        response.setId(entity.getId());
+        response.setMonth(entity.getMonth());
+        response.setYear(entity.getYear());
+        response.setStatus(entity.getStatus());
+        response.setCreatedAt(entity.getCreatedAt());
+        response.setUpdatedAt(entity.getUpdatedAt());
+        return response;
+    }
+    
+    public PayrollItemResponse mapItemToResponse(PayrollItem entity) {
+        if (entity == null) return null;
+        PayrollItemResponse response = new PayrollItemResponse();
+        response.setId(entity.getId());
+        response.setPayroll(mapToResponse(entity.getPayroll()));
+        response.setEmployee(employeeService.mapToResponse(entity.getEmployee()));
+        response.setTotalStepSalary(entity.getTotalStepSalary());
+        response.setTotalBenefit(entity.getTotalBenefit());
+        response.setTotalBonus(entity.getTotalBonus());
+        response.setTotalPenalty(entity.getTotalPenalty());
+        response.setNetSalary(entity.getNetSalary());
+        return response;
     }
 }

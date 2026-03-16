@@ -1,5 +1,6 @@
 package com.plywood.payroll.security;
 
+import com.plywood.payroll.constant.MessageConstants;
 import com.plywood.payroll.entity.Employee;
 import com.plywood.payroll.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,9 +21,10 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Employee emp = employeeRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy tài khoản: " + username));
-        return new User(emp.getUsername(), emp.getPassword(),
+        Employee employee = employeeRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException(String.format(MessageConstants.ERR_RESOURCE_NOT_FOUND, "tài khoản", 0L))); // Username passed in exception context if needed
+
+        return new User(employee.getUsername(), employee.getPassword(),
                 List.of(new SimpleGrantedAuthority("ROLE_USER")));
     }
 }

@@ -1,9 +1,19 @@
 package com.plywood.payroll.controller;
 
-import com.plywood.payroll.entity.ProductionRecord;
-import com.plywood.payroll.repository.ProductionRecordRepository;
+import com.plywood.payroll.constant.MessageConstants;
+
+
+import com.plywood.payroll.dto.request.ProductionRecordRequest;
+import com.plywood.payroll.dto.response.ApiResponse;
+import com.plywood.payroll.dto.response.ProductionRecordResponse;
+import com.plywood.payroll.service.ProductionRecordService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -12,23 +22,52 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/production-records")
 @RequiredArgsConstructor
+@Tag(name = "Production Record", description = "Quản lý ghi nhận sản lượng sản xuất")
 public class ProductionRecordController {
 
-    private final ProductionRecordRepository productionRecordRepository;
+    private final ProductionRecordService recordService;
 
     @GetMapping
-    public List<ProductionRecord> getAll(
+    @Operation(summary = "Lấy danh sách bản ghi theo khoảng thời gian")
+    public ResponseEntity<ApiResponse<List<ProductionRecordResponse>>> getByDateRange(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
-    ) {
-        if (from != null && to != null) {
-            return productionRecordRepository.findByProductionDateBetween(from, to);
-        }
-        return productionRecordRepository.findAll();
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.success(
+                MessageConstants.SUCCESS_GET_LIST, 
+                recordService.getByDateRange(from, to)
+        ));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Lấy chi tiết bản ghi sản xuất theo ID")
+    public ResponseEntity<ApiResponse<ProductionRecordResponse>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, recordService.getById(id)));
     }
 
     @PostMapping
-    public ProductionRecord create(@RequestBody ProductionRecord record) {
-        return productionRecordRepository.save(record);
+    @Operation(summary = "Thêm bản ghi sản lượng mới")
+    public ResponseEntity<ApiResponse<ProductionRecordResponse>> create(@Valid @RequestBody ProductionRecordRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(MessageConstants.SUCCESS_CREATE, recordService.create(request)));
+    }
+    
+    @PostMapping("/batch")
+    @Operation(summary = "Thêm nhiều bản ghi sản lượng cùng lúc")
+    public ResponseEntity<ApiResponse<List<ProductionRecordResponse>>> createBatch(@RequestBody List<@Valid ProductionRecordRequest> requests) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(MessageConstants.SUCCESS_CREATE, recordService.saveBatch(requests)));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Cập nhật bản ghi sản lượng")
+    public ResponseEntity<ApiResponse<ProductionRecordResponse>> update(@PathVariable Long id, @Valid @RequestBody ProductionRecordRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, recordService.update(id, request)));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Xóa bản ghi sản lượng")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+        recordService.delete(id);
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }
 }

@@ -360,6 +360,83 @@ public class ExcelService {
 
     // Specific mapping helpers can be added here or in the controllers calling generic methods
 
+    public byte[] exportProductStepRatesList(List<com.plywood.payroll.dto.response.ProductStepRateResponse> rates) throws IOException {
+        String[] headers = {"Sản phẩm", "Công đoạn", "Chất lượng", "Giá High", "Giá Low", "Ngày hiệu lực"};
+        List<List<String>> data = new ArrayList<>();
+        for (com.plywood.payroll.dto.response.ProductStepRateResponse r : rates) {
+            List<String> row = new ArrayList<>();
+            row.add(r.getProduct().getCode());
+            row.add(r.getProductionStep().getName());
+            row.add(r.getQuality().getCode());
+            row.add(r.getPriceHigh().toString());
+            row.add(r.getPriceLow().toString());
+            row.add(r.getEffectiveDate().toString());
+            data.add(row);
+        }
+        return exportGeneric("Danh sách đơn giá", headers, data);
+    }
+
+    public byte[] exportProductStepRatesMatrix(
+            List<com.plywood.payroll.dto.response.ProductResponse> products,
+            List<com.plywood.payroll.dto.response.ProductionStepResponse> steps,
+            List<com.plywood.payroll.dto.response.ProductQualityResponse> qualities,
+            List<com.plywood.payroll.dto.response.ProductStepRateResponse> rates) throws IOException {
+        
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Ma trận đơn giá");
+            CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
+            CellStyle subHeaderStyle = workbook.createCellStyle();
+            subHeaderStyle.cloneStyleFrom(headerStyle);
+            subHeaderStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.GREY_25_PERCENT.getIndex());
+
+            // Header row 1: Products \ Steps
+            Row headerRow = sheet.createRow(0);
+            Cell corner = headerRow.createCell(0);
+            corner.setCellValue("Sản phẩm \\ Công đoạn");
+            corner.setCellStyle(headerStyle);
+            sheet.setColumnWidth(0, 30 * 256);
+
+            for (int i = 0; i < steps.size(); i++) {
+                Cell cell = headerRow.createCell(i + 1);
+                cell.setCellValue(steps.get(i).getName());
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i + 1, 25 * 256);
+            }
+
+            // Data rows
+            int rowIdx = 1;
+            for (com.plywood.payroll.dto.response.ProductResponse p : products) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(p.getCode() + " (" + p.getThickness() + "x" + p.getLength() + "x" + p.getWidth() + ")");
+                
+                for (int sIdx = 0; sIdx < steps.size(); sIdx++) {
+                    Long stepId = steps.get(sIdx).getId();
+                    StringBuilder cellContent = new StringBuilder();
+                    
+                    for (com.plywood.payroll.dto.response.ProductQualityResponse q : qualities) {
+                        Long qualityId = q.getId();
+                        rates.stream()
+                            .filter(r -> r.getProduct().getId().equals(p.getId()) && 
+                                         r.getProductionStep().getId().equals(stepId) &&
+                                         r.getQuality().getId().equals(qualityId))
+                            .findFirst()
+                            .ifPresent(r -> {
+                                if (cellContent.length() > 0) cellContent.append("\n");
+                                cellContent.append(q.getCode()).append(": ").append(r.getPriceHigh()).append("/").append(r.getPriceLow());
+                            });
+                    }
+                    
+                    Cell cell = row.createCell(sIdx + 1);
+                    cell.setCellValue(cellContent.toString());
+                    cell.getCellStyle().setWrapText(true);
+                }
+                row.setHeightInPoints(Math.max(row.getHeightInPoints(), (qualities.size() * 15f)));
+            }
+
+            return ExcelHelper.createWorkbookBytes(workbook);
+        }
+    }
+
     private boolean isRowEmpty(Row row) {
         if (row == null) return true;
         Cell firstCell = row.getCell(0);

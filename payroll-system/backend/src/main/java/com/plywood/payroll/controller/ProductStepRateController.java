@@ -25,6 +25,17 @@ public class ProductStepRateController {
 
     private final ProductStepRateService rateService;
 
+    @GetMapping("/export")
+    @Operation(summary = "Xuất danh sách đơn giá ra Excel")
+    public void export(@RequestParam(name = "type", defaultValue = "list") String type, jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        String fileName = "list".equals(type) ? "don_gia_danh_sach.xlsx" : "don_gia_ma_tran.xlsx";
+        response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
+        
+        byte[] bytes = rateService.exportExcel(type);
+        response.getOutputStream().write(bytes);
+    }
+
     @GetMapping
     @Operation(summary = "Lấy danh sách các đơn giá")
     public ResponseEntity<ApiResponse<List<ProductStepRateResponse>>> getAll() {

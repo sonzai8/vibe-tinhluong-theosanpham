@@ -14,8 +14,14 @@ public class ProductStepRateRequest {
     @NotNull(message = "Công đoạn không được để trống")
     private Long productionStepId;
 
-    @NotNull(message = "Đơn giá không được để trống")
-    private BigDecimal basePrice;
+    @NotNull(message = "Chất lượng không được để trống")
+    private Long qualityId;
+
+    @NotNull(message = "Đơn giá chuyên cần không được để trống")
+    private BigDecimal priceHigh;
+
+    @NotNull(message = "Đơn giá thường không được để trống")
+    private BigDecimal priceLow;
 
     @NotNull(message = "Ngày hiệu lực không được để trống")
     private LocalDate effectiveDate;

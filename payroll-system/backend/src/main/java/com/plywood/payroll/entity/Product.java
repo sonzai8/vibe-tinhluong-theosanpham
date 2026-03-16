@@ -1,5 +1,6 @@
 package com.plywood.payroll.entity;
 
+import com.plywood.payroll.enums.FilmCoatingType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,4 +22,8 @@ public class Product extends BaseEntity {
 
     @Column(nullable = false)
     private BigDecimal width; // Chiều rộng (m)
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "film_coating_type", nullable = false)
+    private FilmCoatingType filmCoatingType = FilmCoatingType.NONE;
 }

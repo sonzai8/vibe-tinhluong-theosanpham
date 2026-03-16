@@ -13,10 +13,10 @@
           <LayoutGrid class="w-7 h-7" />
         </div>
         <div v-if="!isSidebarCollapsed" class="animate-in fade-in duration-500">
-          <h1 class="font-black text-2xl text-slate-900 leading-tight tracking-tighter italic">PLYWOOD</h1>
+          <h1 class="font-black text-2xl text-slate-900 leading-tight tracking-tighter italic">DucLam</h1>
           <div class="flex items-center gap-1.5">
             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-            <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">CMS Dashboard</p>
+            <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">Payroll System</p>
           </div>
         </div>
       </div>
@@ -167,6 +167,13 @@ const menuGroups = [
       { to: '/product-qualities', label: 'Cấu Hình Chất lượng', icon: ShieldAlert },
       { to: '/production-steps', label: 'Công đoạn vận hành', icon: Layers },
       { to: '/penalty-bonus', label: 'Khen thưởng / Kỷ luật', icon: Gavel },
+    ]
+  },
+  {
+    title: 'Cấu hình & Giá',
+    items: [
+      { to: '/unit-prices', label: 'Thiết lập Đơn giá', icon: Tags },
+      { to: '/payroll-config', label: 'Cấu hình Chuyên cần', icon: Settings2 },
     ]
   }
 ];

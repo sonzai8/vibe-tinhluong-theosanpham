@@ -47,6 +47,7 @@
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
             <th class="px-6 py-4">Mã sản phẩm</th>
             <th class="px-6 py-4">Thông số kỹ thuật (Dày x Dài x Rộng)</th>
+            <th class="px-6 py-4">Phủ phim</th>
             <th class="px-6 py-4">Đơn vị</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
@@ -64,6 +65,11 @@
               {{ p.length }}m 
               <span class="text-slate-400 font-medium mx-1">x</span> 
               {{ p.width }}m
+            </td>
+            <td class="px-6 py-4">
+              <span v-if="p.filmCoatingType === 'NONE'" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Không</span>
+              <span v-else-if="p.filmCoatingType === 'SIDE_1'" class="px-2 py-1 bg-blue-50 text-blue-600 rounded text-[10px] font-black uppercase tracking-widest border border-blue-100 italic">1 Mặt</span>
+              <span v-else class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px] font-black uppercase tracking-widest border border-indigo-100 italic">2 Mặt</span>
             </td>
             <td class="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-tighter">Tấm</td>
             <td class="px-6 py-4 text-right">
@@ -140,6 +146,15 @@
             <UiInput v-model="form.thickness" type="number" step="0.1" label="Độ dày (mm)" required />
             <UiInput v-model="form.length" type="number" step="0.01" label="Dài (m)" required />
             <UiInput v-model="form.width" type="number" step="0.01" label="Rộng (m)" required />
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Loại phủ phim</label>
+            <select v-model="form.filmCoatingType" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all appearance-none" required>
+              <option value="NONE">Không phủ phim</option>
+              <option value="SIDE_1">Phủ phim 1 mặt</option>
+              <option value="SIDE_2">Phủ phim 2 mặt</option>
+            </select>
           </div>
           
           <div class="flex gap-3 pt-2">
@@ -236,12 +251,14 @@ const openModal = (p = null) => {
     form.thickness = p.thickness;
     form.length = p.length;
     form.width = p.width;
+    form.filmCoatingType = p.filmCoatingType || 'NONE';
   } else {
     currentPrd.value = {};
     form.code = '';
     form.thickness = 0;
     form.length = 0;
     form.width = 0;
+    form.filmCoatingType = 'NONE';
   }
   showModal.value = true;
 };

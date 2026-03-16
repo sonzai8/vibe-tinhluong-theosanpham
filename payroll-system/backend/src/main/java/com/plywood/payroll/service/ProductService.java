@@ -58,6 +58,7 @@ public class ProductService {
         product.setThickness(request.getThickness());
         product.setLength(request.getLength());
         product.setWidth(request.getWidth());
+        product.setFilmCoatingType(request.getFilmCoatingType());
     }
 
     public ProductResponse mapToResponse(Product entity) {
@@ -68,6 +69,7 @@ public class ProductService {
         response.setThickness(entity.getThickness());
         response.setLength(entity.getLength());
         response.setWidth(entity.getWidth());
+        response.setFilmCoatingType(entity.getFilmCoatingType());
         response.setCreatedAt(entity.getCreatedAt());
         response.setUpdatedAt(entity.getUpdatedAt());
         return response;

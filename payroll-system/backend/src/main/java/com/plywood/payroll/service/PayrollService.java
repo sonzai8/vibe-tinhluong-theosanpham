@@ -30,7 +30,10 @@ public class PayrollService {
     private final TeamDailyFundRepository teamDailyFundRepository;
     private final EmployeeRepository employeeRepository;
     private final PenaltyBonusRepository penaltyBonusRepository;
+    private final PayrollConfigRepository payrollConfigRepository;
     private final EmployeeService employeeService;
+
+    private static record RecordCalculation(long quantity, BigDecimal priceHigh, BigDecimal priceLow, BigDecimal surcharge) {}
 
     @Transactional
     public PayrollResponse calculatePayroll(int month, int year) {
@@ -45,141 +48,115 @@ public class PayrollService {
                     return payrollRepository.save(p);
                 });
 
-        // Chỉ cho phép tính lại nếu đang DRAFT
         if (!"DRAFT".equals(payroll.getStatus())) {
             throw new RuntimeException("Bảng lương đã chốt, không thể tính lại");
         }
 
-        // Xóa kết quả cũ nếu tính lại
         payrollItemRepository.deleteByPayrollId(payroll.getId());
 
-        // BƯỚC 1: Lấy tất cả production records trong tháng
+        // Lấy cấu hình chuyên cần hiệu lực cho tháng này
+        int minAttendanceDays = Integer.parseInt(
+            payrollConfigRepository.findEffectiveConfig("MIN_ATTENDANCE_DAYS", month, year)
+                .map(PayrollConfig::getConfigValue)
+                .orElse("22")
+        );
+
+        BigDecimal filmSurcharge1 = new BigDecimal(
+            payrollConfigRepository.findEffectiveConfig("FILM_SURCHARGE_1_SIDE", month, year)
+                .map(PayrollConfig::getConfigValue).orElse("0")
+        );
+        BigDecimal filmSurcharge2 = new BigDecimal(
+            payrollConfigRepository.findEffectiveConfig("FILM_SURCHARGE_2_SIDE", month, year)
+                .map(PayrollConfig::getConfigValue).orElse("0")
+        );
+
+        // BƯỚC 1: Lấy dữ liệu sản lượng và chấm công
         List<ProductionRecord> records = productionRecordRepository.findByMonthAndYear(month, year);
+        List<DailyAttendance> allAttendances = dailyAttendanceRepository.findByMonthAndYear(month, year);
 
-        // BƯỚC 2: Tính quỹ lương cho từng tổ trong từng ngày
-        // Map: teamId -> date -> fund
-        Map<Long, Map<LocalDate, BigDecimal>> teamDateFundMap = new HashMap<>();
+        // Xét chuyên cần
+        Map<Long, Long> attendanceCountMap = allAttendances.stream()
+                .collect(Collectors.groupingBy(a -> a.getEmployee().getId(), Collectors.counting()));
 
+        // BƯỚC 2: Tổ chức sản lượng theo Team và Ngày
+        Map<Long, Map<LocalDate, List<RecordCalculation>>> teamDateCalcMap = new HashMap<>();
         for (ProductionRecord record : records) {
             Long teamId = record.getTeam().getId();
             LocalDate date = record.getProductionDate();
 
-            // Lấy đơn giá cơ bản
             Optional<ProductStepRate> rateOpt = productStepRateRepository
-                    .findEffectiveRate(record.getProduct().getId(), record.getTeam().getProductionStep().getId(), date);
+                    .findEffectiveRate(record.getProduct().getId(), record.getTeam().getProductionStep().getId(), record.getQuality().getId(), date);
 
             if (rateOpt.isEmpty()) {
-                log.warn("Không tìm thấy đơn giá cho team {} ngày {}", teamId, date);
+                log.warn("Không tìm thấy đơn giá cho sản phẩm {} công đoạn {} chất lượng {} ngày {}", 
+                    record.getProduct().getId(), record.getTeam().getProductionStep().getId(), record.getQuality().getId(), date);
                 continue;
             }
 
-            BigDecimal basePrice = rateOpt.get().getBasePrice();
-
-            // Tính phụ phí chất lượng
-            BigDecimal surcharge = calculateSurcharge(record.getQuality());
-
-            BigDecimal totalPricePerUnit = basePrice.add(surcharge);
-            BigDecimal stepFund = totalPricePerUnit.multiply(BigDecimal.valueOf(record.getQuantity()));
-
-            teamDateFundMap
+            teamDateCalcMap
                     .computeIfAbsent(teamId, k -> new HashMap<>())
-                    .merge(date, stepFund, BigDecimal::add);
+                    .computeIfAbsent(date, k -> new ArrayList<>())
+                    .add(new RecordCalculation(record.getQuantity(), rateOpt.get().getPriceHigh(), rateOpt.get().getPriceLow(), 
+                        calculateSurcharge(record.getProduct(), record.getQuality(), filmSurcharge1, filmSurcharge2)));
         }
 
-        // BƯỚC 3: Luân chuyển tiền lính đánh thuê - tính "giá trị mỗi người" tại tổ thực tế
-        Map<Long, Map<LocalDate, BigDecimal>> rentedFundMap = new HashMap<>();
-        List<DailyAttendance> allAttendances = dailyAttendanceRepository.findByMonthAndYear(month, year);
-        
-        // Nhóm theo ngày và tổ thực tế
-        Map<Long, Map<LocalDate, List<DailyAttendance>>> actualTeamDayMap = new HashMap<>();
+        // BƯỚC 3: Tính thu nhập hàng ngày cho từng nhân viên
+        // Map: employeeId -> LocalDate -> Salary
+        Map<Long, Map<LocalDate, BigDecimal>> employeeDailySalaryMap = new HashMap<>();
+
+        // Nhóm attendance theo ngày và tổ thực tế để biết ai làm việc ở đâu
+        Map<Long, Map<LocalDate, List<DailyAttendance>>> actualTeamDayWorkers = new HashMap<>();
         for (DailyAttendance att : allAttendances) {
             if (att.getActualTeam() == null) continue;
-            Long actualTeamId = att.getActualTeam().getId();
-            actualTeamDayMap
-                    .computeIfAbsent(actualTeamId, k -> new HashMap<>())
+            actualTeamDayWorkers
+                    .computeIfAbsent(att.getActualTeam().getId(), k -> new HashMap<>())
                     .computeIfAbsent(att.getAttendanceDate(), k -> new ArrayList<>())
                     .add(att);
         }
 
-        for (Map.Entry<Long, Map<LocalDate, BigDecimal>> teamEntry : teamDateFundMap.entrySet()) {
+        // Với mỗi tổ có sản lượng, chia đều lương cho những người thực tế làm việc tại đó
+        for (Map.Entry<Long, Map<LocalDate, List<RecordCalculation>>> teamEntry : teamDateCalcMap.entrySet()) {
             Long actualTeamId = teamEntry.getKey();
-            for (Map.Entry<LocalDate, BigDecimal> dateEntry : teamEntry.getValue().entrySet()) {
+            for (Map.Entry<LocalDate, List<RecordCalculation>> dateEntry : teamEntry.getValue().entrySet()) {
                 LocalDate date = dateEntry.getKey();
-                BigDecimal workingFund = dateEntry.getValue();
+                List<RecordCalculation> calcs = dateEntry.getValue();
 
-                List<DailyAttendance> workersOnSite = actualTeamDayMap
+                List<DailyAttendance> workersOnSite = actualTeamDayWorkers
                         .getOrDefault(actualTeamId, Collections.emptyMap())
                         .getOrDefault(date, Collections.emptyList());
 
                 int headcount = workersOnSite.size();
                 if (headcount == 0) continue;
 
-                BigDecimal valuePerWorker = workingFund.divide(BigDecimal.valueOf(headcount), 2, RoundingMode.HALF_UP);
-
-                // Phân phối tiền về đúng tổ gốc của từng thành viên làm ở đây
                 for (DailyAttendance att : workersOnSite) {
-                    if (att.getOriginalTeam() == null) continue;
-                    Long originalTeamId = att.getOriginalTeam().getId();
-
-                    if (!originalTeamId.equals(actualTeamId)) {
-                        rentedFundMap
-                                .computeIfAbsent(originalTeamId, k -> new HashMap<>())
-                                .merge(date, valuePerWorker, BigDecimal::add);
-                    }
-                }
-            }
-        }
-
-        // BƯỚC 4: Tổng hợp quỹ mỗi tổ gốc trong từng ngày và chia đều
-        Map<Long, BigDecimal> employeeSalaryMap = new HashMap<>();
-        Map<Long, Map<LocalDate, List<DailyAttendance>>> originalTeamDayMap = new HashMap<>();
-        for (DailyAttendance att : allAttendances) {
-            if (att.getOriginalTeam() == null) continue;
-            Long origTeamId = att.getOriginalTeam().getId();
-            originalTeamDayMap
-                    .computeIfAbsent(origTeamId, k -> new HashMap<>())
-                    .computeIfAbsent(att.getAttendanceDate(), k -> new ArrayList<>())
-                    .add(att);
-        }
-
-        for (Map.Entry<Long, Map<LocalDate, List<DailyAttendance>>> teamEntry : originalTeamDayMap.entrySet()) {
-            Long origTeamId = teamEntry.getKey();
-            for (Map.Entry<LocalDate, List<DailyAttendance>> dateEntry : teamEntry.getValue().entrySet()) {
-                LocalDate date = dateEntry.getKey();
-                List<DailyAttendance> members = dateEntry.getValue();
-
-                BigDecimal ownFund = BigDecimal.ZERO;
-                if (teamDateFundMap.containsKey(origTeamId) && teamDateFundMap.get(origTeamId).containsKey(date)) {
-                    long ownWorkerCount = members.stream()
-                            .filter(a -> a.getActualTeam() != null && a.getActualTeam().getId().equals(origTeamId))
-                            .count();
-                    BigDecimal workingFund = teamDateFundMap.get(origTeamId).get(date);
-                    int totalAtActualTeam = actualTeamDayMap.getOrDefault(origTeamId, Collections.emptyMap())
-                            .getOrDefault(date, Collections.emptyList()).size();
-                    if (totalAtActualTeam > 0) {
-                        BigDecimal valuePerWorker = workingFund.divide(BigDecimal.valueOf(totalAtActualTeam), 2, RoundingMode.HALF_UP);
-                        ownFund = valuePerWorker.multiply(BigDecimal.valueOf(ownWorkerCount));
-                    }
-                }
-
-                BigDecimal rentedFund = rentedFundMap
-                        .getOrDefault(origTeamId, Collections.emptyMap())
-                        .getOrDefault(date, BigDecimal.ZERO);
-
-                BigDecimal totalFund = ownFund.add(rentedFund);
-                int headcount = members.size();
-                if (headcount == 0 || totalFund.compareTo(BigDecimal.ZERO) == 0) continue;
-
-                BigDecimal perPerson = totalFund.divide(BigDecimal.valueOf(headcount), 2, RoundingMode.HALF_UP);
-
-                for (DailyAttendance att : members) {
                     Long empId = att.getEmployee().getId();
-                    employeeSalaryMap.merge(empId, perPerson, BigDecimal::add);
+                    boolean isDiligent = attendanceCountMap.getOrDefault(empId, 0L) >= minAttendanceDays;
+
+                    BigDecimal dailyEarnings = BigDecimal.ZERO;
+                    for (RecordCalculation c : calcs) {
+                        BigDecimal rate = isDiligent ? c.priceHigh : c.priceLow;
+                        BigDecimal share = rate.add(c.surcharge)
+                                .multiply(BigDecimal.valueOf(c.quantity))
+                                .divide(BigDecimal.valueOf(headcount), 2, RoundingMode.HALF_UP);
+                        dailyEarnings = dailyEarnings.add(share);
+                    }
+
+                    employeeDailySalaryMap
+                            .computeIfAbsent(empId, k -> new HashMap<>())
+                            .merge(date, dailyEarnings, BigDecimal::add);
                 }
             }
         }
 
-        // BƯỚC 5: Tính phụ cấp chức vụ
+        // BƯỚC 4: Tổng hợp lương tháng
+        Map<Long, BigDecimal> employeeSalaryMap = new HashMap<>();
+        for (Map.Entry<Long, Map<LocalDate, BigDecimal>> empEntry : employeeDailySalaryMap.entrySet()) {
+            BigDecimal totalMonthSalary = empEntry.getValue().values().stream()
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            employeeSalaryMap.put(empEntry.getKey(), totalMonthSalary);
+        }
+
+        // BƯỚC 5: Tính phụ cấp chức vụ (theo số ngày đi làm thực tế)
         Map<Long, BigDecimal> benefitMap = new HashMap<>();
         for (DailyAttendance att : allAttendances) {
             Long empId = att.getEmployee().getId();
@@ -197,14 +174,14 @@ public class PayrollService {
         Map<Long, BigDecimal> bonusMap = new HashMap<>();
         Map<Long, BigDecimal> penaltyMap = new HashMap<>();
         
-        List<PenaltyBonus> penaltyBonuses = penaltyBonusRepository.findAll(); // Lọc ở BE cho nhanh với DB nhỏ
+        List<PenaltyBonus> penaltyBonuses = penaltyBonusRepository.findAll();
         for (PenaltyBonus pb : penaltyBonuses) {
             if (!pb.getRecordDate().isBefore(startDate) && !pb.getRecordDate().isAfter(endDate)) {
                 Long empId = pb.getEmployee().getId();
                 if (pb.getAmount().compareTo(BigDecimal.ZERO) >= 0) {
                     bonusMap.merge(empId, pb.getAmount(), BigDecimal::add);
                 } else {
-                    penaltyMap.merge(empId, pb.getAmount().abs(), BigDecimal::add); // Lưu số dương cho penalty
+                    penaltyMap.merge(empId, pb.getAmount().abs(), BigDecimal::add);
                 }
             }
         }
@@ -240,11 +217,26 @@ public class PayrollService {
         return mapToResponse(payroll);
     }
 
-    private BigDecimal calculateSurcharge(ProductQuality quality) {
-        if (quality == null || quality.getLayers() == null) return BigDecimal.ZERO;
-        return quality.getLayers().stream()
+    private BigDecimal calculateSurcharge(Product product, ProductQuality quality, BigDecimal surcharge1, BigDecimal surcharge2) {
+        BigDecimal totalSurcharge = BigDecimal.ZERO;
+        
+        // 1. Phụ phí chất lượng (Layers)
+        if (quality != null && quality.getLayers() != null) {
+            totalSurcharge = quality.getLayers().stream()
                 .map(layer -> layer.getLayer().getSurchargePerLayer().multiply(BigDecimal.valueOf(layer.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        // 2. Phụ phí Phủ phim
+        if (product != null && product.getFilmCoatingType() != null) {
+            switch (product.getFilmCoatingType()) {
+                case SIDE_1 -> totalSurcharge = totalSurcharge.add(surcharge1);
+                case SIDE_2 -> totalSurcharge = totalSurcharge.add(surcharge2);
+                case NONE -> {}
+            }
+        }
+        
+        return totalSurcharge;
     }
 
     public List<PayrollItemResponse> getPayrollItems(int month, int year) {

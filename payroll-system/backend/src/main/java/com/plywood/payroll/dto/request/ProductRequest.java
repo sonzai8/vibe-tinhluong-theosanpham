@@ -1,6 +1,7 @@
 package com.plywood.payroll.dto.request;
 
 import jakarta.validation.constraints.DecimalMin;
+import com.plywood.payroll.enums.FilmCoatingType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -23,4 +24,6 @@ public class ProductRequest {
     @NotNull(message = "Chiều rộng không được để trống")
     @DecimalMin(value = "0.0", inclusive = false, message = "Chiều rộng phải lớn hơn 0")
     private BigDecimal width;
+
+    private FilmCoatingType filmCoatingType;
 }

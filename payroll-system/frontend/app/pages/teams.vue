@@ -37,6 +37,7 @@
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
             <th class="px-6 py-4">ID</th>
             <th class="px-6 py-4">Tên tổ</th>
+            <th class="px-6 py-4">Phòng ban</th>
             <th class="px-6 py-4">Công đoạn sản xuất</th>
             <th class="px-6 py-4 text-center">Thành viên</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
@@ -46,6 +47,9 @@
           <tr v-for="team in teams" :key="team.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4 text-sm font-black text-slate-400">#{{ team.id }}</td>
             <td class="px-6 py-4 font-bold text-slate-900">{{ team.name }}</td>
+            <td class="px-6 py-4">
+              <span class="text-sm font-bold text-slate-600">{{ team.department?.name || '---' }}</span>
+            </td>
             <td class="px-6 py-4">
               <span class="px-2.5 py-1 rounded-full bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-wider">
                 {{ team.productionStep?.name || '---' }}
@@ -81,6 +85,12 @@
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
           <UiSelect
+            v-model="form.departmentId"
+            label="Phòng ban"
+            :options="deptOptions"
+            placeholder="Chọn phòng ban..."
+          />
+          <UiSelect
             v-model="form.productionStepId"
             label="Công đoạn sản xuất"
             :options="stepOptions"
@@ -105,6 +115,7 @@ import { Plus, Users2, PencilLine, Trash2, X } from 'lucide-vue-next';
 const { $api } = useNuxtApp();
 const teams = ref([]);
 const productionSteps = ref([]);
+const departments = ref([]);
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
@@ -112,7 +123,8 @@ const showModal = ref(false);
 const currentTeam = ref({});
 const form = reactive({
   name: '',
-  productionStepId: ''
+  productionStepId: '',
+  departmentId: ''
 });
 
 const stepOptions = computed(() => 
@@ -122,15 +134,24 @@ const stepOptions = computed(() =>
   }))
 );
 
+const deptOptions = computed(() =>
+  departments.value.map(d => ({
+    label: d.name,
+    value: d.id
+  }))
+);
+
 const fetchData = async () => {
   loading.value = true;
   try {
-    const [teamsRes, stepsRes] = await Promise.all([
+    const [teamsRes, stepsRes, deptsRes] = await Promise.all([
       $api.get('/teams'),
-      $api.get('/production-steps')
+      $api.get('/production-steps'),
+      $api.get('/departments')
     ]);
     teams.value = teamsRes.data;
     productionSteps.value = stepsRes.data;
+    departments.value = deptsRes.data;
   } catch (err) {
     console.error(err);
   } finally {
@@ -143,10 +164,12 @@ const openModal = (team = null) => {
     currentTeam.value = { ...team };
     form.name = team.name;
     form.productionStepId = team.productionStep?.id || '';
+    form.departmentId = team.department?.id || '';
   } else {
     currentTeam.value = {};
     form.name = '';
     form.productionStepId = '';
+    form.departmentId = '';
   }
   showModal.value = true;
 };
@@ -156,7 +179,8 @@ const handleSubmit = async () => {
   try {
     const payload = {
       name: form.name,
-      productionStepId: parseInt(form.productionStepId)
+      productionStepId: parseInt(form.productionStepId),
+      departmentId: form.departmentId ? parseInt(form.departmentId) : null
     };
     
     if (currentTeam.value.id) {

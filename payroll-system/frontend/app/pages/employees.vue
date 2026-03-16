@@ -48,6 +48,7 @@
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
             <th class="px-6 py-4">Nhân viên</th>
             <th class="px-6 py-4">Phòng ban</th>
+            <th class="px-6 py-4">Tổ đội</th>
             <th class="px-6 py-4">Chức vụ</th>
             <th class="px-6 py-4">Trạng thái</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
@@ -67,7 +68,13 @@
               </div>
             </td>
             <td class="px-6 py-4">
-              <span class="text-sm font-bold text-slate-600">{{ emp.department?.name || '---' }}</span>
+              <span class="text-sm font-bold text-slate-600">{{ emp.department?.name || emp.team?.department?.name || '---' }}</span>
+            </td>
+            <td class="px-6 py-4">
+              <span v-if="emp.team" class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase tracking-wider">
+                {{ emp.team.name }}
+              </span>
+              <span v-else class="text-sm text-slate-400">---</span>
             </td>
             <td class="px-6 py-4">
               <span class="text-sm font-medium text-slate-500">{{ emp.role?.name || '---' }}</span>
@@ -127,6 +134,13 @@
             />
 
             <UiSelect 
+              v-model="form.teamId" 
+              label="Tổ đội" 
+              :options="teamOptions" 
+              placeholder="Chọn tổ đội"
+            />
+
+            <UiSelect 
               v-model="form.roleId" 
               label="Chức vụ" 
               :options="roleOptions" 
@@ -151,9 +165,11 @@ const { $api } = useNuxtApp();
 const employees = ref([]);
 const departments = ref([]);
 const roles = ref([]);
+const teams = ref([]);
 
 const deptOptions = computed(() => departments.value.map(d => ({ value: d.id, label: d.name })));
 const roleOptions = computed(() => roles.value.map(r => ({ value: r.id, label: r.name })));
+const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t.name })));
 
 const loading = ref(true);
 const saving = ref(false);
@@ -171,20 +187,33 @@ const form = reactive({
   password: '',
   status: 'ACTIVE',
   departmentId: null,
+  teamId: null,
   roleId: null
+});
+
+// Tự động chọn phòng ban khi chọn tổ đội
+watch(() => form.teamId, (newTeamId) => {
+  if (newTeamId && teams.value.length > 0) {
+    const selectedTeam = teams.value.find(t => t.id === newTeamId);
+    if (selectedTeam && selectedTeam.department) {
+      form.departmentId = selectedTeam.department.id;
+    }
+  }
 });
 
 const fetchData = async () => {
   loading.value = true;
   try {
-    const [empRes, deptRes, roleRes] = await Promise.all([
+    const [empRes, deptRes, roleRes, teamRes] = await Promise.all([
       $api.get('/employees'),
       $api.get('/departments'),
-      $api.get('/roles')
+      $api.get('/roles'),
+      $api.get('/teams')
     ]);
     employees.value = empRes.data;
     departments.value = deptRes.data;
     roles.value = roleRes.data;
+    teams.value = teamRes.data;
   } catch (err) {
     console.error(err);
   } finally {
@@ -211,6 +240,7 @@ const openModal = (emp = null) => {
     form.password = '';
     form.status = emp.status;
     form.departmentId = emp.department?.id || null;
+    form.teamId = emp.team?.id || null;
     form.roleId = emp.role?.id || null;
   } else {
     currentEmp.value = {};
@@ -220,6 +250,7 @@ const openModal = (emp = null) => {
     form.password = '';
     form.status = 'ACTIVE';
     form.departmentId = null;
+    form.teamId = null;
     form.roleId = null;
   }
   showModal.value = true;

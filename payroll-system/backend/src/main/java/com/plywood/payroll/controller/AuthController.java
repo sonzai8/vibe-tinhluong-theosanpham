@@ -30,6 +30,9 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.plywood.payroll.repository.DepartmentRepository departmentRepository;
+    private final com.plywood.payroll.repository.TeamRepository teamRepository;
+    private final com.plywood.payroll.repository.RoleRepository roleRepository;
 
     @PostMapping("/login")
     @Operation(summary = "Đăng nhập hệ thống", description = "Đăng nhập với username và password để nhận JWT Token")
@@ -62,6 +65,19 @@ public class AuthController {
         emp.setPassword(passwordEncoder.encode(request.getPassword()));
         emp.setFullName(request.getFullName());
         emp.setStatus("ACTIVE"); // Default status
+
+        // Gán dữ liệu mặc định
+        departmentRepository.findAll().stream()
+                .filter(d -> d.getName().equals(com.plywood.payroll.config.DatabaseSeeder.DEFAULT_DEPT))
+                .findFirst().ifPresent(emp::setDepartment);
+                
+        teamRepository.findAll().stream()
+                .filter(t -> t.getName().equals(com.plywood.payroll.config.DatabaseSeeder.DEFAULT_TEAM))
+                .findFirst().ifPresent(emp::setTeam);
+                
+        roleRepository.findAll().stream()
+                .filter(r -> r.getName().equals(com.plywood.payroll.config.DatabaseSeeder.DEFAULT_ROLE))
+                .findFirst().ifPresent(emp::setRole);
 
         employeeRepository.save(emp);
 

@@ -12,12 +12,16 @@ public class EmployeeRequest {
     private String fullName;
 
     private Long departmentId;
-    
+
+    // Tổ biên chế trực tiếp (thêm mới)
+    private Long teamId;
+
+    // roleId = chức vụ (Position), giữ nguyên để backward compat
     private Long roleId;
 
     private String status = "ACTIVE";
-    
+
     private String username;
-    
+
     private String password;
 }

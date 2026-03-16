@@ -4,12 +4,14 @@ import com.plywood.payroll.dto.request.TeamMemberRequest;
 import com.plywood.payroll.dto.request.TeamRequest;
 import com.plywood.payroll.dto.response.TeamMemberResponse;
 import com.plywood.payroll.dto.response.TeamResponse;
+import com.plywood.payroll.entity.Department;
 import com.plywood.payroll.entity.Employee;
 import com.plywood.payroll.entity.ProductionStep;
 import com.plywood.payroll.entity.Team;
 import com.plywood.payroll.entity.TeamMember;
 import com.plywood.payroll.exception.BusinessException;
 import com.plywood.payroll.exception.ResourceNotFoundException;
+import com.plywood.payroll.repository.DepartmentRepository;
 import com.plywood.payroll.repository.EmployeeRepository;
 import com.plywood.payroll.repository.ProductionStepRepository;
 import com.plywood.payroll.repository.TeamRepository;
@@ -26,9 +28,11 @@ public class TeamService {
 
     private final TeamRepository teamRepository;
     private final ProductionStepRepository productionStepRepository;
+    private final DepartmentRepository departmentRepository;
     private final EmployeeRepository employeeRepository;
     private final ProductionStepService productionStepService;
     private final EmployeeService employeeService;
+    private final DepartmentService departmentService;
 
     public List<TeamResponse> getAll() {
         return teamRepository.findAll().stream()
@@ -50,6 +54,13 @@ public class TeamService {
         ProductionStep step = productionStepRepository.findById(request.getProductionStepId())
                 .orElseThrow(() -> new ResourceNotFoundException("Công đoạn", request.getProductionStepId()));
         team.setProductionStep(step);
+
+        // Gán phòng ban nếu có
+        if (request.getDepartmentId() != null) {
+            Department dept = departmentRepository.findById(request.getDepartmentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Phòng ban", request.getDepartmentId()));
+            team.setDepartment(dept);
+        }
         
         return mapToResponse(teamRepository.save(team));
     }
@@ -64,6 +75,15 @@ public class TeamService {
         ProductionStep step = productionStepRepository.findById(request.getProductionStepId())
                 .orElseThrow(() -> new ResourceNotFoundException("Công đoạn", request.getProductionStepId()));
         team.setProductionStep(step);
+
+        // Cập nhật phòng ban
+        if (request.getDepartmentId() != null) {
+            Department dept = departmentRepository.findById(request.getDepartmentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Phòng ban", request.getDepartmentId()));
+            team.setDepartment(dept);
+        } else {
+            team.setDepartment(null);
+        }
         
         return mapToResponse(teamRepository.save(team));
     }
@@ -131,6 +151,7 @@ public class TeamService {
         TeamResponse response = new TeamResponse();
         response.setId(entity.getId());
         response.setName(entity.getName());
+        response.setDepartment(departmentService.mapToResponse(entity.getDepartment()));
         response.setProductionStep(productionStepService.mapToResponse(entity.getProductionStep()));
         response.setMemberCount(entity.getMembers() != null ? entity.getMembers().size() : 0);
         response.setCreatedAt(entity.getCreatedAt());

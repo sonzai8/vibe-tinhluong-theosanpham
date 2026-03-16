@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public class TeamResponse {
     private Long id;
     private String name;
+    private DepartmentResponse department;
     private ProductionStepResponse productionStep;
     private Integer memberCount;
     private LocalDateTime createdAt;

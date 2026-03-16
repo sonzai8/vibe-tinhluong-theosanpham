@@ -11,4 +11,7 @@ public class TeamRequest {
 
     @NotNull(message = "Công đoạn sản xuất không được để trống")
     private Long productionStepId;
+
+    // Phòng ban phụ trách tổ này (optional, thêm mới)
+    private Long departmentId;
 }

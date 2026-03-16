@@ -8,6 +8,7 @@
 
       <form @submit.prevent="handleRegister" class="space-y-6">
         <div class="space-y-4">
+          <UiInput v-model="form.code" label="Mã nhân viên" placeholder="VD: NV001" required />
           <UiInput v-model="form.username" label="Tên đăng nhập" placeholder="VD: admin_plywood" required />
           <UiInput v-model="form.password" label="Mật khẩu" type="password" placeholder="••••••••" required />
           <UiInput v-model="form.fullName" label="Họ và tên" placeholder="VD: Nguyễn Văn Quản Lý" required />
@@ -46,6 +47,7 @@ const error = ref('');
 const success = ref('');
 
 const form = reactive({
+  code: '',
   username: '',
   password: '',
   fullName: ''

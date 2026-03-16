@@ -21,7 +21,7 @@
         </UiButton>
         <input type="file" ref="fileInput" class="hidden" accept=".xlsx, .xls" @change="handleImport" />
         
-        <UiButton @click="openModal()" class="shadow-lg shadow-emerald-100">
+        <UiButton @click="() => openModal(null)" class="shadow-lg shadow-emerald-100">
           <CalendarPlus class="w-4 h-4" />
           Chấm công mới
         </UiButton>
@@ -93,7 +93,7 @@
               <CalendarX class="w-10 h-10" />
             </div>
             <p class="text-slate-500 font-bold">Không tìm thấy dữ liệu trong ngày {{ filterDate }}.</p>
-            <UiButton @click="openModal()" variant="outline">Chấm công ngay</UiButton>
+            <UiButton @click="() => openModal(null)" variant="outline">Chấm công ngay</UiButton>
           </div>
 
           <div v-else class="overflow-x-auto">
@@ -167,6 +167,60 @@
       </div>
     </div>
 
+    <!-- Attendance Modal -->
+    <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+      <div class="card w-full max-w-xl p-10 animate-in zoom-in slide-in-from-bottom duration-300">
+        <div class="flex items-center justify-between mb-10">
+          <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ currentId ? 'Sửa' : 'Báo cáo' }} chấm công</h3>
+          <button @click="showModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
+        </div>
+
+        <form @submit.prevent="handleSubmit" class="space-y-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <UiSelect 
+              v-model="form.employeeId" 
+              label="Nhân viên" 
+              :options="employeeOptions" 
+              placeholder="Chọn nhân viên"
+              @update:modelValue="onEmployeeSelect"
+              required
+            />
+            
+            <UiInput v-model="form.attendanceDate" label="Ngày chấm công" type="date" required />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:col-span-2">
+              <UiSelect 
+                v-model="form.originalTeamId" 
+                label="Tổ biên chế" 
+                :options="teamOptions" 
+                placeholder="Chọn tổ"
+                required
+              />
+              <UiSelect 
+                v-model="form.actualTeamId" 
+                label="Tổ thực tế làm việc" 
+                :options="teamOptions" 
+                placeholder="Chọn tổ"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+             <Info class="w-5 h-5 text-amber-600 shrink-0" />
+             <p class="text-xs text-amber-700 font-medium leading-relaxed">
+               Ghi chú: Nếu "Tổ làm việc thực tế" khác với "Tổ biên chế", nhân viên sẽ được tính là "Công nhân đi mượn" cho ngày hôm đó.
+             </p>
+          </div>
+          
+          <div class="flex gap-4 pt-6">
+            <button type="button" @click="showModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">Đóng</button>
+            <UiButton type="submit" class="flex-[2] h-14 text-lg shadow-xl shadow-primary-200" :loading="saving">Xác nhận chấm công</UiButton>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Absent Employees Modal -->
     <div v-if="showAbsentModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
       <div class="card w-full max-w-2xl p-8 animate-in zoom-in slide-in-from-bottom duration-300 max-h-[90vh] flex flex-col">
@@ -208,6 +262,42 @@
         </div>
       </div>
     </div>
+    <!-- Duplicate Warning Modal -->
+    <div v-if="showDuplicateModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+      <div class="card w-full max-w-lg p-8 animate-in zoom-in slide-in-from-bottom duration-300">
+        <div class="flex items-center gap-4 mb-6">
+          <div class="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+            <Info class="w-6 h-6" />
+          </div>
+          <div>
+            <h3 class="text-xl font-black text-slate-900 tracking-tight">Trùng lặp dữ liệu</h3>
+            <p class="text-sm text-slate-500">Nhân viên này đã được chấm công.</p>
+          </div>
+        </div>
+        
+        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6 space-y-2">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-500">Nhân viên:</span>
+            <span class="font-bold text-slate-900">{{ duplicateRecord?.employee?.fullName }}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-500">Ngày chấm công:</span>
+            <span class="font-bold text-slate-900">{{ duplicateRecord?.attendanceDate }}</span>
+          </div>
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-500">Tổ thực tế:</span>
+            <span class="font-bold text-slate-900">{{ duplicateRecord?.actualTeam?.name || 'Không rõ' }}</span>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <UiButton @click="showDuplicateModal = false" variant="outline" class="flex-1 border-slate-200">Đóng lại</UiButton>
+          <UiButton @click="switchToEditDuplicate" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white border-none shadow-lg shadow-amber-200">
+            Chuyển sang Sửa
+          </UiButton>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -226,11 +316,11 @@ const departments = ref([]);
 const employeeOptions = computed(() => employees.value.map(e => ({ value: e.id, label: e.fullName })));
 const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t.name })));
 const teamFilterOptions = computed(() => [
-  { value: null, label: 'Tất cả tổ đội' },
+  { value: '', label: 'Tất cả tổ đội' },
   ...teams.value.map(t => ({ value: t.id, label: t.name }))
 ]);
 const deptOptions = computed(() => [
-  { value: null, label: 'Tất cả phòng ban' },
+  { value: '', label: 'Tất cả phòng ban' },
   ...departments.value.map(d => ({ value: d.id, label: d.name }))
 ]);
 
@@ -240,10 +330,12 @@ const exporting = ref(false);
 const importing = ref(false);
 const showModal = ref(false);
 const showAbsentModal = ref(false);
+const showDuplicateModal = ref(false);
+const duplicateRecord = ref(null);
 
 const filterDate = ref(new Date().toISOString().substr(0, 10));
-const filterDept = ref(null);
-const filterTeam = ref(null);
+const filterDept = ref('');
+const filterTeam = ref('');
 const search = ref('');
 
 const form = reactive({
@@ -279,6 +371,8 @@ const fetchData = async () => {
 
 const fetchAttendances = () => fetchData();
 
+const isFilterActive = (val) => val && val !== 'null' && val !== '';
+
 const filteredAttendances = computed(() => {
   return attendances.value.filter(a => {
     // Tìm kiếm text
@@ -288,11 +382,11 @@ const filteredAttendances = computed(() => {
                        
     // Lọc theo phòng ban: Cần kiểm tra cả a.employee.department và a.employee.team.department vì backend trả về cấu trúc phân cấp
     const deptId = a.employee?.department?.id || a.employee?.team?.department?.id;
-    const matchDept = !filterDept.value || deptId == filterDept.value;
+    const matchDept = !isFilterActive(filterDept.value) || deptId == filterDept.value;
     
     // Lọc theo tổ đội
     const teamId = a.employee?.team?.id || a.originalTeam?.id;
-    const matchTeam = !filterTeam.value || teamId == filterTeam.value;
+    const matchTeam = !isFilterActive(filterTeam.value) || teamId == filterTeam.value;
     
     return matchSearch && matchDept && matchTeam;
   });
@@ -307,8 +401,8 @@ const absentEmployees = computed(() => {
     if (attendedIds.has(e.id)) return false;
     
     // Áp dụng bộ lọc phòng ban/tổ đội nếu đang chọn
-    const matchDept = !filterDept.value || (e.department?.id || e.team?.department?.id) == filterDept.value;
-    const matchTeam = !filterTeam.value || e.team?.id == filterTeam.value;
+    const matchDept = !isFilterActive(filterDept.value) || (e.department?.id || e.team?.department?.id) == filterDept.value;
+    const matchTeam = !isFilterActive(filterTeam.value) || e.team?.id == filterTeam.value;
     
     return matchDept && matchTeam;
   });
@@ -320,8 +414,8 @@ const statistics = computed(() => {
   // Tổng quân số (ACTIVE) tương ứng điều kiện lọc
   const totalCount = employees.value.filter(e => {
     if (e.status !== 'ACTIVE') return false;
-    const matchDept = !filterDept.value || (e.department?.id || e.team?.department?.id) == filterDept.value;
-    const matchTeam = !filterTeam.value || e.team?.id == filterTeam.value;
+    const matchDept = !isFilterActive(filterDept.value) || (e.department?.id || e.team?.department?.id) == filterDept.value;
+    const matchTeam = !isFilterActive(filterTeam.value) || e.team?.id == filterTeam.value;
     return matchDept && matchTeam;
   }).length;
   
@@ -332,7 +426,10 @@ const statistics = computed(() => {
 });
 
 const openModal = (att = null) => {
-  if (att) {
+  console.log("Button clicked, params:", att);
+  
+  // Nếu att có chứa id thực sự từ database, thì là chế độ SỬA
+  if (att && typeof att === 'object' && att.id) {
     currentId.value = att.id;
     form.employeeId = att.employee?.id;
     form.originalTeamId = att.originalTeam?.id || null;
@@ -348,7 +445,37 @@ const openModal = (att = null) => {
   showModal.value = true;
 };
 
+const onEmployeeSelect = (empId) => {
+  if (!empId) {
+    form.originalTeamId = null;
+    form.actualTeamId = null;
+    return;
+  }
+  const emp = employees.value.find(e => e.id == empId);
+  if (emp && emp.team) {
+    form.originalTeamId = emp.team.id;
+    form.actualTeamId = emp.team.id;
+  }
+};
+
+const switchToEditDuplicate = () => {
+  showDuplicateModal.value = false;
+  openModal(duplicateRecord.value);
+};
+
 const handleSubmit = async () => {
+  // Validate duplicate on frontend (if same date)
+  if (!currentId.value) {
+    const existing = attendances.value.find(
+      a => a.employee?.id == form.employeeId && a.attendanceDate === form.attendanceDate
+    );
+    if (existing) {
+      duplicateRecord.value = existing;
+      showDuplicateModal.value = true;
+      return;
+    }
+  }
+
   saving.value = true;
   try {
     if (currentId.value) {
@@ -359,7 +486,12 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Lỗi xử lý');
+    const msg = err.response?.data?.message || err.message || '';
+    if (msg.includes('Duplicate entry') || msg.includes('constraint')) {
+      alert('Lỗi: Nhân viên này đã được chấm công trong ngày, dữ liệu bị trùng lặp ở Database!');
+    } else {
+      alert('Lỗi xử lý: ' + msg);
+    }
   } finally {
     saving.value = false;
   }

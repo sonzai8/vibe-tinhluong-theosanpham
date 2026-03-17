@@ -100,14 +100,29 @@ public class DailyAttendanceController {
     public ResponseEntity<Resource> export(
             @RequestParam("month") int month,
             @RequestParam("year") int year,
+            @RequestParam(value = "format", defaultValue = "list") String format,
             @RequestParam(value = "departmentIds", required = false) List<Long> departmentIds,
             @RequestParam(value = "teamIds", required = false) List<Long> teamIds) throws IOException {
         
         List<DailyAttendanceResponse> data = attendanceService.getByFilters(null, null, month, year, null, departmentIds, teamIds);
-        byte[] excelContent = excelService.exportAttendances(data);
+        byte[] excelContent;
+        String fileName;
+        
+        if ("matrix".equalsIgnoreCase(format)) {
+            LocalDate firstDay = LocalDate.of(year, month, 1);
+            int length = firstDay.lengthOfMonth();
+            List<LocalDate> dates = new java.util.ArrayList<>();
+            for (int i = 0; i < length; i++) {
+                dates.add(firstDay.plusDays(i));
+            }
+            excelContent = excelService.exportAttendanceMatrix(data, dates);
+            fileName = String.format("ChamCong_Matrix_%d_%d.xlsx", month, year);
+        } else {
+            excelContent = excelService.exportAttendances(data);
+            fileName = String.format("ChamCong_DanhSach_%d_%d.xlsx", month, year);
+        }
         
         ByteArrayResource resource = new ByteArrayResource(excelContent);
-        String fileName = String.format("ChamCong_%d_%d.xlsx", month, year);
         
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

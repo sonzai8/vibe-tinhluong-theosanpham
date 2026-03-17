@@ -1,7 +1,4 @@
 package com.plywood.payroll.modules.excel.service;
-import com.plywood.payroll.modules.organization.entity.Role;
-import com.plywood.payroll.modules.organization.entity.Department;
-import com.plywood.payroll.modules.organization.entity.Team;
 
 import com.plywood.payroll.modules.attendance.dto.request.DailyAttendanceRequest;
 import com.plywood.payroll.modules.attendance.dto.response.DailyAttendanceResponse;
@@ -19,6 +16,7 @@ import com.plywood.payroll.modules.pricing.dto.response.ProductStepRateResponse;
 import com.plywood.payroll.modules.product.dto.response.ProductResponse;
 import com.plywood.payroll.modules.production.dto.response.ProductionStepResponse;
 import com.plywood.payroll.modules.quality.dto.response.ProductQualityResponse;
+import com.plywood.payroll.modules.attendance.repository.AttendanceDefinitionRepository;
 import com.plywood.payroll.shared.utils.ExcelHelper;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
@@ -48,6 +46,7 @@ public class ExcelService {
     private final TeamRepository teamRepository;
     private final RoleRepository roleRepository;
     private final DepartmentRepository departmentRepository;
+    private final AttendanceDefinitionRepository attendanceDefinitionRepository;
 
     private static final String ATTENDANCE_IMPORT_TEMPLATE = "templates/attendance/import/import_template.xlsx";
     private static final String ATTENDANCE_EXPORT_TEMPLATE = "templates/attendance/export/export_template.xlsx";
@@ -71,6 +70,7 @@ public class ExcelService {
                 row.createCell(2).setCellValue(att.getAttendanceDate().toString());
                 row.createCell(3).setCellValue(att.getOriginalTeam() != null ? att.getOriginalTeam().getName() : "");
                 row.createCell(4).setCellValue(att.getActualTeam() != null ? att.getActualTeam().getName() : "");
+                row.createCell(5).setCellValue(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "");
             }
 
             workbook.write(out);
@@ -78,8 +78,70 @@ public class ExcelService {
         }
     }
 
+    public byte[] exportAttendanceMatrix(List<DailyAttendanceResponse> attendances, List<LocalDate> dates) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Matrix");
+            CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
+            
+            // Header: Code, Name, Team, Dates...
+            Row headerRow = sheet.createRow(0);
+            headerRow.createCell(0).setCellValue("Mã NV");
+            headerRow.createCell(1).setCellValue("Họ Tên");
+            headerRow.createCell(2).setCellValue("Tổ");
+            
+            for (int i = 0; i < dates.size(); i++) {
+                Cell cell = headerRow.createCell(i + 3);
+                cell.setCellValue(dates.get(i).getDayOfMonth());
+                cell.setCellStyle(headerStyle);
+            }
+            
+            // Group attendances by employee
+            java.util.Map<Long, List<DailyAttendanceResponse>> employeeMap = attendances.stream()
+                .collect(java.util.stream.Collectors.groupingBy(a -> a.getEmployee().getId()));
+            
+            // Get all employees from the data
+            List<com.plywood.payroll.modules.employee.dto.response.EmployeeResponse> employees = attendances.stream()
+                .map(DailyAttendanceResponse::getEmployee)
+                .distinct()
+                .sorted(java.util.Comparator.comparing(e -> e.getTeam() != null ? e.getTeam().getName() : ""))
+                .collect(java.util.stream.Collectors.toList());
+            
+            int rowIdx = 1;
+            for (com.plywood.payroll.modules.employee.dto.response.EmployeeResponse emp : employees) {
+                Row row = sheet.createRow(rowIdx++);
+                row.createCell(0).setCellValue(emp.getCode());
+                row.createCell(1).setCellValue(emp.getFullName());
+                row.createCell(2).setCellValue(emp.getTeam() != null ? emp.getTeam().getName() : "");
+                
+                List<DailyAttendanceResponse> empAtts = employeeMap.getOrDefault(emp.getId(), new ArrayList<>());
+                for (int i = 0; i < dates.size(); i++) {
+                    LocalDate date = dates.get(i);
+                    DailyAttendanceResponse att = empAtts.stream()
+                        .filter(a -> a.getAttendanceDate().equals(date))
+                        .findFirst().orElse(null);
+                    
+                    if (att != null) {
+                        row.createCell(i + 3).setCellValue(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "X");
+                    }
+                }
+            }
+            
+            for (int i = 0; i < dates.size() + 3; i++) {
+                sheet.autoSizeColumn(i);
+            }
+            
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
     public byte[] getImportTemplate() throws IOException {
-        return getTemplateBytes(ATTENDANCE_IMPORT_TEMPLATE);
+        try {
+            return getTemplateBytes(ATTENDANCE_IMPORT_TEMPLATE);
+        } catch (IOException e) {
+            return generateDynamicAttendanceTemplate();
+        }
     }
 
     public byte[] getEmployeeTemplate() throws IOException {
@@ -162,6 +224,11 @@ public class ExcelService {
                     String actualTeamName = ExcelHelper.getCellValueAsString(currentRow.getCell(4));
                     if (actualTeamName != null) teamRepository.findByName(actualTeamName).ifPresent(t -> req.setActualTeamId(t.getId()));
                     else req.setActualTeamId(req.getOriginalTeamId());
+
+                    String defCode = ExcelHelper.getCellValueAsString(currentRow.getCell(5));
+                    if (defCode != null && !defCode.isEmpty()) {
+                        attendanceDefinitionRepository.findByCode(defCode).ifPresent(def -> req.setAttendanceDefinitionId(def.getId()));
+                    }
 
                     requests.add(req);
                 });
@@ -437,6 +504,37 @@ public class ExcelService {
                     cell.getCellStyle().setWrapText(true);
                 }
                 row.setHeightInPoints(Math.max(row.getHeightInPoints(), (qualities.size() * 15f)));
+            }
+
+            return ExcelHelper.createWorkbookBytes(workbook);
+        }
+    }
+
+    private byte[] generateDynamicAttendanceTemplate() throws IOException {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Điểm danh");
+            Row header = sheet.createRow(0);
+            String[] headers = {"Mã NV", "Họ Tên", "Ngày (YYYY-MM-DD)", "Tổ biên chế", "Tổ thực tế", "Mã loại công"};
+
+            CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
+            // Thêm hướng dẫn ở dòng 1
+            Row hintRow = sheet.createRow(1);
+            hintRow.createCell(5).setCellValue("VD: NG (Ca ngày), D (Ca đêm), P (Có phép)");
+
+            // Data validation cho Mã loại công
+            String[] defCodes = attendanceDefinitionRepository.findAll().stream()
+                    .map(com.plywood.payroll.modules.attendance.entity.AttendanceDefinition::getCode)
+                    .toArray(String[]::new);
+            
+            if (defCodes.length > 0) {
+                ExcelHelper.addDataValidation(sheet, defCodes, 1, 1000, 5, 5);
             }
 
             return ExcelHelper.createWorkbookBytes(workbook);

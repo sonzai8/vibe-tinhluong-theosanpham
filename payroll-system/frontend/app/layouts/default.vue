@@ -87,7 +87,7 @@
       <!-- CMS Header -->
       <header class="h-24 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 flex items-center justify-between z-40 sticky top-0 shrink-0">
         <div class="flex items-center gap-8">
-          <button @click="isSidebarCollapsed = !isSidebarCollapsed" class="p-3 text-slate-400 hover:bg-slate-50 rounded-2xl md:hidden">
+          <button @click="isSidebarCollapsed = !isSidebarCollapsed" class="p-3 text-slate-400 hover:bg-slate-50 rounded-2xl">
             <Menu class="w-6 h-6" />
           </button>
           

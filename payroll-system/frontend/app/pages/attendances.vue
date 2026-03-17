@@ -11,10 +11,21 @@
           <FileSpreadsheet class="w-4 h-4" />
           {{ $t('common.download_template') || 'Tải file mẫu' }}
         </UiButton>
-        <UiButton variant="outline" @click="handleExport" :loading="exporting">
-          <Download class="w-4 h-4" />
-          {{ $t('attendance.export') }}
-        </UiButton>
+        <div class="relative group/export">
+            <UiButton variant="outline" :loading="exporting">
+              <Download class="w-4 h-4" />
+              {{ $t('attendance.export') }}
+              <ChevronDown class="w-3 h-3 ml-1 opacity-50" />
+            </UiButton>
+            <div class="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-2xl border border-slate-100 p-1.5 z-[100] hidden group-hover/export:block animate-in fade-in slide-in-from-top-1 duration-200">
+              <button @click="handleExport('list')" class="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-2">
+                <LayoutList class="w-3.5 h-3.5" /> {{ $t('common.list_view') }}
+              </button>
+              <button @click="handleExport('matrix')" class="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-2 border-t border-slate-50 mt-1 pt-1.5">
+                <Grid3x3 class="w-3.5 h-3.5" /> {{ $t('common.matrix_view') }}
+              </button>
+            </div>
+        </div>
         <UiButton variant="outline" @click="$refs.fileInput.click()" :loading="importing">
           <Upload class="w-4 h-4" />
           {{ $t('attendance.import') }}
@@ -292,7 +303,10 @@
                         </div>
                         <div>
                           <p class="text-xs font-black text-slate-900 line-clamp-1">{{ emp.fullName }}</p>
-                          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ emp.code }}</p>
+                          <div class="flex items-center gap-2">
+                             <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ emp.code }}</p>
+                             <span v-if="emp.team" class="text-[8px] font-black text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded uppercase">{{ emp.team.name }}</span>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -499,7 +513,7 @@
 
         <div class="overflow-y-auto flex-1 pr-2 space-y-8">
           <!-- Filters for Bulk -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">
             <UiSelect 
               v-model="bulkForm.departmentId" 
               :label="$t('common.filter_by_dept') || 'Lọc theo phòng ban'" 
@@ -513,6 +527,12 @@
               :options="teamFilterOptions" 
               :placeholder="$t('common.select_team_to_load') || 'Chọn tổ để nạp danh sách'"
               @update:modelValue="loadBulkEmployees"
+            />
+            <UiSelect 
+              v-model="bulkForm.attendanceDefinitionId" 
+              :label="$t('attendance.definition.name')" 
+              :options="attendanceDefOptions" 
+              :placeholder="$t('common.select_type') || 'Chọn loại công'"
             />
           </div>
 
@@ -650,6 +670,7 @@ const showBulkModal = ref(false);
 const bulkForm = reactive({
   departmentId: '',
   teamId: '',
+  attendanceDefinitionId: null
 });
 
 const currentId = ref(null);
@@ -893,6 +914,10 @@ const filteredAttendances = computed(() => {
     const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
     
     return matchSearch && matchDept && matchTeam;
+  }).sort((a, b) => {
+    const teamA = a.actualTeam?.name || a.originalTeam?.name || '';
+    const teamB = b.actualTeam?.name || b.originalTeam?.name || '';
+    return teamA.localeCompare(teamB, 'vi');
   });
 });
 
@@ -911,6 +936,10 @@ const filteredEmployees = computed(() => {
     const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
     
     return matchSearch && matchDept && matchTeam;
+  }).sort((a, b) => {
+    const teamA = a.team?.name || '';
+    const teamB = b.team?.name || '';
+    return teamA.localeCompare(teamB, 'vi');
   });
 });
 
@@ -947,11 +976,12 @@ const performAttendanceAction = async (empId, targetDate, defId) => {
     } else {
       const emp = employees.value.find(e => e.id === empId);
       if (status === 'PRESENT') {
+        const record = attendances.value.find(a => a.id === id);
         await $api.put(`/attendances/${id}`, {
           employeeId: empId,
           attendanceDate: targetDate,
           originalTeamId: emp?.team?.id || null,
-          actualTeamId: emp?.team?.id || null,
+          actualTeamId: record?.actualTeam?.id || emp?.team?.id || null,
           attendanceDefinitionId: defId
         });
       } else {
@@ -1106,13 +1136,17 @@ const handleSubmit = async () => {
 const openBulkModal = () => {
   bulkForm.departmentId = filterDeptIds.value[0] || null;
   bulkForm.teamId = filterTeamIds.value[0] || null;
+  bulkForm.attendanceDefinitionId = null;
   borrowedEmployees.value = [];
   loadBulkEmployees();
   showBulkModal.value = true;
 };
 
 const loadBulkEmployees = () => {
-  const attendedIds = new Set(attendances.value.map(a => a.employee?.id));
+  const attendedIds = new Set(attendances.value
+    .filter(a => a.attendanceDate === filterDate.value)
+    .map(a => a.employee?.id)
+  );
   
   bulkEmployees.value = employees.value
     .filter(e => {
@@ -1177,7 +1211,8 @@ const handleBulkSubmit = async () => {
       employeeId: e.employee.id,
       originalTeamId: e.originalTeam?.id || null,
       actualTeamId: e.actualTeamId,
-      attendanceDate: filterDate.value
+      attendanceDate: filterDate.value,
+      attendanceDefinitionId: bulkForm.attendanceDefinitionId
     });
   });
   
@@ -1187,7 +1222,8 @@ const handleBulkSubmit = async () => {
       employeeId: b.employeeId,
       originalTeamId: emp?.team?.id || null,
       actualTeamId: b.actualTeamId,
-      attendanceDate: filterDate.value
+      attendanceDate: filterDate.value,
+      attendanceDefinitionId: bulkForm.attendanceDefinitionId
     });
   });
   
@@ -1205,27 +1241,33 @@ const handleBulkSubmit = async () => {
   }
 };
 
-const handleExport = async () => {
+const handleExport = async (format = 'list') => {
   exporting.value = true;
   try {
-    const month = new Date(filterDate.value).getMonth() + 1;
-    const year = new Date(filterDate.value).getFullYear();
+    let month, year;
+    if (viewMode.value === 'matrix' && matrixScope.value === 'month') {
+      [year, month] = viewMonth.value.split('-').map(Number);
+    } else {
+      month = new Date(filterDate.value).getMonth() + 1;
+      year = new Date(filterDate.value).getFullYear();
+    }
     
     const response = await $api.get('/attendances/export', {
       params: { 
         month, 
         year, 
+        format,
         departmentIds: filterDeptIds.value.join(','),
         teamIds: filterTeamIds.value.join(',')
       },
       responseType: 'blob'
     });
     
-    // Vì axios interceptor đã trả về response.data, nên ở đây data chính là Blob
     const url = window.URL.createObjectURL(new Blob([response]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `ChamCong_${month}_${year}.xlsx`);
+    const fileName = format === 'matrix' ? `ChamCong_Matrix_${month}_${year}.xlsx` : `ChamCong_DanhSach_${month}_${year}.xlsx`;
+    link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -2,75 +2,163 @@
   <div class="space-y-8">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
-        <h2 class="text-3xl font-black text-slate-900 tracking-tight">Nhật ký Sản lượng</h2>
-        <p class="text-slate-500 font-medium">Ghi nhận năng suất theo tổ đội sản xuất</p>
+        <h2 class="text-3xl font-black text-slate-900 tracking-tight">{{ $t('production.title') }}</h2>
+        <p class="text-slate-500 font-medium">{{ $t('production.subtitle') }}</p>
       </div>
       <div class="flex gap-3">
-        <UiButton @click="openBulkModal" variant="outline" >
-          <ListPlus class="w-4 h-4" />
-          Nhập nhiều tổ
+        <UiButton variant="outline" @click="handleExportList" >
+          <Download class="w-4 h-4" />
+          {{ $t('production.export_list') }}
         </UiButton>
-        <UiButton @click="openModal()" class="shadow-lg shadow-primary-100">
+        <UiButton variant="outline" @click="handleExportMatrix" >
+          <FileSpreadsheet class="w-4 h-4" />
+          {{ $t('production.export_matrix') }}
+        </UiButton>
+        <UiButton @click="showBulkModal = true" variant="outline" >
           <PlusCircle class="w-4 h-4" />
-          Ghi nhận sản lượng
+          {{ $t('production.bulk_add') }}
+        </UiButton>
+        <UiButton @click="() => openModal(null)" class="shadow-lg shadow-emerald-100">
+          <Plus class="w-4 h-4" />
+          {{ $t('production.add_new') }}
         </UiButton>
       </div>
     </div>
 
-    <!-- Filter & View Mode -->
-    <div class="card p-6 flex flex-col lg:flex-row gap-6 items-end justify-between">
-      <div class="flex flex-wrap gap-6 items-end">
-        <div class="flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div class="flex flex-col gap-1.5 min-w-[200px]">
-            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phòng ban</label>
-            <select v-model="filter.departmentId" class="input-field py-2" @change="fetchData">
-              <option :value="null">Tất cả phòng ban</option>
-              <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-            </select>
+    <!-- Filter -->
+    <div class="card overflow-visible border-none shadow-sm bg-white/80 backdrop-blur-md">
+      <div class="p-6">
+        <div class="flex flex-wrap items-end gap-6">
+          <!-- Select Group -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-w-[300px]">
+            <div class="flex flex-col gap-1.5 relative" ref="deptFilterRef">
+              <label class="text-[10px] font-black text-slate-400 border-l-2 border-primary-500 pl-2 uppercase tracking-widest">{{ $t('common.department') }}</label>
+              <div class="relative">
+                <button 
+                  type="button"
+                  @click.stop="toggleDeptDropdown"
+                  class="input-field py-3 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold"
+                >
+                  <span class="truncate">
+                    {{ filter.departmentIds.length === 0 ? $t('common.all') : `${filter.departmentIds.length} ${$t('common.department').toLowerCase()}` }}
+                  </span>
+                  <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showDeptDropdown}" />
+                </button>
+                
+                <div v-if="showDeptDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div v-for="d in departments" :key="d.id" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all" @click.stop="toggleDeptFilter(d.id)">
+                    <div 
+                      class="w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all"
+                      :class="[filter.departmentIds.includes(d.id) ? 'bg-primary-600 border-primary-600' : 'border-slate-200 group-hover:border-primary-300']"
+                    >
+                      <Check v-if="filter.departmentIds.includes(d.id)" class="w-3 h-3 text-white" />
+                    </div>
+                    <span class="text-sm font-bold" :class="[filter.departmentIds.includes(d.id) ? 'text-primary-700' : 'text-slate-600']">{{ d.name }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="flex flex-col gap-1.5 relative" ref="teamFilterRef">
+              <label class="text-[10px] font-black text-slate-400 border-l-2 border-primary-500 pl-2 uppercase tracking-widest">{{ $t('common.team') }}</label>
+              <div class="relative">
+                <button 
+                  type="button"
+                  @click.stop="toggleTeamDropdown"
+                  class="input-field py-3 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold"
+                >
+                  <span class="truncate">
+                    {{ filter.teamIds.length === 0 ? $t('common.all') : `${filter.teamIds.length} ${$t('common.team').toLowerCase()}` }}
+                  </span>
+                  <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showTeamDropdown}" />
+                </button>
+                
+                <div v-if="showTeamDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div v-for="t in teams" :key="t.id" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all" @click.stop="toggleTeamFilter(t.id)">
+                    <div 
+                      class="w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all"
+                      :class="[filter.teamIds.includes(t.id) ? 'bg-primary-600 border-primary-600' : 'border-slate-200 group-hover:border-primary-300']"
+                    >
+                      <Check v-if="filter.teamIds.includes(t.id)" class="w-3 h-3 text-white" />
+                    </div>
+                    <span class="text-sm font-bold" :class="[filter.teamIds.includes(t.id) ? 'text-primary-700' : 'text-slate-600']">{{ t.name }}</span>
+                  </div>
+                  <div v-if="teams.length === 0" class="p-4 text-center text-xs text-slate-400 italic font-bold">
+                    {{ $t('common.all') }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <template v-if="viewMode === 'list'">
-            <div class="flex flex-col gap-1.5 min-w-[200px]">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Từ ngày</label>
-              <input v-model="filter.from" type="date" class="input-field py-2" />
-            </div>
-            <div class="flex flex-col gap-1.5 min-w-[200px]">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Đến ngày</label>
-              <input v-model="filter.to" type="date" class="input-field py-2" />
-            </div>
-          </template>
-          <template v-else>
-            <div class="flex flex-col gap-1.5 min-w-[200px]">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tháng báo cáo</label>
-              <input v-model="viewMonth" type="month" class="input-field py-2" @change="handleMonthChange" />
-            </div>
-            <div class="flex flex-col gap-1.5 min-w-[150px]">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Xem theo tuần</label>
-              <select v-model="viewWeek" class="input-field py-2 text-sm font-bold appearance-none bg-white">
-                <option :value="null">Toàn bộ tháng</option>
-                <option v-for="w in monthWeeks" :key="w.id" :value="w.id">{{ w.label }}</option>
-              </select>
-            </div>
-          </template>
-        </div>
-        <UiButton @click="fetchRecords" variant="secondary" class="bg-slate-900 text-white hover:bg-slate-800">
-          <Filter class="w-4 h-4" />
-          Lọc dữ liệu
-        </UiButton>
-      </div>
 
-      <div class="flex bg-slate-100 p-1 rounded-xl shrink-0">
+          <!-- Time Group -->
+          <div class="flex flex-wrap items-end gap-4 shrink-0">
+            <template v-if="viewMode === 'list'">
+              <div class="flex flex-col gap-1.5 w-[160px]">
+                <label class="text-[10px] font-black text-slate-400 border-l-2 border-primary-500 pl-2 uppercase tracking-widest">{{ $t('common.from_date') }}</label>
+                <input v-model="filter.from" type="date" class="input-field py-3 bg-white border-slate-200 focus:border-primary-500 transition-all font-bold" />
+              </div>
+              <div class="flex flex-col gap-1.5 w-[160px]">
+                <label class="text-[10px] font-black text-slate-400 border-l-2 border-primary-500 pl-2 uppercase tracking-widest">{{ $t('common.to_date') }}</label>
+                <input v-model="filter.to" type="date" class="input-field py-3 bg-white border-slate-200 focus:border-primary-500 transition-all font-bold" />
+              </div>
+            </template>
+            <template v-else>
+              <div class="flex flex-col gap-1.5 w-[180px]">
+                <label class="text-[10px] font-black text-slate-400 border-l-2 border-primary-500 pl-2 uppercase tracking-widest">{{ $t('common.reporting_month') }}</label>
+                <input v-model="viewMonth" type="month" class="input-field py-3 bg-white border-slate-200 focus:border-primary-500 transition-all font-bold" @change="handleMonthChange" />
+              </div>
+              <div class="flex flex-col gap-1.5 w-[180px]">
+                <label class="text-[10px] font-black text-slate-400 border-l-2 border-primary-500 pl-2 uppercase tracking-widest">{{ $t('common.view_by_week') }}</label>
+                <select v-model="viewWeek" class="input-field py-3 bg-white border-slate-200 focus:border-primary-500 transition-all text-sm font-bold appearance-none">
+                  <option :value="null">{{ $t('common.full_month') }}</option>
+                  <option v-for="w in monthWeeks" :key="w.id" :value="w.id">{{ w.label }}</option>
+                </select>
+              </div>
+            </template>
+
+            <UiButton @click="fetchRecords" variant="secondary" class="bg-primary-600 text-white hover:bg-primary-700 h-[46px] px-8 shadow-lg shadow-primary-200 ring-offset-2 focus:ring-2 ring-primary-500 transition-all">
+              <Filter class="w-4 h-4 mr-2" />
+              {{ $t('common.filter') }}
+            </UiButton>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Switcher & Stats -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 py-2">
+      <div class="flex bg-slate-200/50 p-1.5 rounded-2xl shrink-0 backdrop-blur-sm shadow-inner overflow-hidden border border-slate-100">
         <button 
           @click="viewMode = 'list'" 
-          :class="['px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all', viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600']"
+          :class="['px-6 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2.5', viewMode === 'list' ? 'bg-white text-primary-700 shadow-xl shadow-slate-300 scale-[1.02]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50']"
         >
-          Danh sách
+          <LayoutList class="w-3 h-3" />
+          {{ $t('common.list_view') }}
         </button>
         <button 
           @click="viewMode = 'matrix'" 
-          :class="['px-4 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all', viewMode === 'matrix' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600']"
+          :class="['px-6 py-2.5 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2.5', viewMode === 'matrix' ? 'bg-white text-primary-700 shadow-xl shadow-slate-300 scale-[1.02]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50']"
         >
-          Bảng tổng hợp
+          <Grid3X3 class="w-3 h-3" />
+          {{ $t('common.matrix_view') }}
         </button>
+      </div>
+
+      <div class="flex items-center gap-6 px-4">
+        <div v-if="viewMode === 'matrix'" class="flex items-center gap-3">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('production.displaying') }}:</span>
+          <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
+            <span class="text-sm font-black text-primary-600">{{ filteredTeams.length }}</span>
+            <span class="text-[10px] font-bold text-slate-500 uppercase">{{ $t('production.teams_count') }}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('production.total_records') }}:</span>
+          <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
+            <span class="text-sm font-black text-primary-600">{{ records.length }}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -78,14 +166,14 @@
     <div class="card overflow-hidden">
       <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4">
         <div class="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-        <p class="text-slate-500 font-bold">Đang tải bản ghi...</p>
+        <p class="text-slate-500 font-bold">{{ $t('production.loading') }}</p>
       </div>
 
       <div v-else-if="records.length === 0 && viewMode === 'list'" class="p-20 text-center space-y-4">
         <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-300">
           <History class="w-10 h-10" />
         </div>
-        <p class="text-slate-500 font-bold">Chưa có sản lượng nào được ghi nhận.</p>
+        <p class="text-slate-500 font-bold">{{ $t('production.no_data') }}</p>
       </div>
 
       <!-- List View -->
@@ -93,12 +181,12 @@
         <table class="w-full text-left">
           <thead>
             <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-              <th class="px-8 py-5">Ngày</th>
-              <th class="px-8 py-5">Tổ sản xuất</th>
-              <th class="px-8 py-5">Sản phẩm</th>
-              <th class="px-8 py-5">Chất lượng</th>
-              <th class="px-8 py-5">Số lượng</th>
-              <th class="px-8 py-5 text-right">Thao tác</th>
+              <th class="px-8 py-5">{{ $t('production.date') }}</th>
+              <th class="px-8 py-5">{{ $t('common.team') }}</th>
+              <th class="px-8 py-5">{{ $t('production.product') }}</th>
+              <th class="px-8 py-5">{{ $t('production.quality') }}</th>
+              <th class="px-8 py-5">{{ $t('production.quantity') }}</th>
+              <th class="px-8 py-5 text-right">{{ $t('common.actions') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
@@ -128,7 +216,7 @@
                 <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button v-if="!isPastMonth" @click="openModal(r)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"><PencilLine class="w-4 h-4" /></button>
                   <button v-if="!isPastMonth" @click="handleDelete(r.id)" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 class="w-4 h-4" /></button>
-                  <span v-else class="text-[10px] font-black text-slate-300 uppercase italic">Khoá</span>
+                  <span v-else class="text-[10px] font-black text-slate-300 uppercase italic">{{ $t('common.locked') || 'Khoá' }}</span>
                 </div>
               </td>
             </tr>
@@ -139,7 +227,7 @@
       <!-- Matrix View -->
       <div v-else class="overflow-x-auto relative min-h-[500px] border border-slate-200 rounded-xl shadow-sm bg-white">
         <div v-if="isPastMonth" class="bg-amber-50 p-2 text-center border-b border-amber-100">
-          <p class="text-[10px] font-bold text-amber-700">Dữ liệu tháng {{ viewMonth }} đã khoá. Chỉ cho phép xem, không thể chỉnh sửa.</p>
+          <p class="text-[10px] font-bold text-amber-700">{{ $t('production.locked_month_msg', { month: viewMonth }) }}</p>
         </div>
         <table 
           class="w-full text-left border-collapse"
@@ -147,7 +235,7 @@
         >
           <thead>
             <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-200 sticky top-0 z-30">
-              <th class="px-4 py-4 w-40 min-w-[160px] sticky left-0 bg-slate-50 z-40 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-slate-200">Tổ đội</th>
+              <th class="px-4 py-4 w-40 min-w-[160px] sticky left-0 bg-slate-50 z-40 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-slate-200">{{ $t('common.team') }}</th>
               <th v-for="day in displayedDays" :key="day" 
                   class="px-2 py-3 text-center border-r border-slate-200 last:border-r-0"
                   :class="[viewWeek ? '' : 'w-24', getDayHighlightClass(day, 'header'), isSunday(day) ? 'bg-blue-50/50' : '']"
@@ -212,7 +300,7 @@
             </div>
 
             <div class="space-y-3">
-              <h5 class="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Sản phẩm & Chất lượng</h5>
+              <h5 class="text-[9px] font-black text-slate-300 uppercase tracking-tighter">{{ $t('production.product_quality') }}</h5>
               <div class="space-y-1.5 rotate-0">
                 <div v-for="r in hoverTooltip.records" :key="r.id" class="flex items-center justify-between text-xs transition-transform transform-gpu">
                   <div class="flex items-center gap-2">
@@ -226,7 +314,7 @@
 
             <div class="space-y-3 border-t border-slate-50 pt-3">
               <div class="flex justify-between items-center">
-                <h5 class="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Nhân sự tham gia ({{ hoverTooltip.employees.length }})</h5>
+                <h5 class="text-[9px] font-black text-slate-300 uppercase tracking-tighter">{{ $t('production.participating_employees') }} ({{ hoverTooltip.employees.length }})</h5>
               </div>
               <div class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1 pb-1">
                 <div v-for="emp in hoverTooltip.employees" :key="emp.id" 
@@ -247,7 +335,7 @@
         <!-- Pagination -->
         <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between sticky bottom-0 z-20">
           <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">
-            Hiển thị {{ paginatedTeams.length }} / {{ teams.length }} tổ
+            {{ $t('production.displaying') }} {{ paginatedTeams.length }} / {{ teams.length }} {{ $t('common.team').toLowerCase() }}
           </div>
           <div class="flex items-center gap-2">
             <button 
@@ -284,7 +372,7 @@
     <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
       <div class="card w-full max-w-2xl p-10 animate-in zoom-in slide-in-from-bottom duration-300">
         <div class="flex items-center justify-between mb-10">
-          <h3 class="text-2xl font-black text-slate-900">{{ currentId ? 'Cập nhật' : 'Báo cáo' }} sản lượng</h3>
+          <h3 class="text-2xl font-black text-slate-900">{{ currentId ? $t('common.update') : $t('production.add_new') }}</h3>
           <button @click="showModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full"><X class="w-5 h-5" /></button>
         </div>
 
@@ -292,38 +380,38 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <UiSelect 
               v-model="form.teamId" 
-              label="Tổ sản xuất" 
+              :label="$t('common.team')" 
               :options="teamOptions" 
-              placeholder="Chọn tổ sản xuất"
+              :placeholder="$t('common.select_team') || 'Chọn tổ sản xuất'"
               required
             />
             
-            <UiInput v-model="form.productionDate" label="Ngày sản xuất" type="date" required />
+            <UiInput v-model="form.productionDate" :label="$t('production.date')" type="date" required />
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <UiSelect 
               v-model="form.productId" 
-              label="Sản phẩm" 
+              :label="$t('production.product')" 
               :options="productOptions" 
-              placeholder="Chọn sản phẩm"
+              :placeholder="$t('common.select_product') || 'Chọn sản phẩm'"
               required
             />
 
             <UiSelect 
               v-model="form.qualityId" 
-              label="Chất lượng" 
+              :label="$t('production.quality')" 
               :options="qualityOptions" 
-              placeholder="Chọn chất lượng"
+              :placeholder="$t('common.select_quality') || 'Chọn chất lượng'"
               required
             />
 
-            <UiInput v-model="form.quantity" label="Số lượng (Tấm)" type="number" min="1" required />
+            <UiInput v-model="form.quantity" :label="$t('production.quantity')" type="number" min="1" required />
           </div>
 
           <div class="flex gap-4 pt-6">
-            <button type="button" @click="showModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">Hủy</button>
-            <UiButton type="submit" class="flex-[2] h-14" :loading="saving">Lưu sản lượng</UiButton>
+            <button type="button" @click="showModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">{{ $t('common.cancel') }}</button>
+            <UiButton type="submit" class="flex-[2] h-14" :loading="saving">{{ $t('common.save') }}</UiButton>
           </div>
         </form>
       </div>
@@ -334,32 +422,28 @@
       <div class="card w-full max-w-6xl p-8 animate-in zoom-in slide-in-from-bottom duration-300 max-h-[95vh] flex flex-col pl-4 pr-6">
         <div class="flex items-center justify-between mb-6 shrink-0 pl-4">
           <div>
-            <h3 class="text-2xl font-black text-slate-900 tracking-tight">Nhập nhật ký sản lượng đa tổ</h3>
-            <p class="text-sm text-slate-500 mt-1">Báo cáo năng suất của nhiều tổ cùng một lúc</p>
+            <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ $t('production.bulk_title') }}</h3>
+            <p class="text-sm text-slate-500 mt-1">{{ $t('production.bulk_subtitle') }}</p>
           </div>
           <button @click="showBulkModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
         </div>
 
         <div class="overflow-y-auto flex-1 pl-4 pr-2 space-y-6">
           <div class="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100 w-full max-w-sm">
-            <label class="text-xs font-black text-slate-500 uppercase tracking-widest shrink-0">Ngày sản xuất</label>
+            <label class="text-xs font-black text-slate-500 uppercase tracking-widest shrink-0">{{ $t('production.date') }}</label>
             <input v-model="bulkDate" type="date" class="input-field py-2 text-sm font-bold flex-1" />
           </div>
 
-          <div v-if="bulkError" class="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-xl border border-red-100 flex items-start gap-3">
-            <AlertCircle class="w-5 h-5 shrink-0 mt-0.5" />
-            <div v-html="bulkError"></div>
-          </div>
 
           <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <table class="w-full text-left bg-white">
               <thead class="bg-slate-50 border-b border-slate-200">
                 <tr class="text-[10px] font-black uppercase text-slate-500 tracking-widest divide-x divide-slate-100">
                   <th class="px-4 py-3 w-12 text-center">#</th>
-                  <th class="px-4 py-3 w-[25%]">Tổ sản xuất</th>
-                  <th class="px-4 py-3">Sản phẩm</th>
-                  <th class="px-4 py-3 w-[20%]">Chất lượng</th>
-                  <th class="px-4 py-3 w-32">Số lượng</th>
+                  <th class="px-4 py-3 w-[25%]">{{ $t('common.team') }}</th>
+                  <th class="px-4 py-3">{{ $t('production.product') }}</th>
+                  <th class="px-4 py-3 w-[20%]">{{ $t('production.quality') }}</th>
+                  <th class="px-4 py-3 w-32">{{ $t('production.quantity') }}</th>
                   <th class="px-3 py-3 w-12 text-center"></th>
                 </tr>
               </thead>
@@ -368,19 +452,19 @@
                   <td class="px-4 py-2 text-center text-xs font-black text-slate-300">{{ index + 1 }}</td>
                   <td class="px-4 py-2">
                     <select v-model="row.teamId" class="w-full text-sm font-bold bg-transparent border-none focus:ring-0 cursor-pointer text-slate-700 outline-none">
-                      <option disabled value="null">-- Chọn Tổ --</option>
+                      <option disabled :value="null">-- {{ $t('common.select_team') }} --</option>
                       <option v-for="opt in teamOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                     </select>
                   </td>
                   <td class="px-4 py-2">
                     <select v-model="row.productId" class="w-full text-sm font-bold bg-transparent border-none focus:ring-0 cursor-pointer text-slate-700 outline-none">
-                      <option disabled value="null">-- Chọn Sản Phẩm --</option>
+                      <option disabled :value="null">-- {{ $t('common.select_product') }} --</option>
                       <option v-for="opt in productOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                     </select>
                   </td>
                   <td class="px-4 py-2">
                     <select v-model="row.qualityId" class="w-full text-sm font-bold bg-transparent border-none focus:ring-0 cursor-pointer text-slate-700 outline-none">
-                      <option disabled value="null">-- Chọn CL --</option>
+                      <option disabled :value="null">-- {{ $t('common.select_quality') }} --</option>
                       <option v-for="opt in qualityOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                     </select>
                   </td>
@@ -399,14 +483,14 @@
 
           <div>
              <UiButton @click="addBulkRow" variant="outline" >
-               <Plus class="w-4 h-4 mr-1.5" /> Thêm dòng mới
+               <Plus class="w-4 h-4 mr-1.5" /> {{ $t('production.add_row') }}
              </UiButton>
           </div>
         </div>
 
         <div class="flex gap-4 mt-8 pt-6 border-t border-slate-100 shrink-0 pl-4">
-          <button type="button" @click="showBulkModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">Hủy bỏ</button>
-          <UiButton @click="handleBulkSubmit" class="flex-[2] h-14 text-lg shadow-xl shadow-primary-200" :loading="saving">Lưu toàn bộ sản lượng</UiButton>
+          <button type="button" @click="showBulkModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">{{ $t('common.cancel') }}</button>
+          <UiButton @click="handleBulkSubmit" class="flex-[2] h-14 text-lg shadow-xl shadow-primary-200" :loading="saving">{{ $t('production.save_bulk') }}</UiButton>
         </div>
       </div>
     </div>
@@ -415,8 +499,8 @@
       <div class="card w-full max-w-3xl p-8 animate-in zoom-in slide-in-from-bottom duration-300">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h3 class="text-xl font-black text-slate-900 tracking-tight">Chi tiết ngày {{ detailContext.date }}</h3>
-            <p class="text-sm text-slate-500 font-medium">Tổ sản xuất: <strong class="text-slate-900">{{ detailContext.teamName }}</strong></p>
+            <h3 class="text-xl font-black text-slate-900 tracking-tight">{{ $t('production.detail_title', { date: detailContext.date }) }}</h3>
+            <p class="text-sm text-slate-500 font-medium">{{ $t('common.team') }}: <strong class="text-slate-900">{{ detailContext.teamName }}</strong></p>
           </div>
           <button @click="showDetailModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
         </div>
@@ -453,8 +537,8 @@
         </div>
 
         <div class="mt-8 flex justify-end gap-3">
-          <UiButton v-if="!isPastMonth" @click="addFromDetail" class="bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-6 h-11">Thêm sản lượng mới</UiButton>
-          <UiButton @click="showDetailModal = false" variant="outline" class="px-8 h-11">Đóng</UiButton>
+          <UiButton v-if="!isPastMonth" @click="addFromDetail" class="bg-slate-900 text-white text-xs font-black uppercase tracking-widest px-6 h-11">{{ $t('production.add_new') }}</UiButton>
+          <UiButton @click="showDetailModal = false" variant="outline" class="px-8 h-11">{{ $t('common.cancel') }}</UiButton>
         </div>
       </div>
     </div>
@@ -465,10 +549,12 @@
 import { 
   History, Plus, ListPlus, Filter, Trash2, PencilLine, 
   X, PlusCircle, AlertCircle, ShieldAlert, Package, 
-  Layers, Gavel, ChevronLeft, ChevronRight, User, ArrowRightLeft 
+  Layers, Gavel, ChevronLeft, ChevronRight, User, ArrowRightLeft,
+  ChevronDown, Check, LayoutList, Grid3X3
 } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
+const { t } = useI18n();
 const records = ref([]);
 const teams = ref([]);
 const departments = ref([]);
@@ -484,11 +570,59 @@ const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
 
+const now = new Date();
+const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().substr(0, 10);
+const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().substr(0, 10);
+
 const filter = reactive({
-  from: new Date().toISOString().substr(0, 10),
-  to: new Date().toISOString().substr(0, 10),
-  departmentId: null
+  from: firstDayOfMonth,
+  to: lastDayOfMonth,
+  departmentIds: [],
+  teamIds: []
 });
+
+const showDeptDropdown = ref(false);
+const showTeamDropdown = ref(false);
+const deptFilterRef = ref(null);
+const teamFilterRef = ref(null);
+
+const toggleDeptDropdown = () => {
+    showDeptDropdown.value = !showDeptDropdown.value;
+    if (showDeptDropdown.value) showTeamDropdown.value = false;
+};
+
+const toggleTeamDropdown = () => {
+    showTeamDropdown.value = !showTeamDropdown.value;
+    if (showTeamDropdown.value) showDeptDropdown.value = false;
+};
+
+const toggleDeptFilter = (id) => {
+  const index = filter.departmentIds.indexOf(id);
+  if (index === -1) {
+    filter.departmentIds.push(id);
+  } else {
+    filter.departmentIds.splice(index, 1);
+  }
+};
+
+const toggleTeamFilter = (id) => {
+  const index = filter.teamIds.indexOf(id);
+  if (index === -1) {
+    filter.teamIds.push(id);
+  } else {
+    filter.teamIds.splice(index, 1);
+  }
+};
+
+// Click outside logic
+const handleClickOutside = (event) => {
+  if (deptFilterRef.value && !deptFilterRef.value.contains(event.target)) {
+    showDeptDropdown.value = false;
+  }
+  if (teamFilterRef.value && !teamFilterRef.value.contains(event.target)) {
+    showTeamDropdown.value = false;
+  }
+};
 
 const form = reactive({
   teamId: null,
@@ -511,19 +645,24 @@ const viewMonth = ref(new Date().toISOString().substr(0, 7)); // YYYY-MM
 const viewWeek = ref(null); 
 const showDetailModal = ref(false);
 
-onMounted(() => {
-  viewWeek.value = findCurrentWeekId(viewMonth.value);
-});
+// onMounted consolidatied at the end of the file
 
 const currentPage = ref(1);
 const itemsPerPage = 20;
 
-const totalPages = computed(() => Math.ceil(teams.value.length / itemsPerPage) || 1);
+const totalPages = computed(() => Math.ceil(filteredTeams.value.length / itemsPerPage) || 1);
+
+const filteredTeams = computed(() => {
+  if (filter.teamIds && filter.teamIds.length > 0) {
+    return teams.value.filter(t => filter.teamIds.includes(t.id));
+  }
+  return teams.value;
+});
 
 const paginatedTeams = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage;
   const end = start + itemsPerPage;
-  return teams.value.slice(start, end);
+  return filteredTeams.value.slice(start, end);
 });
 
 const detailContext = reactive({
@@ -625,6 +764,11 @@ const handleMonthChange = () => {
     filter.to = `${viewMonth.value}-${lastDay}`;
     fetchData();
   }
+};
+
+const handleDepartmentChange = () => {
+  filter.teamIds = [];
+  fetchData();
 };
 
 const getDayHighlightClass = (day, type) => {
@@ -763,25 +907,39 @@ const addFromDetail = () => {
 
 const fetchData = async () => {
   loading.value = true;
-  currentPage.value = 1; // Reset to page 1 on filter change
   try {
-    const [year, month] = viewMonth.value.split('-').map(Number);
-    const [recRes, teamRes, prdRes, qualRes, attRes, deptRes] = await Promise.all([
-      $api.get('/production-records', { params: filter }),
-      $api.get('/teams', { params: { departmentId: filter.departmentId } }),
-      $api.get('/products'),
-      $api.get('/product-qualities'),
-      $api.get('/attendances', { params: { month, year } }),
-      $api.get('/departments')
-    ]);
-    records.value = recRes.data;
-    teams.value = teamRes.data;
-    products.value = prdRes.data;
-    qualities.value = qualRes.data;
-    attendances.value = attRes.data;
-    departments.value = deptRes.data;
+    const params = new URLSearchParams();
+    if (filter.from) params.append('from', filter.from);
+    if (filter.to) params.append('to', filter.to);
+    
+    if (filter.departmentIds && filter.departmentIds.length > 0) {
+      params.append('departmentIds', filter.departmentIds.join(','));
+    }
+    
+    if (filter.teamIds && filter.teamIds.length > 0) {
+      params.append('teamIds', filter.teamIds.join(','));
+    }
+
+    const { data } = await $api.get(`/production-records?${params.toString()}`);
+    records.value = data;
+    
+    // Nạp dữ liệu danh mục nếu chưa có
+    if (departments.value.length === 0) {
+      const [teamRes, deptRes, prodRes, qualRes, attRes] = await Promise.all([
+        $api.get('/teams'),
+        $api.get('/departments'),
+        $api.get('/products'),
+        $api.get('/product-qualities'),
+        $api.get(`/attendances/date/${new Date().toISOString().substr(0, 10)}`)
+      ]);
+      teams.value = teamRes.data;
+      departments.value = deptRes.data;
+      products.value = prodRes.data;
+      qualities.value = qualRes.data;
+      attendances.value = attRes.data;
+    }
   } catch (err) {
-    console.error(err);
+    console.error('Fetch error:', err);
   } finally {
     loading.value = false;
   }
@@ -877,7 +1035,7 @@ const validateBulkRecords = () => {
   for (let i = 0; i < lines.length; i++) {
     const row = lines[i];
     if (!row.teamId || !row.productId || !row.qualityId || !row.quantity || row.quantity <= 0) {
-      bulkError.value = `Dòng số ${i + 1} điền thiếu thông tin hoặc số lượng không hợp lệ.`;
+      bulkError.value = t('production.error_empty_row', { row: i + 1 });
       return false;
     }
   }
@@ -889,7 +1047,7 @@ const validateBulkRecords = () => {
     const key = `${row.teamId}_${row.productId}_${row.qualityId}`;
     if (seenMap.has(key)) {
       const prevLine = seenMap.get(key);
-      bulkError.value = `Lỗi nhập đúp: Dòng số ${prevLine} và Dòng số ${i + 1} đang nhập cùng một tổ, cùng sản phẩm và chất lượng. Vui lòng cộng gộp số lượng vào 1 dòng.`;
+      bulkError.value = t('production.error_duplicate_form', { prev: prevLine, curr: i + 1 });
       return false;
     }
     seenMap.set(key, i + 1);
@@ -906,7 +1064,15 @@ const validateBulkRecords = () => {
     );
     if (existing) {
       const teamName = teamOptions.value.find(t => t.value === row.teamId)?.label || 'Tổ';
-      bulkError.value = `Trùng SQL: <b>${teamName}</b> đã được báo cáo sản lượng mã rập và chất lượng này trong ngày <b>${bulkDate.value}</b> rồi. Hãy ra ngoài sửa bản ghi có sẵn thay vì thêm mới.`;
+      const productName = productOptions.value.find(p => p.value === row.productId)?.label || 'SP';
+      const qualityName = qualityOptions.value.find(q => q.value === row.qualityId)?.label || 'CL';
+      
+      bulkError.value = t('production.error_duplicate_db', { 
+        team: teamName, 
+        product: productName,
+        quality: qualityName,
+        date: bulkDate.value 
+      });
       return false;
     }
   }
@@ -931,14 +1097,30 @@ const handleBulkSubmit = async () => {
     showBulkModal.value = false;
     fetchData();
   } catch (err) {
-    const msg = err.response?.data?.message || err.message || 'Có lỗi xảy ra';
+    const msg = err.response?.data?.message || err.message || 'Error';
     bulkError.value = msg.includes("Duplicate") || msg.includes("constraint") 
-      ? 'Dữ liệu này đã tồn tại trong Database, không thể ghi đè.'
-      : 'Lỗi Database: ' + msg;
+      ? t('production.error_db_exists')
+      : t('messages.system_error') + ': ' + msg;
   } finally {
     saving.value = false;
   }
 };
 
-onMounted(fetchData);
+watch(() => filter.departmentIds, () => {
+  fetchData();
+}, { deep: true });
+
+watch(() => filter.teamIds, () => {
+  fetchData();
+}, { deep: true });
+
+onMounted(async () => {
+  viewWeek.value = findCurrentWeekId(viewMonth.value);
+  document.addEventListener('click', handleClickOutside);
+  await fetchData();
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>

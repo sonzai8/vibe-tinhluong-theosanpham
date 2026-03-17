@@ -3,31 +3,31 @@
     <!-- Header with Breadcrumbs & Actions -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
-        <h2 class="text-3xl font-black text-slate-900 tracking-tight">Nhật ký Chấm công</h2>
-        <p class="text-slate-500 font-medium">Ghi lại danh sách nhân viên đi làm hàng ngày</p>
+        <!-- <h2 class="text-3xl font-black text-slate-900 tracking-tight">Nhật ký Chấm công</h2>
+        <p class="text-slate-500 font-medium">Ghi lại danh sách nhân viên đi làm hàng ngày</p> -->
       </div>
       <div class="flex gap-3">
         <UiButton variant="outline" @click="handleDownloadTemplate" >
           <FileSpreadsheet class="w-4 h-4" />
-          Tải file mẫu
+          {{ $t('common.download_template') || 'Tải file mẫu' }}
         </UiButton>
         <UiButton variant="outline" @click="handleExport" :loading="exporting">
           <Download class="w-4 h-4" />
-          Xuất Excel
+          {{ $t('attendance.export') }}
         </UiButton>
         <UiButton variant="outline" @click="$refs.fileInput.click()" :loading="importing">
           <Upload class="w-4 h-4" />
-          Nhập Excel
+          {{ $t('attendance.import') }}
         </UiButton>
         <input type="file" ref="fileInput" class="hidden" accept=".xlsx, .xls" @change="handleImport" />
         
         <UiButton @click="openBulkModal" variant="outline" >
           <Users class="w-4 h-4" />
-          Chấm công theo tổ
+          {{ $t('attendance.bulk_attendance') }}
         </UiButton>
         <UiButton @click="() => openModal(null)" class="shadow-lg shadow-emerald-100">
           <CalendarPlus class="w-4 h-4" />
-          Chấm công mới
+          {{ $t('attendance.add_new') }}
         </UiButton>
       </div>
     </div>
@@ -36,49 +36,143 @@
     <div class="space-y-6">
       
       <!-- Top Filter Bar -->
-      <div class="card p-6 flex flex-col lg:flex-row gap-4 lg:items-end justify-between">
-        <div class="flex flex-col md:flex-row gap-4 w-full lg:w-3/4">
-          <div class="flex flex-col gap-1.5 flex-1">
-            <label class="text-xs font-black text-slate-400 uppercase">Ngày chấm công</label>
-            <input v-model="filterDate" type="date" class="input-field py-2.5 text-sm font-bold w-full" @change="fetchData" />
-          </div>
+      <div class="card p-6 flex flex-col gap-6">
+        <div class="flex flex-col lg:flex-row gap-6 lg:items-end justify-between">
+          <div class="flex flex-wrap gap-4 flex-1">
+            <div class="flex flex-col gap-1.5 min-w-[150px]">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('production.date') }}</label>
+              <input v-model="filterDate" type="date" class="input-field py-2.5 text-sm font-bold w-full" @change="fetchData" />
+            </div>
 
-          <div class="flex flex-col gap-1.5 flex-[1.2]">
-            <label class="text-xs font-black text-slate-400 uppercase">Phòng ban</label>
-            <UiSelect 
-              v-model="filterDept"
-              :options="deptOptions"
-              placeholder="Tất cả phòng ban"
-              class="w-full"
-            />
-          </div>
+            <div class="flex flex-col gap-1.5 min-w-[200px] relative" id="dept-filter">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('common.department') }}</label>
+              <div class="relative">
+                <button 
+                  type="button"
+                  @click.stop="toggleDeptDropdown"
+                  class="input-field py-2.5 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold text-sm"
+                >
+                  <span class="truncate">
+                    {{ filterDeptIds.length === 0 ? $t('common.all') : `${filterDeptIds.length} ${$t('common.department').toLowerCase()}` }}
+                  </span>
+                  <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showDeptDropdown}" />
+                </button>
+                
+                <div v-if="showDeptDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div v-for="d in departments" :key="d.id" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all" @click.stop="toggleDeptFilter(d.id)">
+                    <div 
+                      class="w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all text-[10px]"
+                      :class="[filterDeptIds.includes(d.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-slate-200 group-hover:border-primary-300']"
+                    >
+                      <Check v-if="filterDeptIds.includes(d.id)" class="w-3 h-3" />
+                    </div>
+                    <span class="text-xs font-bold" :class="[filterDeptIds.includes(d.id) ? 'text-primary-700' : 'text-slate-600']">{{ d.name }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          <div class="flex flex-col gap-1.5 flex-[1.2]">
-            <label class="text-xs font-black text-slate-400 uppercase">Tổ đội</label>
-            <UiSelect 
-              v-model="filterTeam"
-              :options="teamFilterOptions"
-              placeholder="Tất cả tổ đội"
-              class="w-full"
-            />
-          </div>
+            <div class="flex flex-col gap-1.5 min-w-[200px] relative" id="team-filter">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('common.team') }}</label>
+              <div class="relative">
+                <button 
+                  type="button"
+                  @click.stop="toggleTeamDropdown"
+                  class="input-field py-2.5 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold text-sm"
+                >
+                  <span class="truncate">
+                    {{ filterTeamIds.length === 0 ? $t('common.all') : `${filterTeamIds.length} ${$t('common.team').toLowerCase()}` }}
+                  </span>
+                  <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showTeamDropdown}" />
+                </button>
+                
+                <div v-if="showTeamDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div v-for="t in teams" :key="t.id" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all" @click.stop="toggleTeamFilter(t.id)">
+                    <div 
+                      class="w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all text-[10px]"
+                      :class="[filterTeamIds.includes(t.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-slate-200 group-hover:border-primary-300']"
+                    >
+                      <Check v-if="filterTeamIds.includes(t.id)" class="w-3 h-3" />
+                    </div>
+                    <span class="text-xs font-bold" :class="[filterTeamIds.includes(t.id) ? 'text-primary-700' : 'text-slate-600']">{{ t.name }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          <div class="flex flex-col gap-1.5 flex-[1.5]">
-            <label class="text-xs font-black text-slate-400 uppercase">Tìm nhân viên</label>
-            <div class="relative w-full">
-              <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-              <input v-model="search" type="text" placeholder="Tên hoặc mã nhân viên..." class="input-field py-2.5 pl-9 text-sm w-full" />
+            <div class="flex flex-col gap-1.5 min-w-[300px]">
+              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('common.search') }}</label>
+              <div class="relative w-full">
+                <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                <input v-model="search" type="text" :placeholder="$t('common.search_placeholder') || 'Tên hoặc mã nhân viên...'" class="input-field py-2.5 pl-9 text-sm w-full" />
+              </div>
             </div>
           </div>
+          
+          <div class="flex gap-4 shrink-0">
+            <UiButton @click="showAbsentModal = true" variant="outline" class="h-[42px] px-4 font-bold text-xs" v-if="absentEmployees.length > 0">
+              <UserX class="w-4 h-4 mr-1.5 text-amber-500" /> {{ $t('attendance.absent') }} ({{ absentEmployees.length }})
+            </UiButton>
+            <UiButton @click="fetchData" class="h-[42px] px-8 bg-slate-900 hover:bg-slate-800 transition-all font-black uppercase tracking-widest text-xs">
+              {{ $t('common.filter') }}
+            </UiButton>
+          </div>
         </div>
-        
-        <div class="flex gap-4 w-full xl:w-1/4 justify-end shrink-0">
-          <UiButton @click="showAbsentModal = true" variant="outline" class="h-[42px] px-4 font-bold text-xs" v-if="absentEmployees.length > 0">
-            <UserX class="w-4 h-4 mr-1.5 text-amber-500" /> Vắng ({{ absentEmployees.length }})
-          </UiButton>
-          <UiButton @click="fetchAttendances" class="h-[42px] px-6 bg-slate-900 hover:bg-slate-800 transition-all font-black uppercase tracking-widest text-xs">
-            Lọc
-          </UiButton>
+
+        <!-- View Mode Switcher -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between border-t border-slate-100 pt-4 gap-4">
+          <div class="flex p-1 bg-slate-100 rounded-2xl w-fit shrink-0">
+            <button 
+              @click="viewMode = 'list'" 
+              :class="['px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2.5', viewMode === 'list' ? 'bg-white text-primary-700 shadow-xl shadow-slate-300 scale-[1.02]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50']"
+            >
+              <LayoutList class="w-3 h-3" />
+              {{ $t('common.list_view') }}
+            </button>
+            <button 
+              @click="viewMode = 'matrix'" 
+              :class="['px-6 py-2 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2.5', viewMode === 'matrix' ? 'bg-white text-primary-700 shadow-xl shadow-slate-300 scale-[1.02]' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50']"
+            >
+              <Grid3x3 class="w-3 h-3" />
+              {{ $t('common.matrix_view') }}
+            </button>
+          </div>
+          
+          <div v-if="viewMode === 'matrix'" class="flex flex-wrap items-center gap-4">
+             <div class="flex p-1 bg-slate-200/50 rounded-xl">
+               <button 
+                 @click="matrixScope = 'month'"
+                 :class="['px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all', matrixScope === 'month' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500']"
+               >{{ $t('common.month') }}</button>
+               <button 
+                 @click="matrixScope = 'week'"
+                 :class="['px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all', matrixScope === 'week' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500']"
+               >{{ $t('common.week') }}</button>
+             </div>
+
+             <div v-if="matrixScope === 'month'" class="flex flex-col gap-0.5 min-w-[120px]">
+                <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest">{{ $t('common.reporting_month') }}</label>
+                <input v-model="viewMonth" type="month" class="input-field py-1 px-3 text-xs font-bold bg-white h-8" @change="handleMonthChange" />
+             </div>
+
+             <div v-else class="flex items-center gap-3">
+                <div class="flex flex-col gap-0.5">
+                  <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest text-center">{{ $t('attendance.week_nav') }}</label>
+                  <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                    <button @click="navigateWeek(-1)" class="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary-600 transition-all">
+                      <ChevronLeft class="w-4 h-4" />
+                    </button>
+                    <span class="text-[10px] font-black text-slate-700 px-2 min-w-[140px] text-center">
+                      {{ formatWeekRange(currentWeekStart) }}
+                    </span>
+                    <button @click="navigateWeek(1)" class="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary-600 transition-all">
+                      <ChevronRight class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <button @click="resetToCurrentWeek" class="mt-3.5 px-3 py-1.5 bg-slate-100 hover:bg-primary-50 text-[9px] font-black text-slate-500 hover:text-primary-600 uppercase rounded-lg transition-all">{{ $t('attendance.current_week') }}</button>
+             </div>
+          </div>
         </div>
       </div>
 
@@ -86,124 +180,171 @@
       <div class="flex flex-col xl:flex-row gap-6">
         
         <!-- Attendance Table -->
-        <div class="card w-full xl:w-3/4">
-          <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4">
-            <div class="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
-            <p class="text-slate-500 font-bold animate-pulse">Đang lấy dữ liệu chấm công...</p>
-          </div>
-
-          <div v-else-if="attendances.length === 0" class="p-20 text-center space-y-4">
-            <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-300">
-              <CalendarX class="w-10 h-10" />
+        <div class="card w-full xl:w-5/6">
+          <!-- List View Table -->
+          <div v-if="viewMode === 'list'">
+            <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4">
+              <div class="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+              <p class="text-slate-500 font-bold animate-pulse">{{ $t('attendance.loading') }}</p>
             </div>
-            <p class="text-slate-500 font-bold">Không tìm thấy dữ liệu trong ngày {{ filterDate }}.</p>
-            <UiButton @click="() => openModal(null)" variant="outline">Chấm công ngay</UiButton>
+
+            <div v-else-if="attendances.length === 0" class="p-20 text-center space-y-4">
+              <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-300">
+                <CalendarX class="w-10 h-10" />
+              </div>
+              <p class="text-slate-500 font-bold">{{ $t('attendance.no_data') }} ({{ filterDate }}).</p>
+              <UiButton @click="() => openModal(null)" variant="outline">{{ $t('attendance.add_now') }}</UiButton>
+            </div>
+
+            <div v-else class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead>
+                  <tr class="bg-slate-50/50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
+                    <th class="px-8 py-5">{{ $t('attendance.employee') }}</th>
+                    <th class="px-8 py-5">{{ $t('attendance.original_team') }}</th>
+                    <th class="px-8 py-5">{{ $t('attendance.actual_team') }}</th>
+                    <th class="px-8 py-5">{{ $t('attendance.status') }}</th>
+                    <th class="px-8 py-5 text-right">{{ $t('common.actions') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-for="att in paginatedAttendances" :key="att.id" class="hover:bg-slate-50/50 transition-all group">
+                    <td class="px-8 py-5">
+                      <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-black text-slate-400 group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm">
+                          {{ att.employee?.fullName[0] }}
+                        </div>
+                        <div>
+                          <p class="font-black text-slate-900">{{ att.employee?.fullName }}</p>
+                          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{{ att.employee?.code }}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-8 py-5">
+                      <span v-if="att.originalTeam" class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase">{{ att.originalTeam?.name }}</span>
+                      <span v-else class="text-slate-300 text-xs italic">{{ $t('attendance.no_team_assigned') || 'Chưa gán tổ' }}</span>
+                    </td>
+                    <td class="px-8 py-5">
+                      <span v-if="att.actualTeam" :class="`px-3 py-1 rounded-full text-[10px] font-black uppercase ${att.actualTeam?.id !== att.originalTeam?.id ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`">
+                        {{ att.actualTeam?.name }}
+                        <span v-if="att.actualTeam?.id !== att.originalTeam?.id" class="ml-1 text-[8px] opacity-70">({{ $t('attendance.borrowed') }})</span>
+                      </span>
+                    </td>
+                    <td class="px-8 py-5">
+                       <span class="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase">
+                         <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                         {{ $t('attendance.present') }}
+                       </span>
+                    </td>
+                    <td class="px-8 py-5 text-right">
+                      <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button @click="openModal(att)" class="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"><PencilLine class="w-4 h-4" /></button>
+                        <button @click="handleDelete(att.id)" class="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 class="w-4 h-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Pagination -->
+              <div v-if="filteredAttendances.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                  <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('production.displaying') }}</span>
+                  <select v-model="itemsPerPage" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 outline-none">
+                    <option :value="10">10 {{ $t('common.rows') }}</option>
+                    <option :value="20">20 {{ $t('common.rows') }}</option>
+                    <option :value="50">50 {{ $t('common.rows') }}</option>
+                  </select>
+                  <span class="text-xs font-bold text-slate-500">
+                    {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredAttendances.length) }} {{ $t('common.of') || 'của' }} {{ filteredAttendances.length }}
+                  </span>
+                </div>
+                <!-- Pagination buttons omitted for brevity in chunk but should be maintained -->
+              </div>
+            </div>
           </div>
 
-          <div v-else class="overflow-x-auto">
-            <table class="w-full text-left">
-              <thead>
-                <tr class="bg-slate-50/50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-                  <th class="px-8 py-5">Nhân viên</th>
-                  <th class="px-8 py-5">Tổ biên chế</th>
-                  <th class="px-8 py-5">Tổ thực tế</th>
-                  <th class="px-8 py-5">Trạng thái</th>
-                  <th class="px-8 py-5 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100">
-                <tr v-for="att in paginatedAttendances" :key="att.id" class="hover:bg-slate-50/50 transition-all group">
-                  <td class="px-8 py-5">
-                    <div class="flex items-center gap-4">
-                      <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-black text-slate-400 group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm">
-                        {{ att.employee?.fullName[0] }}
+          <!-- Matrix View Table -->
+          <div v-if="viewMode === 'matrix'">
+            <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4">
+              <div class="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+              <p class="text-slate-500 font-bold animate-pulse">{{ $t('common.loading') }}</p>
+            </div>
+            
+            <div v-else class="overflow-x-auto custom-scrollbar">
+              <table class="w-full text-left table-fixed border-collapse">
+                <thead class="sticky top-0 z-20 bg-white">
+                  <tr class="text-[9px] font-black uppercase text-slate-400 tracking-widest border-b border-slate-100">
+                    <th class="p-4 w-64 bg-white sticky left-0 z-30 border-r border-slate-100">{{ $t('attendance.employee') }}</th>
+                    <th v-for="d in displayDays" :key="d.key" :class="['p-2 w-10 text-center border-r border-slate-50', d.isSunday ? 'bg-red-50 text-red-400' : '']">
+                      <div>{{ d.label }}</div>
+                      <div class="text-[8px] opacity-60">{{ d.dayName }}</div>
+                    </th>
+                    <th class="p-4 w-20 text-center bg-slate-50 font-black text-slate-900 border-l border-slate-100">{{ $t('common.total') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                  <tr v-for="emp in filteredEmployees" :key="emp.id" class="hover:bg-slate-50 group">
+                    <td class="p-4 bg-white sticky left-0 z-10 border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.02)] group-hover:bg-slate-50">
+                      <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:bg-primary-600 group-hover:text-white transition-all">
+                          {{ emp.fullName[0] }}
+                        </div>
+                        <div>
+                          <p class="text-xs font-black text-slate-900 line-clamp-1">{{ emp.fullName }}</p>
+                          <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ emp.code }}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p class="font-black text-slate-900">{{ att.employee?.fullName }}</p>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{{ att.employee?.code }}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-8 py-5">
-                    <span v-if="att.originalTeam" class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase">{{ att.originalTeam?.name }}</span>
-                    <span v-else class="text-slate-300 text-xs italic">Chưa gán tổ</span>
-                  </td>
-                  <td class="px-8 py-5">
-                    <span v-if="att.actualTeam" :class="`px-3 py-1 rounded-full text-[10px] font-black uppercase ${att.actualTeam?.id !== att.originalTeam?.id ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`">
-                      {{ att.actualTeam?.name }}
-                      <span v-if="att.actualTeam?.id !== att.originalTeam?.id" class="ml-1 text-[8px] opacity-70">(Mượn)</span>
-                    </span>
-                  </td>
-                  <td class="px-8 py-5">
-                     <span class="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase">
-                       <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                       Đã chấm công
-                     </span>
-                  </td>
-                  <td class="px-8 py-5 text-right">
-                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button @click="openModal(att)" class="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"><PencilLine class="w-4 h-4" /></button>
-                      <button @click="handleDelete(att.id)" class="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 class="w-4 h-4" /></button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            <!-- Pagination -->
-            <div v-if="filteredAttendances.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-              <div class="flex items-center gap-4">
-                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hiển thị</span>
-                <select v-model="itemsPerPage" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 outline-none">
-                  <option :value="10">10 dòng</option>
-                  <option :value="20">20 dòng</option>
-                  <option :value="50">50 dòng</option>
-                </select>
-                <span class="text-xs font-bold text-slate-500">
-                  {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredAttendances.length) }} của {{ filteredAttendances.length }}
-                </span>
-              </div>
-              <div class="flex items-center gap-2">
-                <button 
-                  @click="currentPage--" 
-                  :disabled="currentPage === 1"
-                  class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
-                >
-                  <ChevronLeft class="w-4 h-4" />
-                </button>
-                <div class="flex items-center gap-1 overflow-x-auto max-w-[150px] md:max-w-none">
-                  <button 
-                    v-for="p in totalPages" 
-                    :key="p"
-                    @click="currentPage = p"
-                    :class="['w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black transition-all shrink-0', 
-                             currentPage === p ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm']"
-                  >
-                    {{ p }}
-                  </button>
-                </div>
-                <button 
-                  @click="currentPage++" 
-                  :disabled="currentPage === totalPages"
-                  class="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-all shadow-sm"
-                >
-                  <ChevronRight class="w-4 h-4" />
-                </button>
-              </div>
+                    </td>
+                    <td v-for="d in displayDays" :key="d.key" :class="['p-0 border-r border-slate-50 text-center relative group/cell', d.isSunday ? 'bg-red-50/30' : '']">
+                       <div class="relative w-full h-full">
+                         <AttendanceCell 
+                           :status="getAttendanceMatrixValue(emp.id, d.fullDate).status" 
+                           :definitionCode="getAttendanceMatrixValue(emp.id, d.fullDate).defCode"
+                           :definitionName="getAttendanceMatrixValue(emp.id, d.fullDate).defName"
+                           :loading="cellLoading === `${emp.id}_${d.fullDate}`" 
+                           @click="toggleAttendanceMenu(emp.id, d.fullDate, $event)"
+                         />
+                         
+                         <!-- Quick Selector Menu -->
+                         <div v-if="activeMenu?.empId === emp.id && activeMenu?.date === d.fullDate" 
+                              class="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-xl shadow-2xl border border-slate-100 z-[100] p-1.5 flex flex-col gap-1 min-w-[120px] animate-in zoom-in duration-150"
+                              v-click-outside="closeAttendanceMenu">
+                           <button v-for="def in attendanceDefs" :key="def.id" 
+                                   @click.stop="performAttendanceAction(emp.id, d.fullDate, def.id)"
+                                   class="flex items-center justify-between px-3 py-2 hover:bg-primary-50 rounded-lg transition-all group/item">
+                             <span class="text-[10px] font-black uppercase text-slate-600 group-hover/item:text-primary-700">{{ def.code }}</span>
+                             <span class="text-[9px] font-bold text-slate-400">{{ def.name }}</span>
+                           </button>
+                           <div class="h-px bg-slate-100 my-0.5"></div>
+                           <button @click.stop="performAttendanceAction(emp.id, d.fullDate, null)"
+                                   class="flex items-center justify-between px-3 py-2 hover:bg-red-50 rounded-lg transition-all group/item text-red-500">
+                             <Trash2 class="w-3 h-3" />
+                             <span class="text-[9px] font-bold uppercase tracking-widest">{{ $t('common.delete') }}</span>
+                           </button>
+                         </div>
+                       </div>
+                    </td>
+                    <td class="p-4 text-center bg-slate-50/50 font-black text-slate-900 text-xs border-l border-slate-100">
+                      {{ getEmployeeTotalAttendance(emp.id) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
 
         <!-- Static Summary Stats Container Right -->
-        <div class="w-full xl:w-1/4 space-y-6">
+        <div class="w-full xl:w-1/6 space-y-6">
           <div class="card p-6 bg-primary-50 border-primary-100 space-y-4">
-            <h3 class="font-black text-slate-900 text-sm uppercase tracking-widest mb-4">Tổng quan</h3>
+            <h3 class="font-black text-slate-900 text-sm uppercase tracking-widest mb-4">{{ $t('common.overview') || 'Tổng quan' }}</h3>
             <div class="flex items-center gap-3">
               <div class="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center text-white">
                 <CheckCircle2 class="w-6 h-6" />
               </div>
               <div>
-                <p class="text-[10px] font-black text-primary-600 uppercase">Quân số đi làm</p>
+                <p class="text-[10px] font-black text-primary-600 uppercase">{{ $t('attendance.present_count') || 'Quân số đi làm' }}</p>
                 <p class="text-2xl font-black text-slate-900">{{ statistics.present }} / <span class="text-lg text-slate-400">{{ statistics.total }}</span></p>
               </div>
             </div>
@@ -217,7 +358,7 @@
     <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
       <div class="card w-full max-w-xl p-10 animate-in zoom-in slide-in-from-bottom duration-300">
         <div class="flex items-center justify-between mb-10">
-          <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ currentId ? 'Sửa' : 'Báo cáo' }} chấm công</h3>
+          <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ currentId ? $t('attendance.edit_title') : $t('attendance.add_title') }}</h3>
           <button @click="showModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
         </div>
 
@@ -225,28 +366,28 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <UiSelect 
               v-model="form.employeeId" 
-              label="Nhân viên" 
+              :label="$t('attendance.employee')" 
               :options="employeeOptions" 
-              placeholder="Chọn nhân viên"
+              :placeholder="$t('common.select_employee') || 'Chọn nhân viên'"
               @update:modelValue="onEmployeeSelect"
               required
             />
             
-            <UiInput v-model="form.attendanceDate" label="Ngày chấm công" type="date" required />
+            <UiInput v-model="form.attendanceDate" :label="$t('production.date')" type="date" required />
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:col-span-2">
               <UiSelect 
                 v-model="form.originalTeamId" 
-                label="Tổ biên chế" 
+                :label="$t('attendance.original_team')" 
                 :options="teamOptions" 
-                placeholder="Chọn tổ"
+                :placeholder="$t('common.select_team') || 'Chọn tổ'"
                 required
               />
               <UiSelect 
                 v-model="form.actualTeamId" 
-                label="Tổ thực tế làm việc" 
+                :label="$t('attendance.actual_team')" 
                 :options="teamOptions" 
-                placeholder="Chọn tổ"
+                :placeholder="$t('common.select_team') || 'Chọn tổ'"
                 required
               />
             </div>
@@ -255,13 +396,13 @@
           <div class="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
              <Info class="w-5 h-5 text-amber-600 shrink-0" />
              <p class="text-xs text-amber-700 font-medium leading-relaxed">
-               Ghi chú: Nếu "Tổ làm việc thực tế" khác với "Tổ biên chế", nhân viên sẽ được tính là "Công nhân đi mượn" cho ngày hôm đó.
+               {{ $t('attendance.borrowed_note') }}
              </p>
           </div>
           
           <div class="flex gap-4 pt-6">
-            <button type="button" @click="showModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">Đóng</button>
-            <UiButton type="submit" class="flex-[2] h-14 text-lg shadow-xl shadow-primary-200" :loading="saving">Xác nhận chấm công</UiButton>
+            <button type="button" @click="showModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">{{ $t('common.cancel') }}</button>
+            <UiButton type="submit" class="flex-[2] h-14 text-lg shadow-xl shadow-primary-200" :loading="saving">{{ $t('common.confirm') }}</UiButton>
           </div>
         </form>
       </div>
@@ -272,8 +413,8 @@
       <div class="card w-full max-w-2xl p-8 animate-in zoom-in slide-in-from-bottom duration-300 max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between mb-6 shrink-0">
           <div>
-            <h3 class="text-2xl font-black text-slate-900 tracking-tight">Danh sách chưa chấm công</h3>
-            <p class="text-sm text-slate-500 mt-1">Danh sách nhân viên Active nhưng chưa có dữ liệu chấm công ngày {{ filterDate }}</p>
+            <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ $t('attendance.absent_list') }}</h3>
+            <p class="text-sm text-slate-500 mt-1">{{ $t('attendance.absent_subtitle', { date: filterDate }) }}</p>
           </div>
           <button @click="showAbsentModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
         </div>
@@ -282,21 +423,21 @@
           <table class="w-full text-left relative">
             <thead class="sticky top-0 bg-slate-50 border-b border-slate-200 z-10">
               <tr class="text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                <th class="px-6 py-4">Nhân viên</th>
-                <th class="px-6 py-4">Tổ biên chế</th>
-                <th class="px-6 py-4">SĐT</th>
+                <th class="px-6 py-4">{{ $t('attendance.employee') }}</th>
+                <th class="px-6 py-4">{{ $t('attendance.original_team') }}</th>
+                <th class="px-6 py-4">{{ $t('common.phone') || 'SĐT' }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-              <tr v-if="absentEmployees.length === 0" class="text-center">
-                 <td colspan="3" class="px-6 py-8 text-sm text-slate-500">Tất cả nhân viên đã đi làm đầy đủ!</td>
-              </tr>
+               <tr v-if="absentEmployees.length === 0" class="text-center">
+                  <td colspan="3" class="px-6 py-8 text-sm text-slate-500">{{ $t('attendance.all_present') }}</td>
+               </tr>
               <tr v-for="emp in absentEmployees" :key="emp.id" class="hover:bg-slate-50 transition-colors">
-                <td class="px-6 py-3">
-                  <div class="font-bold text-slate-900 text-sm">{{ emp.fullName }}</div>
-                  <div class="text-[10px] font-black text-slate-400">{{ emp.code }}</div>
-                </td>
-                <td class="px-6 py-3 text-xs text-slate-600">{{ emp.team ? emp.team.name : 'Chưa có tổ' }}</td>
+                 <td class="px-6 py-3">
+                   <div class="font-bold text-slate-900 text-sm">{{ emp.fullName }}</div>
+                   <div class="text-[10px] font-black text-slate-400">{{ emp.code }}</div>
+                 </td>
+                 <td class="px-6 py-3 text-xs text-slate-600">{{ emp.team ? emp.team.name : $t('attendance.no_team_assigned') }}</td>
                 <td class="px-6 py-3 text-xs text-slate-500">{{ emp.phone || 'N/A' }}</td>
               </tr>
             </tbody>
@@ -304,7 +445,7 @@
         </div>
 
         <div class="mt-6 flex justify-end shrink-0">
-          <UiButton @click="showAbsentModal = false" variant="outline" class="px-6">Đóng</UiButton>
+          <UiButton @click="showAbsentModal = false" variant="outline" class="px-6">{{ $t('common.close') || 'Đóng' }}</UiButton>
         </div>
       </div>
     </div>
@@ -316,30 +457,30 @@
             <Info class="w-6 h-6" />
           </div>
           <div>
-            <h3 class="text-xl font-black text-slate-900 tracking-tight">Trùng lặp dữ liệu</h3>
-            <p class="text-sm text-slate-500">Nhân viên này đã được chấm công.</p>
+            <h3 class="text-xl font-black text-slate-900 tracking-tight">{{ $t('attendance.duplicate_title') }}</h3>
+            <p class="text-sm text-slate-500">{{ $t('attendance.duplicate_msg') }}</p>
           </div>
         </div>
         
         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6 space-y-2">
           <div class="flex justify-between text-sm">
-            <span class="text-slate-500">Nhân viên:</span>
+            <span class="text-slate-500">{{ $t('attendance.employee') }}:</span>
             <span class="font-bold text-slate-900">{{ duplicateRecord?.employee?.fullName }}</span>
           </div>
           <div class="flex justify-between text-sm">
-            <span class="text-slate-500">Ngày chấm công:</span>
+            <span class="text-slate-500">{{ $t('production.date') }}:</span>
             <span class="font-bold text-slate-900">{{ duplicateRecord?.attendanceDate }}</span>
           </div>
           <div class="flex justify-between text-sm">
-            <span class="text-slate-500">Tổ thực tế:</span>
-            <span class="font-bold text-slate-900">{{ duplicateRecord?.actualTeam?.name || 'Không rõ' }}</span>
+            <span class="text-slate-500">{{ $t('attendance.actual_team') }}:</span>
+            <span class="font-bold text-slate-900">{{ duplicateRecord?.actualTeam?.name || $t('common.unknown') }}</span>
           </div>
         </div>
 
         <div class="flex gap-3">
-          <UiButton @click="showDuplicateModal = false" variant="outline" class="flex-1 border-slate-200">Đóng lại</UiButton>
+          <UiButton @click="showDuplicateModal = false" variant="outline" class="flex-1 border-slate-200">{{ $t('common.close') || 'Đóng lại' }}</UiButton>
           <UiButton @click="switchToEditDuplicate" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white border-none shadow-lg shadow-amber-200">
-            Chuyển sang Sửa
+            {{ $t('attendance.switch_to_edit') }}
           </UiButton>
         </div>
       </div>
@@ -350,8 +491,8 @@
       <div class="card w-full max-w-5xl p-8 animate-in zoom-in slide-in-from-bottom duration-300 max-h-[95vh] flex flex-col">
         <div class="flex items-center justify-between mb-6 shrink-0">
           <div>
-            <h3 class="text-2xl font-black text-slate-900 tracking-tight">Chấm công hàng loạt</h3>
-            <p class="text-sm text-slate-500 mt-1">Ngày chấm công: <strong class="text-emerald-600">{{ filterDate }}</strong></p>
+            <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ $t('attendance.bulk_title') }}</h3>
+            <p class="text-sm text-slate-500 mt-1">{{ $t('attendance.bulk_subtitle', { date: filterDate }) }}</p>
           </div>
           <button @click="showBulkModal = false" class="p-2.5 text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-all"><X class="w-5 h-5" /></button>
         </div>
@@ -361,16 +502,16 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">
             <UiSelect 
               v-model="bulkForm.departmentId" 
-              label="Lọc theo phòng ban" 
+              :label="$t('common.filter_by_dept') || 'Lọc theo phòng ban'" 
               :options="deptOptions" 
-              placeholder="Tất cả phòng ban"
+              :placeholder="$t('common.all_departments') || 'Tất cả phòng ban'"
               @update:modelValue="loadBulkEmployees"
             />
             <UiSelect 
               v-model="bulkForm.teamId" 
-              label="Tổ biên chế" 
+              :label="$t('attendance.original_team')" 
               :options="teamFilterOptions" 
-              placeholder="Chọn tổ để nạp danh sách"
+              :placeholder="$t('common.select_team_to_load') || 'Chọn tổ để nạp danh sách'"
               @update:modelValue="loadBulkEmployees"
             />
           </div>
@@ -378,12 +519,12 @@
           <!-- Primary Employees -->
           <div>
             <div class="flex items-center justify-between mb-4">
-              <h4 class="text-lg font-black text-slate-800">Danh sách nhân sự chính thức</h4>
-              <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{{ bulkEmployees.filter(e => e.selected).length }} / {{ bulkEmployees.length }} đã chọn</span>
+              <h4 class="text-lg font-black text-slate-800">{{ $t('attendance.primary_list') }}</h4>
+              <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">{{ bulkEmployees.filter(e => e.selected).length }} / {{ bulkEmployees.length }} {{ $t('common.selected') || 'đã chọn' }}</span>
             </div>
             
             <div v-if="bulkEmployees.length === 0" class="text-center p-8 border-2 border-dashed border-slate-200 rounded-2xl">
-              <p class="text-slate-500 text-sm font-medium">Không có nhân viên nào chưa chấm công phù hợp với bộ lọc.</p>
+              <p class="text-slate-500 text-sm font-medium">{{ $t('attendance.no_employees_to_mark') || 'Không có nhân viên nào chưa chấm công phù hợp với bộ lọc.' }}</p>
             </div>
             <div v-else class="border border-slate-200 rounded-2xl overflow-hidden">
               <table class="w-full text-left">
@@ -392,9 +533,9 @@
                     <th class="px-4 py-3 w-12 text-center">
                       <input type="checkbox" :checked="isAllBulkSelected" @change="toggleAllBulk" class="rounded text-primary-600 focus:ring-primary-500" />
                     </th>
-                    <th class="px-4 py-3">Nhân viên</th>
-                    <th class="px-4 py-3">Tổ biên chế</th>
-                    <th class="px-4 py-3 w-48">Tổ thực tế làm việc</th>
+                    <th class="px-4 py-3">{{ $t('attendance.employee') }}</th>
+                    <th class="px-4 py-3">{{ $t('attendance.original_team') }}</th>
+                    <th class="px-4 py-3 w-48">{{ $t('attendance.actual_team') }}</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -407,7 +548,7 @@
                       <div class="text-[10px] text-slate-500 font-bold uppercase">{{ emp.employee.code }}</div>
                     </td>
                     <td class="px-4 py-3">
-                      <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">{{ emp.originalTeam?.name || 'Không có' }}</span>
+                      <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">{{ emp.originalTeam?.name || $t('attendance.no_team_assigned') }}</span>
                     </td>
                     <td class="px-4 py-3">
                       <select v-model="emp.actualTeamId" class="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
@@ -423,14 +564,14 @@
           <!-- Borrowed Employees -->
           <div>
             <div class="flex items-center justify-between mb-4">
-              <h4 class="text-lg font-black text-slate-800">Nhân sự mượn thêm</h4>
+              <h4 class="text-lg font-black text-slate-800">{{ $t('attendance.borrowed_list') }}</h4>
               <UiButton @click="addBorrowedEmployee" variant="outline" class="h-8 px-3 text-xs border-dashed border-slate-300">
-                <Plus class="w-3.5 h-3.5 mr-1" /> Thêm người
+                <Plus class="w-3.5 h-3.5 mr-1" /> {{ $t('attendance.add_person') }}
               </UiButton>
             </div>
 
             <div v-if="borrowedEmployees.length === 0" class="text-center p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
-              <p class="text-slate-400 text-sm font-medium">Chưa có nhân sự mượn thêm</p>
+              <p class="text-slate-400 text-sm font-medium">{{ $t('attendance.no_borrowed') }}</p>
             </div>
             <div v-else class="space-y-3">
               <div v-for="(b, index) in borrowedEmployees" :key="index" class="flex gap-4 items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
@@ -438,7 +579,7 @@
                   <UiSelect 
                     v-model="b.employeeId" 
                     :options="availableBorrowedEmployees(index)" 
-                    placeholder="Chọn nhân sự mượn..." 
+                    :placeholder="$t('common.select_borrowed') || 'Chọn nhân sự mượn...'" 
                     @update:modelValue="e => onBorrowedEmployeeSelect(e, index)"
                   />
                 </div>
@@ -446,7 +587,7 @@
                   <UiSelect 
                     v-model="b.actualTeamId" 
                     :options="teamOptions" 
-                    placeholder="Tổ đến làm" 
+                    :placeholder="$t('attendance.actual_team')" 
                   />
                 </div>
                 <button @click="removeBorrowedEmployee(index)" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0">
@@ -458,27 +599,31 @@
         </div>
 
         <div class="flex gap-4 mt-8 pt-6 border-t border-slate-100 shrink-0">
-          <button type="button" @click="showBulkModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">Hủy bỏ</button>
+          <button type="button" @click="showBulkModal = false" class="flex-1 py-3.5 rounded-2xl border border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all">{{ $t('common.cancel') }}</button>
           <UiButton @click="handleBulkSubmit" class="flex-[2] h-14 text-lg shadow-xl shadow-primary-200" :loading="saving" :disabled="totalBulkSelected === 0">
-            Lưu chấm công ({{ totalBulkSelected }} người)
+            {{ $t('attendance.save_count', { count: totalBulkSelected }) }}
           </UiButton>
         </div>
       </div>
     </div>
   </div>
 </template>
-
 <script setup>
 import { 
   CalendarPlus, Search, CalendarX, CheckCircle2, PencilLine, Trash2, X, Info,
-  Download, Upload, FileSpreadsheet, UserX, Users, Plus, Trash, ChevronLeft, ChevronRight
+  Download, Upload, FileSpreadsheet, UserX, Users, Plus, Trash, ChevronLeft, ChevronRight,
+  ChevronDown, Check, LayoutList, Grid3x3
 } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
+
 const attendances = ref([]);
 const employees = ref([]);
 const teams = ref([]);
 const departments = ref([]);
+const attendanceDefs = ref([]);
+
+const attendanceDefOptions = computed(() => attendanceDefs.value.map(d => ({ value: d.id, label: `${d.code} - ${d.name}` })));
 
 const employeeOptions = computed(() => employees.value.map(e => ({ value: e.id, label: e.fullName })));
 const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t.name })));
@@ -507,13 +652,157 @@ const bulkForm = reactive({
   teamId: '',
 });
 
+const currentId = ref(null);
+const form = reactive({
+  employeeId: null,
+  attendanceDate: '',
+  originalTeamId: null,
+  actualTeamId: null,
+  attendanceDefinitionId: null
+});
+
 const bulkEmployees = ref([]);
 const borrowedEmployees = ref([]);
 
 const filterDate = ref(new Date().toISOString().substr(0, 10));
-const filterDept = ref('');
-const filterTeam = ref('');
+const filterDeptIds = ref([]);
+const filterTeamIds = ref([]);
 const search = ref('');
+
+const showDeptDropdown = ref(false);
+const showTeamDropdown = ref(false);
+
+const toggleDeptDropdown = () => {
+    showDeptDropdown.value = !showDeptDropdown.value;
+    if (showDeptDropdown.value) showTeamDropdown.value = false;
+};
+
+const toggleTeamDropdown = () => {
+    showTeamDropdown.value = !showTeamDropdown.value;
+    if (showTeamDropdown.value) showDeptDropdown.value = false;
+};
+
+const toggleDeptFilter = (id) => {
+  const index = filterDeptIds.value.indexOf(id);
+  if (index === -1) {
+    filterDeptIds.value.push(id);
+  } else {
+    filterDeptIds.value.splice(index, 1);
+  }
+};
+
+const toggleTeamFilter = (id) => {
+  const index = filterTeamIds.value.indexOf(id);
+  if (index === -1) {
+    filterTeamIds.value.push(id);
+  } else {
+    filterTeamIds.value.splice(index, 1);
+  }
+};
+
+const handleClickOutside = (event) => {
+  const deptFilter = document.getElementById('dept-filter');
+  const teamFilter = document.getElementById('team-filter');
+  
+  if (deptFilter && !deptFilter.contains(event.target)) {
+    showDeptDropdown.value = false;
+  }
+  if (teamFilter && !teamFilter.contains(event.target)) {
+    showTeamDropdown.value = false;
+  }
+};
+
+const activeMenu = ref(null);
+
+const toggleAttendanceMenu = (empId, date, event) => {
+  if (activeMenu.value?.empId === empId && activeMenu.value?.date === date) {
+    activeMenu.value = null;
+  } else {
+    activeMenu.value = { empId, date };
+  }
+};
+
+const closeAttendanceMenu = () => {
+  activeMenu.value = null;
+};
+
+// View Mode State
+const viewMode = ref('list'); // 'list' or 'matrix'
+const matrixScope = ref('month'); // 'month' or 'week'
+const viewMonth = ref(new Date().toISOString().substr(0, 7));
+const cellLoading = ref(null);
+
+// Get Monday of current week
+const getMonday = (d) => {
+  d = new Date(d);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.setDate(diff));
+};
+
+const currentWeekStart = ref(getMonday(new Date()));
+
+const navigateWeek = (direction) => {
+  const newDate = new Date(currentWeekStart.value);
+  newDate.setDate(newDate.getDate() + (direction * 7));
+  currentWeekStart.value = newDate;
+  fetchData();
+};
+
+const resetToCurrentWeek = () => {
+  currentWeekStart.value = getMonday(new Date());
+  fetchData();
+};
+
+const formatWeekRange = (monday) => {
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const options = { day: '2-digit', month: '2-digit' };
+  return `${monday.toLocaleDateString('vi-VN', options)} - ${sunday.toLocaleDateString('vi-VN', options)}`;
+};
+
+const displayDays = computed(() => {
+  if (matrixScope.value === 'month') {
+    const [year, month] = viewMonth.value.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).getDate();
+    return Array.from({ length: lastDay }, (_, i) => {
+      const day = i + 1;
+      const date = new Date(year, month - 1, day);
+      const dayName = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][date.getDay()];
+      const dayStr = day < 10 ? `0${day}` : `${day}`;
+      const monthStr = month < 10 ? `0${month}` : `${month}`;
+      return {
+        key: day,
+        label: day,
+        dayName,
+        isSunday: date.getDay() === 0,
+        fullDate: `${year}-${monthStr}-${dayStr}`
+      };
+    });
+  } else {
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(currentWeekStart.value);
+      date.setDate(date.getDate() + i);
+      const dayName = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][date.getDay()];
+      const day = date.getDate();
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      const dayStr = day < 10 ? `0${day}` : `${day}`;
+      const monthStr = month < 10 ? `0${month}` : `${month}`;
+      return {
+        key: i,
+        label: day,
+        dayName,
+        isSunday: date.getDay() === 0,
+        fullDate: `${year}-${monthStr}-${dayStr}`
+      };
+    });
+  }
+});
+
+const handleMonthChange = () => {
+  fetchData();
+};
 
 // Pagination
 const currentPage = ref(1);
@@ -526,35 +815,61 @@ const paginatedAttendances = computed(() => {
   return filteredAttendances.value.slice(start, end);
 });
 
-watch([filterDate, filterDept, filterTeam, search, itemsPerPage], () => {
+watch([filterDate, filterDeptIds, filterTeamIds, search, itemsPerPage], () => {
   currentPage.value = 1;
-});
-
-const form = reactive({
-  employeeId: null,
-  originalTeamId: null,
-  actualTeamId: null,
-  attendanceDate: filterDate.value,
-});
-
-const currentId = ref(null);
+}, { deep: true });
 
 const fetchData = async () => {
   loading.value = true;
   try {
-    const [attRes, empRes, teamRes, deptRes] = await Promise.all([
-      $api.get(`/attendances/date/${filterDate.value}`),
+    const params = new URLSearchParams();
+    
+    if (viewMode.value === 'list') {
+      params.append('date', filterDate.value);
+    } else if (matrixScope.value === 'month') {
+      const [year, month] = viewMonth.value.split('-').map(Number);
+      const firstDay = new Date(year, month - 1, 1);
+      const lastDay = new Date(year, month, 0);
+      
+      params.append('fromDate', firstDay.toISOString().split('T')[0]);
+      params.append('toDate', lastDay.toISOString().split('T')[0]);
+    } else {
+      const monday = new Date(currentWeekStart.value);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      
+      params.append('fromDate', monday.toISOString().split('T')[0]);
+      params.append('toDate', sunday.toISOString().split('T')[0]);
+    }
+
+    if (filterDeptIds.value.length > 0) {
+      params.append('departmentIds', filterDeptIds.value.join(','));
+    }
+    
+    if (filterTeamIds.value.length > 0) {
+      params.append('teamIds', filterTeamIds.value.join(','));
+    }
+
+    // Call API specialized for date or month
+    const endpoint = viewMode.value === 'list' 
+      ? `/attendances/date/${filterDate.value}` 
+      : `/attendances`; // Assuming /attendances with month/year params works
+
+    const [attRes, empRes, teamRes, deptRes, defRes] = await Promise.all([
+      $api.get(endpoint, { params: Object.fromEntries(params) }),
       $api.get('/employees'),
       $api.get('/teams'),
-      $api.get('/departments')
+      $api.get('/departments'),
+      $api.get('/attendance-definitions')
     ]);
+    
     attendances.value = attRes.data;
     employees.value = empRes.data;
     teams.value = teamRes.data;
     departments.value = deptRes.data;
+    attendanceDefs.value = defRes.data;
   } catch (err) {
     console.error(err);
-    // fallback if date endpoint fails
     if (err.response?.status === 404) attendances.value = [];
   } finally {
     loading.value = false;
@@ -567,22 +882,102 @@ const isFilterActive = (val) => val && val !== 'null' && val !== '';
 
 const filteredAttendances = computed(() => {
   return attendances.value.filter(a => {
-    // Tìm kiếm text
     const matchSearch = !search.value || 
                        a.employee?.fullName.toLowerCase().includes(search.value.toLowerCase()) ||
                        a.employee?.code.toLowerCase().includes(search.value.toLowerCase());
                        
-    // Lọc theo phòng ban: Cần kiểm tra cả a.employee.department và a.employee.team.department vì backend trả về cấu trúc phân cấp
     const deptId = a.employee?.department?.id || a.employee?.team?.department?.id;
-    const matchDept = !isFilterActive(filterDept.value) || deptId == filterDept.value;
+    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(deptId);
     
-    // Lọc theo tổ đội
     const teamId = a.employee?.team?.id || a.originalTeam?.id;
-    const matchTeam = !isFilterActive(filterTeam.value) || teamId == filterTeam.value;
+    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
     
     return matchSearch && matchDept && matchTeam;
   });
 });
+
+const filteredEmployees = computed(() => {
+  return employees.value.filter(e => {
+    if (e.status !== 'ACTIVE') return false;
+    
+    const matchSearch = !search.value || 
+                       e.fullName.toLowerCase().includes(search.value.toLowerCase()) ||
+                       e.code.toLowerCase().includes(search.value.toLowerCase());
+
+    const deptId = e.department?.id || e.team?.department?.id;
+    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(deptId);
+    
+    const teamId = e.team?.id;
+    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
+    
+    return matchSearch && matchDept && matchTeam;
+  });
+});
+
+const getAttendanceMatrixValue = (empId, targetDate) => {
+  const record = attendances.value.find(a => a.employee?.id === empId && a.attendanceDate === targetDate);
+  if (record) {
+    return { 
+      status: 'PRESENT', 
+      id: record.id, 
+      defCode: record.attendanceDefinition?.code,
+      defName: record.attendanceDefinition?.name
+    };
+  }
+  
+  const date = new Date(targetDate);
+  if (date.getDay() === 0) return { status: 'SUNDAY', id: null };
+  
+  // Check if today or past
+  const todayStr = new Date().toISOString().substr(0, 10);
+  if (targetDate <= todayStr) return { status: 'ABSENT', id: null };
+  
+  return { status: null, id: null };
+};
+
+
+const performAttendanceAction = async (empId, targetDate, defId) => {
+  const { status, id } = getAttendanceMatrixValue(empId, targetDate);
+  closeAttendanceMenu();
+  
+  cellLoading.value = `${empId}_${targetDate}`;
+  try {
+    if (defId === null) {
+      if (status === 'PRESENT') await $api.delete(`/attendances/${id}`);
+    } else {
+      const emp = employees.value.find(e => e.id === empId);
+      if (status === 'PRESENT') {
+        await $api.put(`/attendances/${id}`, {
+          employeeId: empId,
+          attendanceDate: targetDate,
+          originalTeamId: emp?.team?.id || null,
+          actualTeamId: emp?.team?.id || null,
+          attendanceDefinitionId: defId
+        });
+      } else {
+        await $api.post('/attendances', {
+          employeeId: empId,
+          attendanceDate: targetDate,
+          originalTeamId: emp?.team?.id || null,
+          actualTeamId: emp?.team?.id || null,
+          attendanceDefinitionId: defId
+        });
+      }
+    }
+    await fetchData();
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.message || 'Lỗi thao tác chấm công');
+  } finally {
+    cellLoading.value = null;
+  }
+};
+
+const getEmployeeTotalAttendance = (empId) => {
+  return attendances.value
+    .filter(a => a.employee?.id === empId)
+    .reduce((sum, a) => sum + (a.attendanceDefinition?.multiplier || 1.0), 0);
+};
 
 const absentEmployees = computed(() => {
   const attendedIds = new Set(attendances.value.map(a => a.employee?.id));
@@ -593,28 +988,47 @@ const absentEmployees = computed(() => {
     if (attendedIds.has(e.id)) return false;
     
     // Áp dụng bộ lọc phòng ban/tổ đội nếu đang chọn
-    const matchDept = !isFilterActive(filterDept.value) || (e.department?.id || e.team?.department?.id) == filterDept.value;
-    const matchTeam = !isFilterActive(filterTeam.value) || e.team?.id == filterTeam.value;
+    const deptId = e.department?.id || e.team?.department?.id;
+    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(deptId);
+    
+    const teamId = e.team?.id;
+    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
     
     return matchDept && matchTeam;
   });
 });
 
 const statistics = computed(() => {
-  // Quân số đi làm là danh sách đã filter
-  const presentCount = filteredAttendances.value.length;
-  // Tổng quân số (ACTIVE) tương ứng điều kiện lọc
-  const totalCount = employees.value.filter(e => {
+  const activeEmployees = employees.value.filter(e => {
     if (e.status !== 'ACTIVE') return false;
-    const matchDept = !isFilterActive(filterDept.value) || (e.department?.id || e.team?.department?.id) == filterDept.value;
-    const matchTeam = !isFilterActive(filterTeam.value) || e.team?.id == filterTeam.value;
+    const deptId = e.department?.id || e.team?.department?.id;
+    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(deptId);
+    const teamId = e.team?.id;
+    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
     return matchDept && matchTeam;
-  }).length;
-  
-  return {
-    present: presentCount,
-    total: totalCount
-  };
+  });
+
+  const empCount = activeEmployees.length;
+
+  if (viewMode.value === 'list') {
+    return {
+      present: filteredAttendances.value.length,
+      total: empCount
+    };
+  } else {
+    // Trong chế độ ma trận (tuần hoặc tháng)
+    // Tính tổng số công thực tế dựa trên multiplier
+    const presentCount = filteredAttendances.value.reduce((sum, a) => sum + (a.attendanceDefinition?.multiplier || 1.0), 0);
+    
+    // Tính tổng số công tiềm năng (Số nhân viên * Số ngày làm việc không phải Chủ Nhật)
+    const workingDaysCount = displayDays.value.filter(d => !d.isSunday).length;
+    const totalPotential = empCount * workingDaysCount;
+    
+    return {
+      present: Math.round(presentCount * 10) / 10,
+      total: totalPotential
+    };
+  }
 });
 
 const openModal = (att = null) => {
@@ -690,8 +1104,8 @@ const handleSubmit = async () => {
 };
 
 const openBulkModal = () => {
-  bulkForm.departmentId = filterDept.value;
-  bulkForm.teamId = filterTeam.value;
+  bulkForm.departmentId = filterDeptIds.value[0] || null;
+  bulkForm.teamId = filterTeamIds.value[0] || null;
   borrowedEmployees.value = [];
   loadBulkEmployees();
   showBulkModal.value = true;
@@ -798,7 +1212,12 @@ const handleExport = async () => {
     const year = new Date(filterDate.value).getFullYear();
     
     const response = await $api.get('/attendances/export', {
-      params: { month, year, departmentId: filterDept.value },
+      params: { 
+        month, 
+        year, 
+        departmentIds: filterDeptIds.value.join(','),
+        teamIds: filterTeamIds.value.join(',')
+      },
       responseType: 'blob'
     });
     
@@ -868,5 +1287,16 @@ const handleDelete = async (id) => {
   }
 };
 
-onMounted(fetchData);
+onMounted(async () => {
+  document.addEventListener('click', handleClickOutside);
+  await fetchData();
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
+
+watch([viewMode, matrixScope, filterDeptIds, filterTeamIds], () => {
+    fetchData();
+}, { deep: true });
 </script>

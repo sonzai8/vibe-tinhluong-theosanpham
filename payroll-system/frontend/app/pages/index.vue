@@ -4,21 +4,21 @@
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
       <div class="animate-in fade-in slide-in-from-left duration-700">
         <h1 class="text-4xl font-black text-slate-900 tracking-tight">
-          Bảng điều khiển <span class="text-primary-600">CMS</span>
+          {{ $t('dashboard.title').split(' ').slice(0, -1).join(' ') }} <span class="text-primary-600">{{ $t('dashboard.title').split(' ').pop() }}</span>
         </h1>
         <p class="text-slate-500 font-medium flex items-center gap-2 mt-2">
-          <Calendar class="w-4 h-4 text-primary-500" />
-          {{ todayFormatted }} — Hệ thống vận hành ổn định
+          <Calendar class="w-4 h-4 text-primary-50" />
+          {{ todayFormatted }} — {{ $t('dashboard.operation_status') }}
         </p>
       </div>
       <div class="flex flex-wrap gap-3 animate-in fade-in slide-in-from-right duration-700">
         <button class="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 font-bold hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-2 shadow-sm">
           <FileText class="w-4 h-4" />
-          Báo cáo nhanh
+          {{ $t('dashboard.quick_report') }}
         </button>
         <NuxtLink to="/payrolls" class="px-5 py-2.5 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 transition-all flex items-center gap-2 shadow-lg shadow-primary-100 ring-2 ring-primary-500/10">
           <Zap class="w-4 h-4" />
-          Chốt lương tháng {{ new Date().getMonth() + 1 }}
+          {{ $t('dashboard.finalize_payroll', { month: new Date().getMonth() + 1 }) }}
         </NuxtLink>
       </div>
     </div>
@@ -37,7 +37,7 @@
           </div>
         </div>
         <div class="space-y-1">
-          <p class="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">{{ stat.label }}</p>
+          <p class="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">{{ $t(stat.labelKey) }}</p>
           <h3 class="text-3xl font-black text-slate-900 tracking-tighter">{{ stat.value }}</h3>
         </div>
       </div>
@@ -53,12 +53,12 @@
         <div class="card p-8 bg-white overflow-hidden relative">
           <div class="flex items-center justify-between mb-8">
             <div>
-              <h3 class="text-xl font-black text-slate-900">Biểu đồ sản lượng</h3>
-              <p class="text-sm text-slate-400 font-medium">Theo dõi năng suất 7 ngày gần nhất</p>
+              <h3 class="text-xl font-black text-slate-900">{{ $t('dashboard.production_chart') }}</h3>
+              <p class="text-sm text-slate-400 font-medium">{{ $t('dashboard.productivity_7days') }}</p>
             </div>
             <select class="bg-slate-50 border-none rounded-lg text-xs font-bold px-3 py-2 text-slate-500">
-              <option>Tuần này</option>
-              <option>Tuần trước</option>
+              <option>{{ $t('dashboard.this_week') }}</option>
+              <option>{{ $t('dashboard.last_week') }}</option>
             </select>
           </div>
           
@@ -79,23 +79,23 @@
         <!-- Latest Production Records -->
         <div class="card overflow-hidden">
           <div class="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
-            <h3 class="font-black text-slate-900">Nhật ký sản xuất trực tuyến</h3>
-            <NuxtLink to="/production-records" class="text-primary-600 text-xs font-black uppercase tracking-widest hover:underline">Xem tất cả</NuxtLink>
+            <h3 class="font-black text-slate-900">{{ $t('dashboard.latest_records') }}</h3>
+            <NuxtLink :to="localePath('/production-records')" class="text-primary-600 text-xs font-black uppercase tracking-widest hover:underline">{{ $t('dashboard.view_all') }}</NuxtLink>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left">
               <thead>
                 <tr class="text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                  <th class="px-8 py-4">Nhân viên</th>
-                  <th class="px-8 py-4">Sản phẩm</th>
-                  <th class="px-8 py-4">Công đoạn</th>
-                  <th class="px-8 py-4">Số lượng</th>
-                  <th class="px-8 py-4">Trạng thái</th>
+                  <th class="px-8 py-4">{{ $t('production.employee') }}</th>
+                  <th class="px-8 py-4">{{ $t('production.product') }}</th>
+                  <th class="px-8 py-4">{{ $t('menu.production_steps') }}</th>
+                  <th class="px-8 py-4">{{ $t('production.quantity') }}</th>
+                  <th class="px-8 py-4">{{ $t('attendance.status') }}</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-50">
                 <tr v-if="latestRecords.length === 0" class="text-center py-4">
-                  <td colspan="5" class="px-8 py-5 text-sm text-slate-400 font-medium">Chưa có nhật ký sản xuất</td>
+                  <td colspan="5" class="px-8 py-5 text-sm text-slate-400 font-medium">{{ $t('dashboard.no_records') }}</td>
                 </tr>
                 <tr v-for="(r, i) in latestRecords" :key="i" class="hover:bg-slate-50/50 transition-colors group">
                   <td class="px-8 py-5">
@@ -128,11 +128,11 @@
         <div class="card p-8 bg-slate-900 border-none relative overflow-hidden group">
           <Zap class="absolute -right-8 -top-8 w-40 h-40 text-white/5 rotate-12 group-hover:rotate-0 transition-transform duration-1000" />
           <div class="relative z-10 space-y-6">
-            <h3 class="text-2xl font-black text-white leading-tight">Phím tắt CMS</h3>
+            <h3 class="text-2xl font-black text-white leading-tight">{{ $t('dashboard.shortcuts') }}</h3>
             <div class="grid grid-cols-2 gap-3">
-              <NuxtLink v-for="link in shortcuts" :key="link.label" :to="link.to" class="p-4 bg-white/10 hover:bg-white border border-white/10 hover:border-white rounded-2xl transition-all group/item">
+              <NuxtLink v-for="link in shortcuts" :key="link.labelKey" :to="localePath(link.to)" class="p-4 bg-white/10 hover:bg-white border border-white/10 hover:border-white rounded-2xl transition-all group/item">
                 <component :is="link.icon" class="w-5 h-5 text-white group-hover/item:text-primary-600 mb-2" />
-                <p class="text-[10px] font-black text-white/60 group-hover/item:text-slate-900 uppercase tracking-widest">{{ link.label }}</p>
+                <p class="text-[10px] font-black text-white/60 group-hover/item:text-slate-900 uppercase tracking-widest">{{ $t(link.labelKey) }}</p>
               </NuxtLink>
             </div>
           </div>
@@ -140,7 +140,7 @@
 
         <!-- Organization Snapshot -->
         <div class="card p-8">
-          <h3 class="font-black text-slate-900 mb-6">Phòng ban tiêu biểu</h3>
+          <h3 class="font-black text-slate-900 mb-6">{{ $t('dashboard.top_depts') }}</h3>
           <div class="space-y-6">
             <div v-if="topDepts.length === 0" class="text-sm text-slate-400">Chưa có dữ liệu phòng ban.</div>
             <div v-for="(dept, index) in topDepts" :key="index" class="space-y-3">
@@ -149,16 +149,16 @@
                   <div :class="`w-2 h-2 rounded-full ${deptColors[index % deptColors.length]}`"></div>
                   <span class="text-sm font-bold text-slate-700">{{ dept.name }}</span>
                 </div>
-                <span class="text-xs font-black text-slate-500 uppercase">{{ dept.employees }} Nhân sự</span>
+                <span class="text-xs font-black text-slate-500 uppercase">{{ dept.employees }} {{ $t('dashboard.employees_count') }}</span>
               </div>
               <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div :class="`h-full rounded-full ${deptColors[index % deptColors.length]}`" :style="`width: ${dept.percentage}%`"></div>
               </div>
             </div>
           </div>
-          <NuxtLink to="/departments" class="block w-full mt-8">
+          <NuxtLink :to="localePath('/departments')" class="block w-full mt-8">
             <UiButton class="w-full bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900">
-              Xem cấu trúc tổ chức
+              {{ $t('dashboard.view_org') }}
             </UiButton>
           </NuxtLink>
         </div>
@@ -189,8 +189,11 @@ import {
 const { $api } = useNuxtApp();
 const { user } = useAuth();
 
+const { locale } = useI18n();
+const localePath = useLocalePath();
+
 const todayFormatted = computed(() => {
-  return new Intl.DateTimeFormat('vi-VN', { 
+  return new Intl.DateTimeFormat(locale.value === 'vi' ? 'vi-VN' : (locale.value === 'en' ? 'en-US' : 'zh-CN'), { 
     weekday: 'long', 
     year: 'numeric', 
     month: 'long', 
@@ -210,17 +213,17 @@ const latestRecords = ref([]);
 const topDepts = ref([]);
 
 const mainStats = computed(() => [
-  { label: 'Nhân sự Active', value: statsData.value.activeEmployees.toLocaleString(), icon: Users, bg: 'bg-emerald-100', text: 'text-emerald-600', border: 'border-emerald-500' },
-  { label: 'Sản lượng hôm nay', value: statsData.value.todayProduction.toLocaleString(), icon: Package, bg: 'bg-sky-100', text: 'text-sky-600', border: 'border-sky-500' },
-  { label: 'Tổng số tổ đội', value: statsData.value.totalTeams.toLocaleString(), icon: CreditCard, bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-500' },
-  { label: 'Tổng số phòng ban', value: statsData.value.totalDepartments.toLocaleString(), icon: TrendingUp, bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-500' },
+  { labelKey: 'dashboard.active_employees', value: statsData.value.activeEmployees.toLocaleString(), icon: Users, bg: 'bg-emerald-100', text: 'text-emerald-600', border: 'border-emerald-500' },
+  { labelKey: 'dashboard.today_production', value: statsData.value.todayProduction.toLocaleString(), icon: Package, bg: 'bg-sky-100', text: 'text-sky-600', border: 'border-sky-500' },
+  { labelKey: 'dashboard.total_teams', value: statsData.value.totalTeams.toLocaleString(), icon: CreditCard, bg: 'bg-orange-100', text: 'text-orange-600', border: 'border-orange-500' },
+  { labelKey: 'dashboard.total_departments', value: statsData.value.totalDepartments.toLocaleString(), icon: TrendingUp, bg: 'bg-indigo-100', text: 'text-indigo-600', border: 'border-indigo-500' },
 ]);
 
 const shortcuts = [
-  { to: '/employees', label: 'Nhân viên', icon: Users },
-  { to: '/attendances', label: 'Chấm công', icon: Clock },
-  { to: '/products', label: 'Danh mục SP', icon: Package },
-  { to: '/payrolls', label: 'Bảng lương', icon: CreditCard },
+  { to: '/employees', labelKey: 'menu.employees', icon: Users },
+  { to: '/attendances', labelKey: 'menu.attendance', icon: Clock },
+  { to: '/products', labelKey: 'menu.products', icon: Package },
+  { to: '/payrolls', labelKey: 'menu.payroll', icon: CreditCard },
 ];
 
 const deptColors = ['bg-emerald-500', 'bg-blue-500', 'bg-orange-500', 'bg-indigo-500'];

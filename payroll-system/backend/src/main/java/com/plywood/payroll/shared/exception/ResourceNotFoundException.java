@@ -1,0 +1,20 @@
+package com.plywood.payroll.shared.exception;
+
+import com.plywood.payroll.shared.constant.MessageConstants;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
+
+    public ResourceNotFoundException(String resourceName, Long id) {
+        super(String.format(MessageConstants.ERR_RESOURCE_NOT_FOUND, resourceName, id));
+    }
+
+    public ResourceNotFoundException(String resourceName, String key) {
+        super(String.format("Không tìm thấy %s với mã: %s", resourceName, key));
+    }
+}

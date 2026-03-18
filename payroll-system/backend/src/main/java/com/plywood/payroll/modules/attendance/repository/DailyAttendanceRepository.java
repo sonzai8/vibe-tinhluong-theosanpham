@@ -33,4 +33,6 @@ public interface DailyAttendanceRepository extends JpaRepository<DailyAttendance
 
     // Lấy danh sách người thực tế làm việc tại tổ trong ngày (bao gồm cả người được mượn)
     List<DailyAttendance> findByActualTeamIdAndAttendanceDate(Long teamId, LocalDate date);
+
+    List<DailyAttendance> findByEmployeeIdAndAttendanceDateBetween(Long employeeId, LocalDate start, LocalDate end);
 }

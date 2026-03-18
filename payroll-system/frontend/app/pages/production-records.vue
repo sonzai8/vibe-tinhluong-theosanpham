@@ -393,8 +393,9 @@
             <UiSelect 
               v-model="form.productId" 
               :label="$t('production.product')" 
-              :options="productOptions" 
+              :options="filteredProductOptions" 
               :placeholder="$t('common.select_product') || 'Chọn sản phẩm'"
+              :disabled="!form.teamId"
               required
             />
 
@@ -403,6 +404,7 @@
               :label="$t('production.quality')" 
               :options="qualityOptions" 
               :placeholder="$t('common.select_quality') || 'Chọn chất lượng'"
+              :disabled="!form.teamId"
               required
             />
 
@@ -434,6 +436,12 @@
             <input v-model="bulkDate" type="date" class="input-field py-2 text-sm font-bold flex-1" />
           </div>
 
+          <!-- Error Message -->
+          <div v-if="bulkError" class="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 animate-in fade-in slide-in-from-top-2">
+            <AlertCircle class="w-5 h-5 shrink-0" />
+            <p class="text-sm font-bold">{{ bulkError }}</p>
+          </div>
+
 
           <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <table class="w-full text-left bg-white">
@@ -451,7 +459,11 @@
                 <tr v-for="(row, index) in bulkRecords" :key="index" class="hover:bg-slate-50/50 transition-colors divide-x divide-slate-50">
                   <td class="px-4 py-2 text-center text-xs font-black text-slate-300">{{ index + 1 }}</td>
                   <td class="px-4 py-2">
-                    <select v-model="row.teamId" class="w-full text-sm font-bold bg-transparent border-none focus:ring-0 cursor-pointer text-slate-700 outline-none">
+                    <select 
+                      v-model="row.teamId" 
+                      @change="onBulkTeamChange(row)"
+                      class="w-full text-sm font-bold bg-transparent border-none focus:ring-0 cursor-pointer text-slate-700 outline-none"
+                    >
                       <option disabled :value="null">-- {{ $t('common.select_team') }} --</option>
                       <option v-for="opt in teamOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                     </select>
@@ -459,7 +471,7 @@
                   <td class="px-4 py-2">
                     <select v-model="row.productId" class="w-full text-sm font-bold bg-transparent border-none focus:ring-0 cursor-pointer text-slate-700 outline-none">
                       <option disabled :value="null">-- {{ $t('common.select_product') }} --</option>
-                      <option v-for="opt in productOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                      <option v-for="opt in getRowProductOptions(row)" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                     </select>
                   </td>
                   <td class="px-4 py-2">
@@ -473,7 +485,7 @@
                   </td>
                   <td class="px-3 py-2 text-center">
                     <button @click="removeBulkRow(index)" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" :disabled="bulkRecords.length === 1 && index === 0" :class="{'opacity-50 cursor-not-allowed': bulkRecords.length === 1 && index === 0}">
-                      <Trash class="w-4 h-4" />
+                      <Trash2 class="w-4 h-4" />
                     </button>
                   </td>
                 </tr>
@@ -565,6 +577,16 @@ const attendances = ref([]);
 const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t.name })));
 const productOptions = computed(() => products.value.map(p => ({ value: p.id, label: `${p.code} (${p.thickness}x${p.length}x${p.width})` })));
 const qualityOptions = computed(() => qualities.value.map(q => ({ value: q.id, label: q.code })));
+
+// Filtered products for single modal
+const filteredProducts = ref([]);
+const filteredProductOptions = computed(() => {
+  const list = filteredProducts.value.length > 0 ? filteredProducts.value : products.value;
+  return list.map(p => ({ value: p.id, label: `${p.code} (${p.thickness}x${p.length}x${p.width})` }));
+});
+
+// Cache for bulk rows products
+const stepProductsCache = reactive({});
 
 const loading = ref(true);
 const saving = ref(false);
@@ -923,21 +945,25 @@ const fetchData = async () => {
     const { data } = await $api.get(`/production-records?${params.toString()}`);
     records.value = data;
     
-    // Nạp dữ liệu danh mục nếu chưa có
-    if (departments.value.length === 0) {
-      const [teamRes, deptRes, prodRes, qualRes, attRes] = await Promise.all([
-        $api.get('/teams'),
-        $api.get('/departments'),
-        $api.get('/products'),
-        $api.get('/product-qualities'),
-        $api.get(`/attendances/date/${new Date().toISOString().substr(0, 10)}`)
-      ]);
-      teams.value = teamRes.data;
-      departments.value = deptRes.data;
-      products.value = prodRes.data;
-      qualities.value = qualRes.data;
-      attendances.value = attRes.data;
-    }
+    // Nạp dữ liệu danh mục & Chấm công đồng bộ với dải ngày
+    const attendanceParams = new URLSearchParams();
+    if (filter.from) attendanceParams.append('fromDate', filter.from);
+    if (filter.to) attendanceParams.append('toDate', filter.to);
+    
+    const [teamRes, deptRes, prodRes, qualRes, attRes] = await Promise.all([
+      departments.value.length === 0 ? $api.get('/teams') : Promise.resolve({ data: teams.value }),
+      departments.value.length === 0 ? $api.get('/departments') : Promise.resolve({ data: departments.value }),
+      products.value.length === 0 ? $api.get('/products') : Promise.resolve({ data: products.value }),
+      qualities.value.length === 0 ? $api.get('/product-qualities') : Promise.resolve({ data: qualities.value }),
+      $api.get(`/attendances?${attendanceParams.toString()}`)
+    ]);
+
+    teams.value = teamRes.data;
+    departments.value = deptRes.data;
+    products.value = prodRes.data;
+    qualities.value = qualRes.data;
+    attendances.value = attRes.data;
+
   } catch (err) {
     console.error('Fetch error:', err);
   } finally {
@@ -947,7 +973,7 @@ const fetchData = async () => {
 
 const fetchRecords = () => fetchData();
 
-const openModal = (r = null) => {
+const openModal = async (r = null) => {
   if (r) {
     currentId.value = r.id;
     form.teamId = r.team?.id;
@@ -955,6 +981,11 @@ const openModal = (r = null) => {
     form.qualityId = r.quality?.id;
     form.productionDate = r.productionDate;
     form.quantity = r.quantity;
+    
+    // Load products for this team's step
+    if (r.team?.productionStep?.id) {
+       await fetchStepProducts(r.team.productionStep.id);
+    }
   } else {
     currentId.value = null;
     form.teamId = null;
@@ -962,8 +993,83 @@ const openModal = (r = null) => {
     form.qualityId = null;
     form.productionDate = new Date().toISOString().substr(0, 10);
     form.quantity = 0;
+    filteredProducts.value = [];
   }
   showModal.value = true;
+};
+
+const fetchStepProducts = async (stepId) => {
+  if (!stepId) return [];
+  if (stepProductsCache[stepId]) return stepProductsCache[stepId];
+  
+  try {
+    const { data } = await $api.get(`/production-steps/${stepId}/products`);
+    stepProductsCache[stepId] = data;
+    return data;
+  } catch (err) {
+    console.error('Error fetching step products:', err);
+    return [];
+  }
+};
+
+watch(() => form.teamId, async (newTeamId) => {
+  if (!newTeamId) {
+    filteredProducts.value = [];
+    return;
+  }
+  const team = teams.value.find(t => t.id === newTeamId);
+  if (team?.productionStep?.id) {
+    const products = await fetchStepProducts(team.productionStep.id);
+    filteredProducts.value = products;
+    
+    // Logic: Default to most used product/quality for this team
+    if (!currentId.value) { // Only for new records
+        const { productId, qualityId } = findMostUsed(newTeamId);
+        
+        // Ensure the suggested product is valid for this step
+        if (productId && products.find(p => p.id === productId)) {
+            form.productId = productId;
+        } else if (products.length > 0) {
+            form.productId = products[0].id; // Fallback to first valid product
+        }
+        
+        if (qualityId) {
+            form.qualityId = qualityId;
+        } else if (qualities.value.length > 0) {
+            form.qualityId = qualities.value[0].id;
+        }
+    } else {
+        // Edit mode: Ensure existing product is in the valid list
+        if (form.productId && !products.find(p => p.id === form.productId)) {
+            form.productId = null;
+        }
+    }
+  } else {
+    filteredProducts.value = [];
+  }
+}, { immediate: true });
+
+const findMostUsed = (teamId) => {
+  const teamRecords = records.value.filter(r => r.team?.id === teamId);
+  if (teamRecords.length === 0) return { productId: null, qualityId: null };
+
+  const productCounts = {};
+  const qualityCounts = {};
+  
+  teamRecords.forEach(r => {
+    if (r.product?.id) productCounts[r.product.id] = (productCounts[r.product.id] || 0) + 1;
+    if (r.quality?.id) qualityCounts[r.quality.id] = (qualityCounts[r.quality.id] || 0) + 1;
+  });
+
+  const mostUsedProductId = Object.keys(productCounts).length > 0 
+    ? parseInt(Object.keys(productCounts).reduce((a, b) => productCounts[a] > productCounts[b] ? a : b))
+    : null;
+    
+  const mostUsedQualityId = Object.keys(qualityCounts).length > 0
+    ? parseInt(Object.keys(qualityCounts).reduce((a, b) => qualityCounts[a] > qualityCounts[b] ? a : b))
+    : null;
+
+  return { productId: mostUsedProductId, qualityId: mostUsedQualityId };
 };
 
 const handleSubmit = async () => {
@@ -987,6 +1093,39 @@ const handleSubmit = async () => {
   } finally {
     saving.value = false;
   }
+};
+
+const onBulkTeamChange = async (row) => {
+  if (!row.teamId) return;
+  const team = teams.value.find(t => t.id === row.teamId);
+  if (team?.productionStep?.id) {
+    const validProducts = await fetchStepProducts(team.productionStep.id);
+    
+    // Smart Defaults for Bulk Row
+    const { productId, qualityId } = findMostUsed(row.teamId);
+    
+    if (productId && validProducts.find(p => p.id === productId)) {
+        row.productId = productId;
+    } else if (validProducts.length > 0) {
+        row.productId = validProducts[0].id;
+    }
+    
+    if (qualityId) {
+        row.qualityId = qualityId;
+    } else if (qualities.value.length > 0) {
+        row.qualityId = qualities.value[0].id;
+    }
+  }
+};
+
+const getRowProductOptions = (row) => {
+  if (!row.teamId) return productOptions.value;
+  const team = teams.value.find(t => t.id === row.teamId);
+  const stepId = team?.productionStep?.id;
+  if (stepId && stepProductsCache[stepId]) {
+    return stepProductsCache[stepId].map(p => ({ value: p.id, label: `${p.code} (${p.thickness}x${p.length}x${p.width})` }));
+  }
+  return productOptions.value;
 };
 
 const handleDelete = async (id) => {

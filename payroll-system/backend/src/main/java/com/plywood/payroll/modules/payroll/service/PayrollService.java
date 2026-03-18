@@ -23,6 +23,7 @@ import com.plywood.payroll.modules.payroll.dto.response.PayrollResponse;
 import com.plywood.payroll.modules.payroll.entity.PayrollConfig;
 import com.plywood.payroll.modules.penalty.entity.PenaltyBonus;
 import com.plywood.payroll.shared.exception.ResourceNotFoundException;
+import com.plywood.payroll.modules.payroll.dto.response.PayrollDailyDetailResponse;
 // REMOVED_WILDCARD_REPO_IMPORT - please update manually
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -71,7 +72,8 @@ public class PayrollService {
             throw new RuntimeException("Bảng lương đã chốt, không thể tính lại");
         }
 
-        payrollItemRepository.deleteByPayrollId(payroll.getId());
+        // payrollItemRepository.deleteByPayrollId(payroll.getId());
+        // Thay vì xóa tất cả, chúng ta chỉ cập nhật những cái chưa chốt
 
         // Lấy cấu hình chuyên cần hiệu lực cho tháng này
         int minAttendanceDays = Integer.parseInt(
@@ -221,7 +223,12 @@ public class PayrollService {
             
             BigDecimal netSalary = stepSalary.add(benefit).add(bonus).subtract(penalty);
 
-            PayrollItem item = new PayrollItem();
+            // Chỉ tạo/cập nhật nếu chưa CONFIRMED
+            PayrollItem item = payrollItemRepository.findByPayrollIdAndEmployeeId(payroll.getId(), empId)
+                    .orElse(new PayrollItem());
+            
+            if ("CONFIRMED".equals(item.getStatus())) continue;
+
             item.setPayroll(payroll);
             item.setEmployee(emp);
             item.setTotalStepSalary(stepSalary);
@@ -229,6 +236,7 @@ public class PayrollService {
             item.setTotalBonus(bonus);
             item.setTotalPenalty(penalty);
             item.setNetSalary(netSalary);
+            item.setStatus("DRAFT");
             payrollItemRepository.save(item);
         }
 
@@ -290,13 +298,149 @@ public class PayrollService {
         if (entity == null) return null;
         PayrollItemResponse response = new PayrollItemResponse();
         response.setId(entity.getId());
-        response.setPayroll(mapToResponse(entity.getPayroll()));
-        response.setEmployee(employeeService.mapToResponse(entity.getEmployee()));
-        response.setTotalStepSalary(entity.getTotalStepSalary());
-        response.setTotalBenefit(entity.getTotalBenefit());
-        response.setTotalBonus(entity.getTotalBonus());
-        response.setTotalPenalty(entity.getTotalPenalty());
-        response.setNetSalary(entity.getNetSalary());
+        
+        if (entity.getPayroll() != null) {
+            response.setPayrollId(entity.getPayroll().getId());
+            response.setMonth(entity.getPayroll().getMonth());
+            response.setYear(entity.getPayroll().getYear());
+            response.setStatus(entity.getPayroll().getStatus());
+        }
+        
+        if (entity.getEmployee() != null) {
+            response.setEmployeeName(entity.getEmployee().getFullName());
+            response.setEmployeeCode(entity.getEmployee().getCode());
+            if (entity.getEmployee().getDepartment() != null) {
+                response.setDepartmentId(entity.getEmployee().getDepartment().getId());
+                response.setDepartmentName(entity.getEmployee().getDepartment().getName());
+            }
+            if (entity.getEmployee().getTeam() != null) {
+                response.setTeamId(entity.getEmployee().getTeam().getId());
+                response.setTeamName(entity.getEmployee().getTeam().getName());
+            }
+        }
+        
+        response.setProductSalary(entity.getTotalStepSalary());
+        response.setBenefitSalary(entity.getTotalBenefit());
+        
+        // totalPenaltyBonus = bonus - penalty
+        BigDecimal bonus = entity.getTotalBonus() != null ? entity.getTotalBonus() : BigDecimal.ZERO;
+        BigDecimal penalty = entity.getTotalPenalty() != null ? entity.getTotalPenalty() : BigDecimal.ZERO;
+        response.setTotalPenaltyBonus(bonus.subtract(penalty));
+        
+        response.setTotalSalary(entity.getNetSalary());
+        response.setStatus(entity.getStatus());
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public List<PayrollDailyDetailResponse> getDailyDetails(Long payrollItemId) {
+        PayrollItem item = payrollItemRepository.findById(payrollItemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bản ghi lương", payrollItemId));
+        
+        Employee employee = item.getEmployee();
+        Payroll payroll = item.getPayroll();
+        
+        LocalDate startDate = LocalDate.of(payroll.getYear(), payroll.getMonth(), 1);
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+        
+        // Lấy tất cả chấm công để tính chuyên cần (giống calculatePayroll)
+        List<DailyAttendance> allAttendances = dailyAttendanceRepository.findByFilters(null, null, payroll.getMonth(), payroll.getYear(), null, null, null);
+        Map<Long, Long> attendanceCountMap = allAttendances.stream()
+                .collect(Collectors.groupingBy(a -> a.getEmployee().getId(), Collectors.counting()));
+
+        // Chấm công riêng của nhân viên này
+        List<DailyAttendance> attendances = dailyAttendanceRepository.findByEmployeeIdAndAttendanceDateBetween(
+                employee.getId(), startDate, endDate);
+        
+        List<PenaltyBonus> penaltyBonuses = penaltyBonusRepository.findByEmployeeIdAndRecordDateBetween(
+                employee.getId(), startDate, endDate);
+        
+        List<ProductionRecord> records = productionRecordRepository.findByProductionDateBetween(startDate, endDate);
+        
+        Map<LocalDate, DailyAttendance> attendanceMap = attendances.stream()
+                .collect(Collectors.toMap(DailyAttendance::getAttendanceDate, a -> a));
+        
+        Map<LocalDate, List<PenaltyBonus>> pbMap = penaltyBonuses.stream()
+                .collect(Collectors.groupingBy(PenaltyBonus::getRecordDate));
+
+        List<PayrollDailyDetailResponse> details = new ArrayList<>();
+        
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+            DailyAttendance att = attendanceMap.get(date);
+            List<PenaltyBonus> pbs = pbMap.getOrDefault(date, Collections.emptyList());
+            // Lấy cấu hình phụ phí cho tháng này
+            BigDecimal filmSurcharge1 = new BigDecimal(
+                payrollConfigRepository.findEffectiveConfig("FILM_SURCHARGE_1_SIDE", payroll.getMonth(), payroll.getYear())
+                    .map(PayrollConfig::getConfigValue).orElse("0")
+            );
+            BigDecimal filmSurcharge2 = new BigDecimal(
+                payrollConfigRepository.findEffectiveConfig("FILM_SURCHARGE_2_SIDE", payroll.getMonth(), payroll.getYear())
+                    .map(PayrollConfig::getConfigValue).orElse("0")
+            );
+
+            // Lấy cấu hình chuyên cần
+            int minAttendanceDays = Integer.parseInt(
+                payrollConfigRepository.findEffectiveConfig("MIN_ATTENDANCE_DAYS", payroll.getMonth(), payroll.getYear())
+                    .map(PayrollConfig::getConfigValue)
+                    .orElse("22")
+            );
+            
+            BigDecimal productSalary = BigDecimal.ZERO;
+            if (att != null && att.getActualTeam() != null) {
+                Long teamId = att.getActualTeam().getId();
+                LocalDate finalDate = date;
+                List<ProductionRecord> dayRecords = records.stream()
+                        .filter(r -> r.getProductionDate().equals(finalDate) && r.getTeam().getId().equals(teamId))
+                        .collect(Collectors.toList());
+                
+                boolean isDiligent = attendanceCountMap.getOrDefault(employee.getId(), 0L) >= minAttendanceDays;
+
+                for (ProductionRecord r : dayRecords) {
+                    BigDecimal surcharge = calculateSurcharge(r.getProduct(), r.getQuality(), BigDecimal.ZERO, BigDecimal.ZERO);
+                    Optional<ProductStepRate> rateOpt = productStepRateRepository
+                            .findEffectiveRate(r.getProduct().getId(), r.getTeam().getProductionStep().getId(), r.getQuality().getId(), finalDate);
+                    
+                    if (rateOpt.isPresent()) {
+                        BigDecimal rate = isDiligent ? rateOpt.get().getPriceHigh() : rateOpt.get().getPriceLow();
+                        BigDecimal totalMoney = rate.add(surcharge).multiply(BigDecimal.valueOf(r.getQuantity()));
+                        
+                        long headcount = dailyAttendanceRepository.findByActualTeamIdAndAttendanceDate(teamId, finalDate).size();
+                        if (headcount > 0) {
+                            productSalary = productSalary.add(totalMoney.divide(BigDecimal.valueOf(headcount), 2, RoundingMode.HALF_UP));
+                        }
+                    }
+                }
+            }
+
+            BigDecimal bonus = pbs.stream().map(PenaltyBonus::getAmount).filter(a -> a.compareTo(BigDecimal.ZERO) >= 0).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal penalty = pbs.stream().map(PenaltyBonus::getAmount).filter(a -> a.compareTo(BigDecimal.ZERO) < 0).map(BigDecimal::abs).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            details.add(PayrollDailyDetailResponse.builder()
+                    .date(date)
+                    .attendanceSymbol(att != null && att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "-")
+                    .teamName(att != null && att.getActualTeam() != null ? att.getActualTeam().getName() : "N/A")
+                    .productSalary(productSalary)
+                    .benefitSalary(att != null ? (employee.getRole() != null ? employee.getRole().getDailyBenefit() : BigDecimal.ZERO) : BigDecimal.ZERO)
+                    .bonus(bonus)
+                    .penalty(penalty)
+                    .note(att != null ? "" : "Nghỉ")
+                    .build());
+        }
+        
+        return details;
+    }
+
+    @Transactional
+    public void confirmByTeam(int year, int month, Long teamId) {
+        Payroll payroll = payrollRepository.findByMonthAndYear(month, year)
+                .orElseThrow(() -> new ResourceNotFoundException("Bảng lương", 0L));
+        
+        List<PayrollItem> items = payrollItemRepository.findByPayrollId(payroll.getId());
+        for (PayrollItem item : items) {
+            if (item.getEmployee().getTeam() != null && item.getEmployee().getTeam().getId().equals(teamId)) {
+                item.setStatus("CONFIRMED");
+                payrollItemRepository.save(item);
+            }
+        }
     }
 }

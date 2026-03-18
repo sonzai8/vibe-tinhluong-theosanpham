@@ -39,6 +39,12 @@ public class ProductionStepController {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, productionStepService.getById(id)));
     }
 
+    @GetMapping("/{id}/products")
+    @Operation(summary = "Lấy danh sách sản phẩm hợp lệ của công đoạn")
+    public ResponseEntity<ApiResponse<List<com.plywood.payroll.modules.product.dto.response.ProductResponse>>> getProductsByStepId(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, productionStepService.getProductsByStepId(id)));
+    }
+
     @PostMapping
     @Operation(summary = "Tạo công đoạn sản xuất")
     public ResponseEntity<ApiResponse<ProductionStepResponse>> create(@Valid @RequestBody ProductionStepRequest request) {
@@ -90,6 +96,20 @@ public class ProductionStepController {
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=mau_nhap_cong_doan.xlsx")
                 .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
                 .body(bytes);
+    }
+
+    @PostMapping("/{id}/products")
+    @Operation(summary = "Gán danh sách sản phẩm vào công đoạn")
+    public ResponseEntity<ApiResponse<Void>> addProducts(@PathVariable("id") Long id, @RequestBody List<Long> productIds) {
+        productionStepService.addProductsToStep(id, productIds);
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, null));
+    }
+
+    @DeleteMapping("/{id}/products/{productId}")
+    @Operation(summary = "Gỡ sản phẩm khỏi công đoạn")
+    public ResponseEntity<ApiResponse<Void>> removeProduct(@PathVariable("id") Long id, @PathVariable("productId") Long productId) {
+        productionStepService.removeProductFromStep(id, productId);
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }
 
     @PostMapping("/import")

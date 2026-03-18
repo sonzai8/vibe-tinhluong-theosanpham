@@ -34,6 +34,11 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm", id));
     }
 
+    public Product getByIdRaw(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm", id));
+    }
+
     @Transactional
     public ProductResponse create(ProductRequest request) {
         Product product = new Product();

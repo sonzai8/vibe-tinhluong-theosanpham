@@ -27,4 +27,7 @@ public class PayrollItem extends BaseEntity {
     private BigDecimal totalBonus = BigDecimal.ZERO;      // Thưởng
     private BigDecimal totalPenalty = BigDecimal.ZERO;    // Phạt
     private BigDecimal netSalary = BigDecimal.ZERO;       // Thực nhận
+
+    @Column(nullable = false)
+    private String status = "DRAFT"; // DRAFT, CONFIRMED
 }

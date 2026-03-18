@@ -7,11 +7,18 @@ import java.math.BigDecimal;
 @Data
 public class PayrollItemResponse {
     private Long id;
-    private PayrollResponse payroll;
-    private EmployeeResponse employee;
-    private BigDecimal totalStepSalary;
-    private BigDecimal totalBenefit;
-    private BigDecimal totalBonus;
-    private BigDecimal totalPenalty;
-    private BigDecimal netSalary;
+    private Long payrollId;
+    private Integer month;
+    private Integer year;
+    private String status;
+    private String employeeName;
+    private String employeeCode;
+    private Long departmentId;
+    private String departmentName;
+    private Long teamId;
+    private String teamName;
+    private BigDecimal productSalary;
+    private BigDecimal benefitSalary;
+    private BigDecimal totalPenaltyBonus;
+    private BigDecimal totalSalary;
 }

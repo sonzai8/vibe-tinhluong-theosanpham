@@ -35,6 +35,9 @@ public class ProductStepRate extends BaseEntity {
     @Column(nullable = false)
     private BigDecimal priceLow; // Giá khi không đạt chuyên cần hoặc mức thường
 
+    @Column
+    private BigDecimal basePrice; // Thêm trường này để khớp với DB hiện tại
+
     @Column(nullable = false)
     private LocalDate effectiveDate;
 }

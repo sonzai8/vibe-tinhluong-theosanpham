@@ -30,4 +30,6 @@ public interface ProductionRecordRepository extends JpaRepository<ProductionReco
             @Param("to") LocalDate to,
             @Param("departmentIds") List<Long> departmentIds,
             @Param("teamIds") List<Long> teamIds);
+
+    List<ProductionRecord> findByProductionDateBetween(LocalDate start, LocalDate end);
 }

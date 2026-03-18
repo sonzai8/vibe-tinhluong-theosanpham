@@ -47,6 +47,7 @@
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
             <th class="px-6 py-4 w-20">ID</th>
             <th class="px-6 py-4">Tên công đoạn</th>
+            <th class="px-6 py-4">Sản phẩm cho phép</th>
             <th class="px-6 py-4">Mô tả kỹ thuật</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
@@ -55,6 +56,12 @@
           <tr v-for="step in paginatedSteps" :key="step.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4 text-sm font-black text-slate-400">#{{ step.id }}</td>
             <td class="px-6 py-4 font-bold text-primary-700">{{ step.name }}</td>
+            <td class="px-6 py-4">
+               <div class="flex flex-wrap gap-1">
+                  <span v-for="p in getStepProductCodes(step.id)" :key="p" class="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-600 uppercase">{{ p }}</span>
+                  <span v-if="!getStepProductCodes(step.id).length" class="text-[10px] text-slate-300 italic">Chưa cấu hình</span>
+               </div>
+            </td>
             <td class="px-6 py-4 text-sm text-slate-500 font-medium">{{ step.description || '---' }}</td>
             <td class="px-6 py-4 text-right">
               <div class="flex items-center justify-end gap-2 text-slate-400">
@@ -128,6 +135,31 @@
           <UiInput v-model="form.name" label="Tên công đoạn" placeholder="VD: Ép Nhiệt" required />
           <UiInput v-model="form.description" label="Mô tả" placeholder="Mô tả về kỹ thuật công đoạn..." />
           
+          <!-- Product Mapping Section -->
+          <div v-if="currentStep.id" class="space-y-3 pt-2">
+            <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Sản phẩm cho phép</label>
+            <div class="border border-slate-100 rounded-xl p-3 bg-slate-50/50 space-y-3">
+              <div class="flex flex-wrap gap-1.5">
+                <div v-for="p in modalStepProducts" :key="p.id" class="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm group/tag">
+                  <span class="text-[10px] font-bold text-slate-700">{{ p.code }}</span>
+                  <button type="button" @click="removeProduct(p.id)" class="text-slate-300 hover:text-red-500 transition-colors">
+                    <X class="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+              
+              <div class="flex gap-2">
+                <select v-model="selectedProductId" class="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-primary-500 transition-all">
+                  <option :value="null">-- Thêm sản phẩm --</option>
+                  <option v-for="p in availableProducts" :key="p.id" :value="p.id">{{ p.code }} - {{ p.name }}</option>
+                </select>
+                <button type="button" @click="addProduct" :disabled="!selectedProductId" class="p-2 bg-primary-600 text-white rounded-lg disabled:opacity-50 hover:bg-primary-700 transition-all shadow-md shadow-primary-100">
+                  <Plus class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+          
           <div class="flex gap-3 pt-2">
             <button type="button" @click="showModal = false" class="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">Hủy</button>
             <UiButton type="submit" class="flex-1" :loading="saving">Lưu lại</UiButton>
@@ -144,9 +176,22 @@ import { Plus, Layers, PencilLine, Trash2, X, ChevronLeft, ChevronRight, Downloa
 const { $api } = useNuxtApp();
 const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
 const steps = ref([]);
+const products = ref([]);
+const stepMappings = ref({}); // { stepId: [products] }
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
+
+const modalStepProducts = ref([]);
+const selectedProductId = ref(null);
+
+const availableProducts = computed(() => {
+  return products.value.filter(p => !modalStepProducts.value.find(mp => mp.id === p.id));
+});
+
+const getStepProductCodes = (stepId) => {
+  return (stepMappings.value[stepId] || []).map(p => p.code);
+};
 
 const handleExport = async () => {
   try {
@@ -204,11 +249,21 @@ watch(itemsPerPage, () => {
 const fetchSteps = async () => {
   loading.value = true;
   try {
-    const res = await $api.get('/production-steps');
-    steps.value = res.data;
+    const [stepRes, prodRes] = await Promise.all([
+      $api.get('/production-steps'),
+      $api.get('/products')
+    ]);
+    steps.value = stepRes.data;
+    products.value = prodRes.data;
+    
+    // Fetch mappings for each step
+    for (const step of steps.value) {
+      const { data } = await $api.get(`/production-steps/${step.id}/products`);
+      stepMappings.value[step.id] = data;
+    }
   } catch (err) {
     console.error(err);
-    alert(err.response?.data?.message || err.message || 'Không thể tải dữ liệu công đoạn. Vui lòng thử lại sau.');
+    alert(err.response?.data?.message || err.message || 'Không thể tải dữ liệu. Vui lòng thử lại sau.');
   } finally {
     loading.value = false;
   }
@@ -219,12 +274,41 @@ const openModal = (step = null) => {
     currentStep.value = { ...step };
     form.name = step.name;
     form.description = step.description;
+    modalStepProducts.value = [...(stepMappings.value[step.id] || [])];
   } else {
     currentStep.value = {};
     form.name = '';
     form.description = '';
+    modalStepProducts.value = [];
   }
+  selectedProductId.value = null;
   showModal.value = true;
+};
+
+const addProduct = async () => {
+  if (!selectedProductId.value || !currentStep.value.id) return;
+  try {
+    await $api.post(`/production-steps/${currentStep.value.id}/products`, [selectedProductId.value]);
+    const addedProduct = products.value.find(p => p.id === selectedProductId.value);
+    if (addedProduct) {
+      modalStepProducts.value.push(addedProduct);
+      stepMappings.value[currentStep.value.id] = [...modalStepProducts.value];
+    }
+    selectedProductId.value = null;
+  } catch (err) {
+    alert('Không thể thêm sản phẩm');
+  }
+};
+
+const removeProduct = async (productId) => {
+  if (!currentStep.value.id) return;
+  try {
+    await $api.delete(`/production-steps/${currentStep.value.id}/products/${productId}`);
+    modalStepProducts.value = modalStepProducts.value.filter(p => p.id !== productId);
+    stepMappings.value[currentStep.value.id] = [...modalStepProducts.value];
+  } catch (err) {
+    alert('Không thể xóa sản phẩm');
+  }
 };
 
 const handleSubmit = async () => {

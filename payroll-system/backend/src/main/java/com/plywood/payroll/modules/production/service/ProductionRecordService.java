@@ -2,6 +2,7 @@ package com.plywood.payroll.modules.production.service;
 import com.plywood.payroll.modules.quality.service.ProductQualityService;
 import com.plywood.payroll.modules.organization.repository.TeamRepository;
 import com.plywood.payroll.modules.production.repository.ProductionRecordRepository;
+import com.plywood.payroll.modules.production.repository.StageProductMappingRepository;
 import com.plywood.payroll.modules.product.repository.ProductRepository;
 import com.plywood.payroll.modules.quality.repository.ProductQualityRepository;
 import com.plywood.payroll.modules.product.service.ProductService;
@@ -32,6 +33,7 @@ public class ProductionRecordService {
     private final TeamRepository teamRepository;
     private final ProductRepository productRepository;
     private final ProductQualityRepository qualityRepository;
+    private final StageProductMappingRepository mappingRepository;
     
     private final TeamService teamService;
     private final ProductService productService;
@@ -90,6 +92,14 @@ public class ProductionRecordService {
                 
         ProductQuality quality = qualityRepository.findById(request.getQualityId())
                 .orElseThrow(() -> new ResourceNotFoundException("Chất lượng", request.getQualityId()));
+                
+        // Validation: Product must be mapped to team's production step
+        Long stepId = team.getProductionStep().getId();
+        if (!mappingRepository.existsByProductionStepIdAndProductId(stepId, request.getProductId())) {
+            throw new com.plywood.payroll.shared.exception.BusinessException(
+                "Sản phẩm '" + product.getName() + "' không thuộc công đoạn '" + team.getProductionStep().getName() + "'"
+            );
+        }
                 
         record.setProductionDate(request.getProductionDate());
         record.setTeam(team);

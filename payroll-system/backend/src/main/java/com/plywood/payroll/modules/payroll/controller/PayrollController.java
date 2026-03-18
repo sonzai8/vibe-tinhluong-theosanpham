@@ -5,6 +5,7 @@ import com.plywood.payroll.shared.constant.MessageConstants;
 
 
 import com.plywood.payroll.shared.dto.ApiResponse;
+import com.plywood.payroll.modules.payroll.dto.response.PayrollDailyDetailResponse;
 import com.plywood.payroll.modules.payroll.dto.response.PayrollItemResponse;
 import com.plywood.payroll.modules.payroll.dto.response.PayrollResponse;
 import com.plywood.payroll.modules.payroll.service.PayrollService;
@@ -54,5 +55,25 @@ public class PayrollController {
                 "Đã chốt bảng lương",
                 payrollService.confirmPayroll(id)
         ));
+    }
+
+
+    @GetMapping("/items/{id}/daily-details")
+    @Operation(summary = "Lấy chi tiết lương hàng ngày của nhân viên")
+    public ResponseEntity<ApiResponse<List<PayrollDailyDetailResponse>>> getDailyDetails(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy chi tiết lương hàng ngày",
+                payrollService.getDailyDetails(id)
+        ));
+    }
+
+    @PutMapping("/{year}/{month}/confirm-team/{teamId}")
+    @Operation(summary = "Xác nhận chốt bảng lương theo tổ")
+    public ResponseEntity<ApiResponse<Void>> confirmByTeam(
+            @PathVariable("year") int year,
+            @PathVariable("month") int month,
+            @PathVariable("teamId") Long teamId) {
+        payrollService.confirmByTeam(year, month, teamId);
+        return ResponseEntity.ok(ApiResponse.success("Đã chốt bảng lương cho tổ", null));
     }
 }

@@ -56,8 +56,90 @@
       </div>
     </div>
 
+    <!-- Filters -->
+    <div v-if="viewMode === 'list'" class="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-left-4 duration-500">
+      <!-- Dept Filter -->
+      <div class="flex flex-col gap-1.5 min-w-[200px] relative" id="dept-filter">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lọc Phòng Ban</label>
+        <div class="relative">
+          <button 
+            type="button"
+            @click.stop="showDeptDropdown = !showDeptDropdown"
+            class="input-field py-2.5 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold text-sm h-12"
+          >
+            <span class="truncate">
+              {{ selectedDepartments.length === 0 ? 'Tất cả phòng ban' : `${selectedDepartments.length} phòng ban` }}
+            </span>
+            <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showDeptDropdown}" />
+          </button>
+          
+          <div v-if="showDeptDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div 
+              v-for="dept in departments" :key="dept.id"
+              @click.stop="toggleDept(dept.id)"
+              class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all"
+            >
+              <div 
+                class="w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all text-[10px]"
+                :class="[selectedDepartments.includes(dept.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-slate-200 group-hover:border-primary-300']"
+              >
+                <Check v-if="selectedDepartments.includes(dept.id)" class="w-3 h-3" />
+              </div>
+              <span class="text-xs font-bold" :class="[selectedDepartments.includes(dept.id) ? 'text-primary-700' : 'text-slate-600']">{{ dept.name }}</span>
+            </div>
+            <div v-if="departments.length === 0" class="p-4 text-center text-xs text-slate-400">Đang tải...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team Filter -->
+      <div class="flex flex-col gap-1.5 min-w-[200px] relative" id="team-filter">
+        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lọc Tổ Đội</label>
+        <div class="relative">
+          <button 
+            type="button"
+            @click.stop="showTeamDropdown = !showTeamDropdown"
+            class="input-field py-2.5 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold text-sm h-12"
+          >
+            <span class="truncate">
+              {{ selectedTeams.length === 0 ? 'Tất cả tổ' : `${selectedTeams.length} tổ đội` }}
+            </span>
+            <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showTeamDropdown}" />
+          </button>
+          
+          <div v-if="showTeamDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div 
+              v-for="team in filteredTeamsList" :key="team.id"
+              @click.stop="toggleTeam(team.id)"
+              class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all"
+            >
+              <div 
+                class="w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all text-[10px]"
+                :class="[selectedTeams.includes(team.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-slate-200 group-hover:border-primary-300']"
+              >
+                <Check v-if="selectedTeams.includes(team.id)" class="w-3 h-3" />
+              </div>
+              <span class="text-xs font-bold" :class="[selectedTeams.includes(team.id) ? 'text-primary-700' : 'text-slate-600']">{{ team.name }}</span>
+            </div>
+            <div v-if="filteredTeamsList.length === 0" class="p-4 text-center text-xs text-slate-400">Chọn phòng ban hoặc chờ tải...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reset Filter -->
+      <div class="flex items-end pb-1">
+        <button 
+          v-if="selectedDepartments.length > 0 || selectedTeams.length > 0"
+          @click="resetFilters"
+          class="px-4 py-2 bg-slate-100 hover:bg-primary-50 text-[10px] font-black text-slate-500 hover:text-primary-600 uppercase rounded-xl transition-all tracking-widest"
+        >
+          Xóa tất cả bộ lọc
+        </button>
+      </div>
+    </div>
+
     <!-- History List View -->
-    <div v-else class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div v-if="viewMode === 'list'" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div class="card overflow-hidden">
         <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4">
           <div class="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
@@ -76,6 +158,7 @@
             <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
               <th class="px-8 py-5">Kỳ lương</th>
               <th class="px-8 py-5">Nhân viên</th>
+              <th class="px-8 py-5">Phòng ban / Tổ</th>
               <th class="px-8 py-5">Lương SP</th>
               <th class="px-8 py-5">Thưởng/Phạt</th>
               <th class="px-8 py-5">Thực lĩnh</th>
@@ -88,26 +171,37 @@
               <td class="px-8 py-5">
                 <span class="font-black text-slate-900">{{ p.month }}/{{ p.year }}</span>
               </td>
-              <td class="px-8 py-5">
-                <p class="font-bold text-slate-700">{{ p.employeeName }}</p>
+              <td class="px-8 py-5 cursor-pointer hover:text-primary-600" @click="showDetails(p)">
+                <p class="font-bold text-slate-700 underline decoration-slate-200 underline-offset-4">{{ p.employeeName }}</p>
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{{ p.employeeCode }}</p>
               </td>
-              <td class="px-8 py-5 text-sm font-bold text-slate-600">{{ p.productSalary.toLocaleString() }}đ</td>
-              <td class="px-8 py-5 text-sm font-bold" :class="p.totalPenaltyBonus >= 0 ? 'text-emerald-600' : 'text-red-600'">
-                {{ p.totalPenaltyBonus >= 0 ? '+' : '' }}{{ p.totalPenaltyBonus.toLocaleString() }}đ
+              <td class="px-8 py-5">
+                <div class="flex flex-col">
+                  <span class="text-xs font-bold text-slate-600">{{ p.departmentName }}</span>
+                  <span class="text-[10px] font-black text-slate-400 uppercase">{{ p.teamName }}</span>
+                </div>
               </td>
-              <td class="px-8 py-5 font-black text-primary-700 text-lg">{{ p.totalSalary.toLocaleString() }}đ</td>
+              <td class="px-8 py-5 text-sm font-bold text-slate-600">{{ (p.productSalary || 0).toLocaleString() }}đ</td>
+              <td class="px-8 py-5 text-sm font-bold" :class="(p.totalPenaltyBonus || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                {{ (p.totalPenaltyBonus || 0) >= 0 ? '+' : '' }}{{ (p.totalPenaltyBonus || 0).toLocaleString() }}đ
+              </td>
+              <td class="px-8 py-5 font-black text-primary-700 text-lg">{{ (p.totalSalary || 0).toLocaleString() }}đ</td>
               <td class="px-8 py-5">
                 <span :class="`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${p.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`">
                   {{ p.status === 'CONFIRMED' ? 'Đã chốt' : 'Dự toán' }}
                 </span>
               </td>
               <td class="px-8 py-5 text-right">
-                <button v-if="p.status !== 'CONFIRMED'" @click="handleConfirm(p.id)" class="px-4 py-2 bg-primary-50 text-primary-700 rounded-lg text-xs font-black hover:bg-primary-600 hover:text-white transition-all">
-                  Chốt lương
-                </button>
-                <div v-else class="flex justify-end pr-2">
-                  <CheckCircle2 class="text-emerald-500 w-6 h-6" />
+                <div class="flex justify-end gap-2">
+                  <button v-if="p.status !== 'CONFIRMED'" @click="handleConfirm(p)" class="px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-[10px] font-black hover:bg-primary-600 hover:text-white transition-all uppercase tracking-widest">
+                    Chốt
+                  </button>
+                  <button @click="showConfirmTeam(p)" class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black hover:bg-slate-900 hover:text-white transition-all uppercase tracking-widest">
+                    Tổ
+                  </button>
+                  <div v-if="p.status === 'CONFIRMED'" class="flex items-center pl-2">
+                    <CheckCircle2 class="text-emerald-500 w-5 h-5" />
+                  </div>
                 </div>
               </td>
             </tr>
@@ -158,27 +252,180 @@
 
       </div>
     </div>
+
+    <!-- Daily Details Modal -->
+    <div v-if="showDetailModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="showDetailModal = false"></div>
+      <div class="card w-full max-w-5xl max-h-[90vh] flex flex-col relative animate-in zoom-in-95 duration-300 shadow-2xl">
+        <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+          <div>
+            <h3 class="text-xl font-black text-slate-900">Chi tiết lương & Lịch sử đi làm</h3>
+            <p class="text-slate-500 font-bold text-xs uppercase tracking-widest mt-1">
+              Nhân viên: {{ selectedPayroll?.employeeName }} ({{ selectedPayroll?.employeeCode }}) - Tháng {{ selectedPayroll?.month }}/{{ selectedPayroll?.year }}
+            </p>
+          </div>
+          <button @click="showDetailModal = false" class="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+            <X class="w-6 h-6 text-slate-400" />
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-8 custom-scrollbar bg-slate-50/30">
+          <div v-if="loadingDetails" class="py-20 flex flex-col items-center gap-4">
+            <div class="w-10 h-10 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <p class="text-sm font-bold text-slate-500">Đang tải chi tiết...</p>
+          </div>
+          
+          <div v-else class="space-y-6">
+            <div class="grid grid-cols-4 gap-4">
+              <div class="card p-4 bg-white">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lương Sản Phẩm</p>
+                <p class="text-xl font-black text-primary-600">{{ (selectedPayroll?.productSalary || 0).toLocaleString() }}đ</p>
+              </div>
+              <div class="card p-4 bg-white">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Phụ cấp chức vụ</p>
+                <p class="text-xl font-black text-slate-700">{{ (selectedPayroll?.benefitSalary || 0).toLocaleString() }}đ</p>
+              </div>
+              <div class="card p-4 bg-white">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Thưởng/Phạt</p>
+                <p class="text-xl font-black" :class="(selectedPayroll?.totalPenaltyBonus || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'">
+                  {{ (selectedPayroll?.totalPenaltyBonus || 0).toLocaleString() }}đ
+                </p>
+              </div>
+              <div class="card p-4 bg-primary-600 text-white">
+                <p class="text-[10px] font-black text-primary-200 uppercase tracking-widest mb-1">Thực lĩnh</p>
+                <p class="text-xl font-black">{{ (selectedPayroll?.totalSalary || 0).toLocaleString() }}đ</p>
+              </div>
+            </div>
+
+            <div class="card overflow-hidden">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-100">
+                  <tr>
+                    <th class="px-6 py-4">Ngày</th>
+                    <th class="px-6 py-4">Chấm công</th>
+                    <th class="px-6 py-4">Tổ làm việc</th>
+                    <th class="px-6 py-4">Lương SP ngày</th>
+                    <th class="px-6 py-4">Phụ cấp</th>
+                    <th class="px-6 py-4">Thưởng / Phạt</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                  <tr v-for="d in dailyDetails" :key="d.date" class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 font-black text-slate-700">
+                      {{ new Date(d.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) }}
+                    </td>
+                    <td class="px-6 py-4">
+                      <span :class="`px-2 py-0.5 rounded-full font-black ${d.attendanceSymbol === 'X' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'}`">
+                        {{ d.attendanceSymbol }}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4">
+                       <span class="font-bold text-slate-600">{{ d.teamName }}</span>
+                    </td>
+                    <td class="px-6 py-4 font-bold text-slate-700">{{ (d.productSalary || 0).toLocaleString() }}đ</td>
+                    <td class="px-6 py-4 text-slate-500">{{ (d.benefitSalary || 0).toLocaleString() }}đ</td>
+                    <td class="px-6 py-4">
+                      <div class="flex flex-col">
+                        <span v-if="d.bonus > 0" class="text-emerald-500 font-bold">+{{ d.bonus.toLocaleString() }}đ</span>
+                        <span v-if="d.penalty > 0" class="text-red-500 font-bold">-{{ d.penalty.toLocaleString() }}đ</span>
+                        <span v-if="d.bonus === 0 && d.penalty === 0" class="text-slate-300">-</span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { Calculator, Play, Wallet, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Calculator, Play, Wallet, CheckCircle2, ChevronLeft, ChevronRight, X } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const viewMode = ref('list');
 const calculating = ref(false);
 const loading = ref(true);
 const payrolls = ref([]);
+const departments = ref([]);
+const teams = ref([]);
+const selectedDepartments = ref([]);
+const selectedTeams = ref([]);
+const showDeptDropdown = ref(false);
+const showTeamDropdown = ref(false);
+
+const toggleDept = (id) => {
+  const index = selectedDepartments.value.indexOf(id);
+  if (index === -1) selectedDepartments.value.push(id);
+  else selectedDepartments.value.splice(index, 1);
+  currentPage.value = 1;
+};
+
+const toggleTeam = (id) => {
+  const index = selectedTeams.value.indexOf(id);
+  if (index === -1) selectedTeams.value.push(id);
+  else selectedTeams.value.splice(index, 1);
+  currentPage.value = 1;
+};
+
+const resetFilters = () => {
+  selectedDepartments.value = [];
+  selectedTeams.value = [];
+  currentPage.value = 1;
+};
+
+const handleClickOutside = (event) => {
+  const deptFilter = document.getElementById('dept-filter');
+  const teamFilter = document.getElementById('team-filter');
+  
+  if (deptFilter && !deptFilter.contains(event.target)) {
+    showDeptDropdown.value = false;
+  }
+  if (teamFilter && !teamFilter.contains(event.target)) {
+    showTeamDropdown.value = false;
+  }
+};
+
+const filteredTeamsList = computed(() => {
+  if (selectedDepartments.value.length === 0) return teams.value;
+  return teams.value.filter(t => t.department && selectedDepartments.value.includes(t.department.id));
+});
 
 // Pagination
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 const totalPages = computed(() => Math.ceil(payrolls.value.length / itemsPerPage.value) || 1);
 
+const sortedPayrolls = computed(() => {
+  let filtered = [...payrolls.value];
+
+  if (selectedDepartments.value.length > 0) {
+    filtered = filtered.filter(p => selectedDepartments.value.includes(p.departmentId));
+  }
+
+  if (selectedTeams.value.length > 0) {
+    filtered = filtered.filter(p => selectedTeams.value.includes(p.teamId));
+  }
+
+  return filtered.sort((a, b) => {
+    // Sắp xếp theo Phòng ban -> Tổ -> Tên NV
+    const deptCompare = (a.departmentName || '').localeCompare(b.departmentName || '');
+    if (deptCompare !== 0) return deptCompare;
+    
+    const teamCompare = (a.teamName || '').localeCompare(b.teamName || '');
+    if (teamCompare !== 0) return teamCompare;
+    
+    return (a.employeeName || '').localeCompare(b.employeeName || '');
+  });
+});
+
 const paginatedPayrolls = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
-  return payrolls.value.slice(start, end);
+  return sortedPayrolls.value.slice(start, end);
 });
 
 watch(itemsPerPage, () => {
@@ -202,6 +449,19 @@ const fetchPayrolls = async () => {
   }
 };
 
+const fetchDeptsAndTeams = async () => {
+  try {
+    const [deptRes, teamRes] = await Promise.all([
+      $api.get('/departments'),
+      $api.get('/teams')
+    ]);
+    departments.value = deptRes.data;
+    teams.value = teamRes.data;
+  } catch (err) {
+    console.error('Lỗi tải danh mục:', err);
+  }
+};
+
 const handleCalculate = async () => {
   calculating.value = true;
   try {
@@ -216,17 +476,60 @@ const handleCalculate = async () => {
   }
 };
 
-const handleConfirm = async (id) => {
-  if (!confirm('Xác nhận chốt lương cho nhân viên này? Thao tác này không thể hoàn tác.')) return;
+const handleConfirm = async (p) => {
+  if (!confirm(`Xác nhận chốt lương cho nhân viên ${p.employeeName}?`)) return;
   try {
-    await $api.put(`/payrolls/${id}/confirm`);
+    // API chốt toàn bộ Payroll (vì status ở Payroll entity) 
+    // Hoặc nếu muốn chốt lẻ thì cần logic Backend khác. 
+    // Hiện tại confirmPayroll(id) chốt thực thể Payroll.
+    await $api.put(`/payrolls/${p.payrollId}/confirm`);
     fetchPayrolls();
   } catch (err) {
     alert(err.message);
   }
 };
 
-onMounted(fetchPayrolls);
+const showConfirmTeam = async (p) => {
+  if (!p.teamId) return alert('Nhân viên này chưa thuộc tổ nào');
+  if (!confirm(`Xác nhận chốt bảng lương cho toàn bộ [${p.teamName}]?`)) return;
+  
+  try {
+    await $api.put(`/payrolls/${p.year}/${p.month}/confirm-team/${p.teamId}`);
+    alert(`Đã chốt lương cho tổ ${p.teamName}`);
+    fetchPayrolls();
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+const showDetailModal = ref(false);
+const selectedPayroll = ref(null);
+const loadingDetails = ref(false);
+const dailyDetails = ref([]);
+
+const showDetails = async (p) => {
+  selectedPayroll.value = p;
+  showDetailModal.value = true;
+  loadingDetails.value = true;
+  try {
+    const res = await $api.get(`/payrolls/items/${p.id}/daily-details`);
+    dailyDetails.value = res.data;
+  } catch (err) {
+    alert('Không thể tải chi tiết: ' + err.message);
+  } finally {
+    loadingDetails.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+  fetchPayrolls();
+  fetchDeptsAndTeams();
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 
 // Reset payrolls when month/year changes in list view
 watch([() => calcForm.month, () => calcForm.year], () => {

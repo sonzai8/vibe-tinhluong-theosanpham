@@ -3,8 +3,12 @@ package com.plywood.payroll.modules.production.service;
 import com.plywood.payroll.modules.production.dto.request.ProductionStepRequest;
 import com.plywood.payroll.modules.production.dto.response.ProductionStepResponse;
 import com.plywood.payroll.modules.production.entity.ProductionStep;
+import com.plywood.payroll.modules.production.entity.StageProductMapping;
 import com.plywood.payroll.shared.exception.ResourceNotFoundException;
 import com.plywood.payroll.modules.production.repository.ProductionStepRepository;
+import com.plywood.payroll.modules.production.repository.StageProductMappingRepository;
+import com.plywood.payroll.modules.product.service.ProductService;
+import com.plywood.payroll.modules.product.dto.response.ProductResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +21,17 @@ import java.util.stream.Collectors;
 public class ProductionStepService {
 
     private final ProductionStepRepository productionStepRepository;
+    private final StageProductMappingRepository mappingRepository;
+    private final ProductService productService;
+
+    public List<ProductResponse> getProductsByStepId(Long stepId) {
+        if (!productionStepRepository.existsById(stepId)) {
+            throw new ResourceNotFoundException("Công đoạn sản xuất", stepId);
+        }
+        return mappingRepository.findProductsByStepId(stepId).stream()
+                .map(productService::mapToResponse)
+                .collect(Collectors.toList());
+    }
 
     public List<ProductionStepResponse> getAll() {
         return productionStepRepository.findAll().stream()
@@ -53,6 +68,27 @@ public class ProductionStepService {
             throw new ResourceNotFoundException("Công đoạn sản xuất", id);
         }
         productionStepRepository.deleteById(id);
+    }
+
+    @Transactional
+    public void addProductsToStep(Long stepId, List<Long> productIds) {
+        ProductionStep step = productionStepRepository.findById(stepId)
+                .orElseThrow(() -> new ResourceNotFoundException("Công đoạn sản xuất", stepId));
+        
+        for (Long productId : productIds) {
+            if (!mappingRepository.existsByProductionStepIdAndProductId(stepId, productId)) {
+                com.plywood.payroll.modules.product.entity.Product product = productService.getByIdRaw(productId);
+                StageProductMapping mapping = new StageProductMapping();
+                mapping.setProductionStep(step);
+                mapping.setProduct(product);
+                mappingRepository.save(mapping);
+            }
+        }
+    }
+
+    @Transactional
+    public void removeProductFromStep(Long stepId, Long productId) {
+        mappingRepository.deleteByProductionStepIdAndProductId(stepId, productId);
     }
 
     public ProductionStepResponse mapToResponse(ProductionStep entity) {

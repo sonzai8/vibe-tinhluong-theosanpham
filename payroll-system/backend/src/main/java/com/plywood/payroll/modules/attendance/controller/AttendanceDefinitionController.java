@@ -34,7 +34,7 @@ public class AttendanceDefinitionController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('ATTENDANCE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Chi tiết loại công")
-    public ResponseEntity<ApiResponse<AttendanceDefinitionResponse>> getById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<AttendanceDefinitionResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, definitionService.getById(id)));
     }
 
@@ -49,14 +49,14 @@ public class AttendanceDefinitionController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ATTENDANCE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Cập nhật loại công")
-    public ResponseEntity<ApiResponse<AttendanceDefinitionResponse>> update(@PathVariable Long id, @Valid @RequestBody AttendanceDefinitionRequest request) {
+    public ResponseEntity<ApiResponse<AttendanceDefinitionResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody AttendanceDefinitionRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, definitionService.update(id, request)));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ATTENDANCE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Xóa loại công")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         definitionService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }

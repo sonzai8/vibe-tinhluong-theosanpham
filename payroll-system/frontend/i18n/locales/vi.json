@@ -4,7 +4,9 @@
     "dashboard": "Tổng quan CMS",
     "attendance": "Quản lý Chấm công",
     "attendance_definitions": "Danh mục Loại công",
-    "production": "Nhật ký Sản lượng",
+    "production_operation": "Quản lý sản lượng",
+    "team_production": "Sản lượng theo tổ",
+    "individual_production": "Sản lượng cá nhân",
     "payroll": "Bảng lương Tổng",
     "human_resources": "Nhân sự",
     "employees": "Danh sách Nhân viên",
@@ -48,6 +50,8 @@
     "filter": "Lọc dữ liệu",
     "month": "Tháng",
     "week": "Tuần",
+    "daily": "Ngày",
+    "weekly": "Tuần",
     "search": "Tìm kiếm",
     "all": "Tất cả",
     "department": "Phòng ban",
@@ -70,6 +74,7 @@
     "download_template": "Tải file mẫu",
     "rows": "dòng",
     "full_month": "Toàn bộ tháng",
+    "refresh": "Làm mới",
     "total": "Tổng",
     "of": "của",
     "overview": "Tổng quan",
@@ -132,6 +137,7 @@
     "loading": "Đang tải danh mục sản phẩm..."
   },
   "attendance": {
+    "borrowed": "Mượn",
     "title": "Nhật ký Chấm công",
     "export": "Xuất Excel",
     "import": "Nhập Excel",
@@ -209,6 +215,11 @@
     "error_duplicate_form": "Lỗi nhập đúp: Dòng số {prev} và Dòng số {curr} đang nhập cùng một tổ, cùng sản phẩm và chất lượng. Vui lòng cộng gộp số lượng vào 1 dòng.",
     "error_duplicate_db": "Trùng dữ liệu: {team} đã được báo cáo sản lượng {product} ({quality}) trong ngày {date}. Hãy ra ngoài sửa bản ghi có sẵn thay vì thêm mới.",
     "error_db_exists": "Dữ liệu này đã tồn tại trong hệ thống, không thể ghi đè."
+  },
+  "individual_production": {
+    "title": "Sản lượng Cá nhân",
+    "subtitle": "Sản lượng chia bình quân đầu người theo tổ thực tế hàng ngày",
+    "matrix_desc": "Sản lượng = (Tổng sản lượng tổ) / (Số người đi làm thực tế)"
   },
   "messages": {
     "success": "Thành công",

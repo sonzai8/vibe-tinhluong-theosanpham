@@ -214,7 +214,8 @@
                     <th class="px-8 py-5">{{ $t('attendance.employee') }}</th>
                     <th class="px-8 py-5">{{ $t('attendance.original_team') }}</th>
                     <th class="px-8 py-5">{{ $t('attendance.actual_team') }}</th>
-                    <th class="px-8 py-5">{{ $t('attendance.status') }}</th>
+                    <th class="px-8 py-5">{{ $t('attendance.definition.name') || 'Loại công' }}</th>
+                    <!-- <th class="px-8 py-5">{{ $t('attendance.status') }}</th> -->
                     <th class="px-8 py-5 text-right">{{ $t('common.actions') }}</th>
                   </tr>
                 </thead>
@@ -242,11 +243,16 @@
                       </span>
                     </td>
                     <td class="px-8 py-5">
+                       <span v-if="att.attendanceDefinition" class="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-[10px] font-black uppercase">
+                         {{ att.attendanceDefinition?.code }} - {{ att.attendanceDefinition?.name }}
+                       </span>
+                    </td>
+                    <!-- <td class="px-8 py-5">
                        <span class="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase">
                          <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                          {{ $t('attendance.present') }}
                        </span>
-                    </td>
+                    </td> -->
                     <td class="px-8 py-5 text-right">
                       <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button @click="openModal(att)" class="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"><PencilLine class="w-4 h-4" /></button>
@@ -287,11 +293,11 @@
                 <thead class="sticky top-0 z-20 bg-white">
                   <tr class="text-[9px] font-black uppercase text-slate-400 tracking-widest border-b border-slate-100">
                     <th class="p-4 w-64 bg-white sticky left-0 z-30 border-r border-slate-100">{{ $t('attendance.employee') }}</th>
+                    <th class="p-4 w-20 text-center bg-slate-50 font-black text-slate-900 border-r border-slate-100 sticky left-64 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">{{ $t('common.total') }}</th>
                     <th v-for="d in displayDays" :key="d.key" :class="['p-2 w-10 text-center border-r border-slate-50', d.isSunday ? 'bg-red-50 text-red-400' : '']">
                       <div>{{ d.label }}</div>
                       <div class="text-[8px] opacity-60">{{ d.dayName }}</div>
                     </th>
-                    <th class="p-4 w-20 text-center bg-slate-50 font-black text-slate-900 border-l border-slate-100">{{ $t('common.total') }}</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
@@ -310,6 +316,9 @@
                         </div>
                       </div>
                     </td>
+                    <td class="p-4 text-center bg-slate-50/80 font-black text-primary-600 text-xs border-r border-slate-100 sticky left-64 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] group-hover:bg-slate-100">
+                      {{ getEmployeeTotalAttendance(emp.id) }}
+                    </td>
                     <td v-for="d in displayDays" :key="d.key" :class="['p-0 border-r border-slate-50 text-center relative group/cell', d.isSunday ? 'bg-red-50/30' : '']">
                        <div class="relative w-full h-full">
                          <AttendanceCell 
@@ -322,8 +331,8 @@
                          
                          <!-- Quick Selector Menu -->
                          <div v-if="activeMenu?.empId === emp.id && activeMenu?.date === d.fullDate" 
-                              class="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-xl shadow-2xl border border-slate-100 z-[100] p-1.5 flex flex-col gap-1 min-w-[120px] animate-in zoom-in duration-150"
-                              v-click-outside="closeAttendanceMenu">
+                               class="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-xl shadow-2xl border border-slate-100 z-[100] p-1.5 flex flex-col gap-1 min-w-[120px] animate-in zoom-in duration-150"
+                               v-click-outside="closeAttendanceMenu">
                            <button v-for="def in attendanceDefs" :key="def.id" 
                                    @click.stop="performAttendanceAction(emp.id, d.fullDate, def.id)"
                                    class="flex items-center justify-between px-3 py-2 hover:bg-primary-50 rounded-lg transition-all group/item">
@@ -338,9 +347,6 @@
                            </button>
                          </div>
                        </div>
-                    </td>
-                    <td class="p-4 text-center bg-slate-50/50 font-black text-slate-900 text-xs border-l border-slate-100">
-                      {{ getEmployeeTotalAttendance(emp.id) }}
                     </td>
                   </tr>
                 </tbody>
@@ -402,6 +408,16 @@
                 :label="$t('attendance.actual_team')" 
                 :options="teamOptions" 
                 :placeholder="$t('common.select_team') || 'Chọn tổ'"
+                required
+              />
+            </div>
+
+            <div class="md:col-span-2">
+              <UiSelect 
+                v-model="form.attendanceDefinitionId" 
+                :label="$t('attendance.definition.name')" 
+                :options="attendanceDefOptions" 
+                :placeholder="$t('common.select_type')"
                 required
               />
             </div>
@@ -748,7 +764,7 @@ const closeAttendanceMenu = () => {
 };
 
 // View Mode State
-const viewMode = ref('list'); // 'list' or 'matrix'
+const viewMode = ref('matrix'); // 'list' or 'matrix'
 const matrixScope = ref('month'); // 'month' or 'week'
 const viewMonth = ref(new Date().toISOString().substr(0, 7));
 const cellLoading = ref(null);
@@ -1071,12 +1087,14 @@ const openModal = (att = null) => {
     form.originalTeamId = att.originalTeam?.id || null;
     form.actualTeamId = att.actualTeam?.id || null;
     form.attendanceDate = att.attendanceDate;
+    form.attendanceDefinitionId = att.attendanceDefinition?.id || null;
   } else {
     currentId.value = null;
     form.employeeId = null;
     form.originalTeamId = null;
     form.actualTeamId = null;
     form.attendanceDate = filterDate.value;
+    form.attendanceDefinitionId = null;
   }
   showModal.value = true;
 };

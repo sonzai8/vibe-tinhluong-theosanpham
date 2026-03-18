@@ -82,7 +82,7 @@ public class DailyAttendanceController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('ATTENDANCE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Cập nhật bản ghi điểm danh")
-    public ResponseEntity<ApiResponse<DailyAttendanceResponse>> update(@PathVariable Long id, @Valid @RequestBody DailyAttendanceRequest request) {
+    public ResponseEntity<ApiResponse<DailyAttendanceResponse>> update(@PathVariable("id") Long id, @Valid @RequestBody DailyAttendanceRequest request) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, attendanceService.update(id, request)));
     }
 

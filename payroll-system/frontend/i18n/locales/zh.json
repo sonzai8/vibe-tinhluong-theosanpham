@@ -3,7 +3,9 @@
     "system": "系统",
     "dashboard": "控制面板",
     "attendance": "考勤管理",
-    "production": "生产记录",
+    "production_operation": "产量运营管理",
+    "team_production": "小组产量",
+    "individual_production": "个人产量",
     "payroll": "工资单",
     "human_resources": "人力资源",
     "employees": "员工列表",
@@ -47,6 +49,8 @@
     "filter": "筛选",
     "month": "月",
     "week": "周",
+    "daily": "每日",
+    "weekly": "每周",
     "search": "搜索",
     "all": "全部",
     "overview": "概览",
@@ -186,6 +190,11 @@
     "error_duplicate_form": "重复录入：第 {prev} 行和第 {curr} 行具有相同的小组、产品和质量。请合并它们。",
     "error_duplicate_db": "数据重复：{team} 在 {date} 已有 {product} ({quality}) 的产量记录。请直接编辑现有记录。",
     "error_db_exists": "此数据已存在于系统中，无法覆盖。"
+  },
+  "individual_production": {
+    "title": "个人产量",
+    "subtitle": "根据实际小组计算的人均产量",
+    "matrix_desc": "产量 = (小组总产量) / (实际出勤人数)"
   },
   "messages": {
     "success": "成功",

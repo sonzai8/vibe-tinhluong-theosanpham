@@ -3,7 +3,9 @@
     "system": "System",
     "dashboard": "Dashboard",
     "attendance": "Attendance Management",
-    "production": "Production Logs",
+    "production_operation": "Production Operation",
+    "team_production": "Team Production",
+    "individual_production": "Individual Production",
     "payroll": "Payroll Summary",
     "human_resources": "HR Management",
     "employees": "Employee List",
@@ -47,6 +49,8 @@
     "filter": "Filter",
     "month": "Month",
     "week": "Week",
+    "daily": "Daily",
+    "weekly": "Weekly",
     "search": "Search",
     "all": "All",
     "overview": "Overview",
@@ -188,6 +192,11 @@
     "error_duplicate_form": "Duplicate entry: Row {prev} and Row {curr} have the same team, product, and quality. Please combine them.",
     "error_duplicate_db": "Duplicate Data: {team} already has production for {product} ({quality}) on {date}. Please edit the existing record instead.",
     "error_db_exists": "This data already exists in the system and cannot be overwritten."
+  },
+  "individual_production": {
+    "title": "Individual Production",
+    "subtitle": "Average production per person based on actual team",
+    "matrix_desc": "Qty = (Team Total Qty) / (Total Workers Present)"
   },
   "messages": {
     "success": "Success",

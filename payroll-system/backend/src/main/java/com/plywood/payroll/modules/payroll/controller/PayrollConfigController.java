@@ -31,16 +31,16 @@ public class PayrollConfigController {
     @GetMapping("/{key}")
     @Operation(summary = "Lấy giá trị cấu hình hiệu lực")
     public ResponseEntity<ApiResponse<String>> getEffectiveValue(
-            @PathVariable String key,
-            @RequestParam Integer month,
-            @RequestParam Integer year) {
+            @PathVariable("key") String key,
+            @RequestParam("month") Integer month,
+            @RequestParam("year") Integer year) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, configService.getEffectiveValue(key, month, year)));
     }
 
     @PutMapping("/{key}")
     @Operation(summary = "Cập nhật giá trị cấu hình")
     public ResponseEntity<ApiResponse<PayrollConfig>> update(
-            @PathVariable String key,
+            @PathVariable("key") String key,
             @RequestBody Map<String, Object> body) {
         String value = body.get("value").toString();
         Integer month = body.containsKey("month") ? Integer.parseInt(body.get("month").toString()) : null;

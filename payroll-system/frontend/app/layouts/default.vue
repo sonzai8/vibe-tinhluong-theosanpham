@@ -188,8 +188,14 @@ const menuGroups = [
       { to: '/', label: 'menu.dashboard', icon: LayoutDashboard },
       { to: '/attendances', label: 'menu.attendance', icon: ClipboardCheck },
       { to: '/attendance-definitions', label: 'menu.attendance_definitions', icon: Settings2 },
-      { to: '/production-records', label: 'menu.production', icon: History },
       { to: '/payrolls', label: 'menu.payroll', icon: Wallet },
+    ]
+  },
+  {
+    title: 'menu.production_operation',
+    items: [
+      { to: '/production-records', label: 'menu.team_production', icon: History },
+      { to: '/individual-productions', label: 'menu.individual_production', icon: Users },
     ]
   },
   {

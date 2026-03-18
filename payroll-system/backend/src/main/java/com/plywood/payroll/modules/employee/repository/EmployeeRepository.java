@@ -14,4 +14,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     java.util.List<Employee> findAllByTeamId(Long teamId);
     
     long countByStatus(String status);
+    
+    long countByDepartment_IdAndStatus(Long departmentId, String status);
 }

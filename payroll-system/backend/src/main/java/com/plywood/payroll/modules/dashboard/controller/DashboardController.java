@@ -37,7 +37,8 @@ public class DashboardController {
 
         // 2. Sản lượng hôm nay (Tối ưu dùng sumQuantityByProductionDate)
         LocalDate today = LocalDate.now();
-        stats.put("todayProduction", productionRecordRepository.sumQuantityByProductionDate(today));
+        Long todayQty = productionRecordRepository.sumQuantityByProductionDate(today);
+        stats.put("todayProduction", todayQty != null ? todayQty : 0L);
 
         // 3. Tổng số phòng ban / Tổ đội
         stats.put("totalDepartments", departmentRepository.count());
@@ -47,11 +48,11 @@ public class DashboardController {
         List<Map<String, Object>> chartData = new ArrayList<>();
         for (int i = 6; i >= 0; i--) {
             LocalDate date = today.minusDays(i);
-            int qty = productionRecordRepository.sumQuantityByProductionDate(date);
+            Long qty = productionRecordRepository.sumQuantityByProductionDate(date);
             
             Map<String, Object> dayStat = new HashMap<>();
             dayStat.put("date", date.toString());
-            dayStat.put("quantity", qty);
+            dayStat.put("quantity", qty != null ? qty : 0L);
             chartData.add(dayStat);
         }
         stats.put("productionChart", chartData);
@@ -60,9 +61,14 @@ public class DashboardController {
         List<Map<String, Object>> latestRecords = productionRecordRepository.findTop5ByOrderByCreatedAtDesc().stream()
                 .map(r -> {
                     Map<String, Object> rm = new HashMap<>();
-                    rm.put("employeeName", r.getTeam() != null ? "Team " + r.getTeam().getName() : "Không xác định");
+                    if (r.getTeam() != null) {
+                        rm.put("employeeName", "Team " + r.getTeam().getName());
+                        rm.put("stepName", r.getTeam().getProductionStep() != null ? r.getTeam().getProductionStep().getName() : "N/A");
+                    } else {
+                        rm.put("employeeName", "Không xác định");
+                        rm.put("stepName", "N/A");
+                    }
                     rm.put("productName", r.getProduct() != null ? r.getProduct().getCode() : "N/A");
-                    rm.put("stepName", r.getTeam() != null && r.getTeam().getProductionStep() != null ? r.getTeam().getProductionStep().getName() : "N/A");
                     rm.put("quantity", r.getQuantity());
                     rm.put("status", "Hợp lệ");
                     return rm;
@@ -70,15 +76,13 @@ public class DashboardController {
                 .collect(java.util.stream.Collectors.toList());
         stats.put("latestRecords", latestRecords);
 
-        // 6. Top phòng ban theo số lượng nhân sự
+        // 6. Top phòng ban theo số lượng nhân sự (Tối ưu dùng countByDepartment_IdAndStatus)
         List<Map<String, Object>> topDepts = departmentRepository.findAll().stream()
                 .map(d -> {
                     Map<String, Object> dm = new HashMap<>();
                     dm.put("name", d.getName());
-                    // Đếm nhân viên active trực thuộc phòng ban
-                    long empCount = employeeRepository.findAll().stream()
-                            .filter(e -> d.equals(e.getDepartment()) && "ACTIVE".equals(e.getStatus()))
-                            .count();
+                    // Đếm nhân viên active trực thuộc phòng ban (Tối ưu qua Repository)
+                    long empCount = employeeRepository.countByDepartment_IdAndStatus(d.getId(), "ACTIVE");
                     dm.put("employees", empCount);
                     return dm;
                 })

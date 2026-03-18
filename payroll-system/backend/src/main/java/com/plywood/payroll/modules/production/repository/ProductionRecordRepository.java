@@ -17,7 +17,7 @@ public interface ProductionRecordRepository extends JpaRepository<ProductionReco
     long countByProductionDate(LocalDate date);
 
     @Query("SELECT COALESCE(SUM(r.quantity), 0) FROM ProductionRecord r WHERE r.productionDate = :date")
-    int sumQuantityByProductionDate(@Param("date") LocalDate date);
+    Long sumQuantityByProductionDate(@Param("date") LocalDate date);
 
     @Query("SELECT r FROM ProductionRecord r WHERE " +
            "(:from IS NULL OR r.productionDate >= :from) AND " +

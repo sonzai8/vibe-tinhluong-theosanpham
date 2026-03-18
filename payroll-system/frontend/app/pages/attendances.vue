@@ -55,60 +55,21 @@
               <input v-model="filterDate" type="date" class="input-field py-2.5 text-sm font-bold w-full" @change="fetchData" />
             </div>
 
-            <div class="flex flex-col gap-1.5 min-w-[200px] relative" id="dept-filter">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('common.department') }}</label>
-              <div class="relative">
-                <button 
-                  type="button"
-                  @click.stop="toggleDeptDropdown"
-                  class="input-field py-2.5 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold text-sm"
-                >
-                  <span class="truncate">
-                    {{ filterDeptIds.length === 0 ? $t('common.all') : `${filterDeptIds.length} ${$t('common.department').toLowerCase()}` }}
-                  </span>
-                  <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showDeptDropdown}" />
-                </button>
-                
-                <div v-if="showDeptDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div v-for="d in departments" :key="d.id" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all" @click.stop="toggleDeptFilter(d.id)">
-                    <div 
-                      class="w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all text-[10px]"
-                      :class="[filterDeptIds.includes(d.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-slate-200 group-hover:border-primary-300']"
-                    >
-                      <Check v-if="filterDeptIds.includes(d.id)" class="w-3 h-3" />
-                    </div>
-                    <span class="text-xs font-bold" :class="[filterDeptIds.includes(d.id) ? 'text-primary-700' : 'text-slate-600']">{{ d.name }}</span>
-                  </div>
-                </div>
-              </div>
+            <div class="flex flex-col gap-1.5 min-w-[200px]">
+              <SelectDepartment 
+                v-model="filterDeptIds" 
+                multiple
+                :label="$t('common.department')" 
+              />
             </div>
 
-            <div class="flex flex-col gap-1.5 min-w-[200px] relative" id="team-filter">
-              <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('common.team') }}</label>
-              <div class="relative">
-                <button 
-                  type="button"
-                  @click.stop="toggleTeamDropdown"
-                  class="input-field py-2.5 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold text-sm"
-                >
-                  <span class="truncate">
-                    {{ filterTeamIds.length === 0 ? $t('common.all') : `${filterTeamIds.length} ${$t('common.team').toLowerCase()}` }}
-                  </span>
-                  <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showTeamDropdown}" />
-                </button>
-                
-                <div v-if="showTeamDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div v-for="t in teams" :key="t.id" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all" @click.stop="toggleTeamFilter(t.id)">
-                    <div 
-                      class="w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all text-[10px]"
-                      :class="[filterTeamIds.includes(t.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-slate-200 group-hover:border-primary-300']"
-                    >
-                      <Check v-if="filterTeamIds.includes(t.id)" class="w-3 h-3" />
-                    </div>
-                    <span class="text-xs font-bold" :class="[filterTeamIds.includes(t.id) ? 'text-primary-700' : 'text-slate-600']">{{ t.name }}</span>
-                  </div>
-                </div>
-              </div>
+            <div class="flex flex-col gap-1.5 min-w-[200px]">
+              <SelectTeam 
+                v-model="filterTeamIds" 
+                multiple
+                :departmentId="filterDeptIds.length === 1 ? filterDeptIds[0] : null"
+                :label="$t('common.team')" 
+              />
             </div>
 
             <div class="flex flex-col gap-1.5 min-w-[300px]">
@@ -706,48 +667,6 @@ const filterDeptIds = ref([]);
 const filterTeamIds = ref([]);
 const search = ref('');
 
-const showDeptDropdown = ref(false);
-const showTeamDropdown = ref(false);
-
-const toggleDeptDropdown = () => {
-    showDeptDropdown.value = !showDeptDropdown.value;
-    if (showDeptDropdown.value) showTeamDropdown.value = false;
-};
-
-const toggleTeamDropdown = () => {
-    showTeamDropdown.value = !showTeamDropdown.value;
-    if (showTeamDropdown.value) showDeptDropdown.value = false;
-};
-
-const toggleDeptFilter = (id) => {
-  const index = filterDeptIds.value.indexOf(id);
-  if (index === -1) {
-    filterDeptIds.value.push(id);
-  } else {
-    filterDeptIds.value.splice(index, 1);
-  }
-};
-
-const toggleTeamFilter = (id) => {
-  const index = filterTeamIds.value.indexOf(id);
-  if (index === -1) {
-    filterTeamIds.value.push(id);
-  } else {
-    filterTeamIds.value.splice(index, 1);
-  }
-};
-
-const handleClickOutside = (event) => {
-  const deptFilter = document.getElementById('dept-filter');
-  const teamFilter = document.getElementById('team-filter');
-  
-  if (deptFilter && !deptFilter.contains(event.target)) {
-    showDeptDropdown.value = false;
-  }
-  if (teamFilter && !teamFilter.contains(event.target)) {
-    showTeamDropdown.value = false;
-  }
-};
 
 const activeMenu = ref(null);
 
@@ -1348,12 +1267,10 @@ const handleDelete = async (id) => {
 };
 
 onMounted(async () => {
-  document.addEventListener('click', handleClickOutside);
   await fetchData();
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside);
 });
 
 watch([viewMode, matrixScope, filterDeptIds, filterTeamIds], () => {

@@ -47,19 +47,18 @@
         </div>
 
         <div class="space-y-2">
-          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{{ $t('common.department') }}</label>
-          <select v-model="filter.departmentId" class="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all">
-            <option value="">{{ $t('common.all') }}</option>
-            <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-          </select>
+          <SelectDepartment 
+            v-model="filter.departmentId" 
+            :label="$t('common.department')" 
+          />
         </div>
 
         <div class="space-y-2">
-          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{{ $t('common.team') }}</label>
-          <select v-model="filter.teamId" class="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all">
-            <option value="">{{ $t('common.all') }}</option>
-            <option v-for="t in filteredTeams" :key="t.id" :value="t.id">{{ t.name }}</option>
-          </select>
+          <SelectTeam 
+            v-model="filter.teamId" 
+            :departmentId="filter.departmentId"
+            :label="$t('common.team')" 
+          />
         </div>
 
         <div class="md:col-span-1 lg:col-span-2 flex items-end">
@@ -177,15 +176,7 @@ const filter = reactive({
 });
 
 const employees = ref([]);
-const departments = ref([]);
-const teams = ref([]);
 const productions = ref([]);
-
-const filteredTeams = computed(() => {
-  if (!Array.isArray(teams.value)) return [];
-  if (!filter.departmentId) return teams.value;
-  return teams.value.filter(t => t.department?.id == filter.departmentId);
-});
 
 const days = computed(() => {
   const date = new Date(filter.year, filter.month, 0);
@@ -217,10 +208,8 @@ const fetchData = async () => {
     const firstDay = `${filter.year}-${String(filter.month).padStart(2, '0')}-01`;
     const lastDay = `${filter.year}-${String(filter.month).padStart(2, '0')}-${days.value}`;
 
-    const [empRes, deptRes, teamRes, prodRes] = await Promise.all([
+    const [empRes, prodRes] = await Promise.all([
       $api.get('/employees').catch(() => ({ data: [] })),
-      $api.get('/departments').catch(() => ({ data: [] })),
-      $api.get('/teams').catch(() => ({ data: [] })),
       $api.get('/individual-productions', { 
         params: { 
           from: firstDay, 
@@ -232,8 +221,6 @@ const fetchData = async () => {
     ]);
 
     employees.value = empRes?.data || [];
-    departments.value = deptRes?.data || [];
-    teams.value = teamRes?.data || [];
     productions.value = prodRes?.data || [];
   } catch (err) {
     console.error('Lỗi tải dữ liệu:', err);

@@ -46,16 +46,14 @@
           class="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-lg focus:ring-2 focus:ring-primary-500 transition-all font-medium text-sm"
         />
       </div>
-      <div class="flex gap-3 w-full md:w-auto">
-        <select v-model="filterDept" class="bg-slate-50 border-none rounded-lg px-4 py-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 flex-1 md:flex-none">
-          <option value="">{{ $t('employee.all_departments') }}</option>
-          <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-        </select>
-        <select v-model="filterTeamId" class="bg-slate-50 border-none rounded-lg px-4 py-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 flex-1 md:flex-none">
-          <option value="">{{ $t('employee.all_teams') }}</option>
-          <option v-for="t in teams" :key="t.id" :value="t.id">{{ t.name }}</option>
-        </select>
-        <select v-model="filterStatus" class="bg-slate-50 border-none rounded-lg px-4 py-2 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500">
+      <div class="flex flex-wrap md:flex-nowrap gap-3 w-full md:w-auto">
+        <div class="w-full md:w-64">
+          <SelectDepartment v-model="filterDept" :placeholder="$t('employee.all_departments')" />
+        </div>
+        <div class="w-full md:w-64">
+          <SelectTeam v-model="filterTeamId" :departmentId="filterDept" :placeholder="$t('employee.all_teams')" />
+        </div>
+        <select v-model="filterStatus" class="bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 transition-all">
           <option value="">{{ $t('employee.all_statuses') }}</option>
           <option value="ACTIVE">{{ $t('common.status_active') }}</option>
           <option value="INACTIVE">{{ $t('common.status_inactive') }}</option>
@@ -224,18 +222,19 @@
               </select>
             </div>
 
-            <UiSelect 
+            <SelectDepartment 
               v-model="form.departmentId" 
               label="Phòng ban trực thuộc" 
-              :options="deptOptions" 
               placeholder="Chọn phòng ban"
+              :allowAll="false"
             />
 
-            <UiSelect 
+            <SelectTeam 
               v-model="form.teamId" 
               label="Tổ đội sản xuất (Ván dán)" 
-              :options="teamOptions" 
               placeholder="Chọn tổ đội"
+              :departmentId="form.departmentId"
+              :allowAll="false"
             />
 
             <UiSelect 
@@ -488,29 +487,15 @@ const openAuditLogs = async (emp) => {
   }
 };
 
-// Tự động chọn phòng ban khi chọn tổ đội
-watch(() => form.teamId, (newTeamId) => {
-  if (newTeamId && teams.value.length > 0) {
-    const selectedTeam = teams.value.find(t => t.id === newTeamId);
-    if (selectedTeam && selectedTeam.department) {
-      form.departmentId = selectedTeam.department.id;
-    }
-  }
-});
-
 const fetchData = async () => {
   loading.value = true;
   try {
-    const [empRes, deptRes, roleRes, teamRes] = await Promise.all([
+    const [empRes, roleRes] = await Promise.all([
       $api.get('/employees'),
-      $api.get('/departments'),
-      $api.get('/roles'),
-      $api.get('/teams')
+      $api.get('/roles')
     ]);
     employees.value = empRes.data;
-    departments.value = deptRes.data;
     roles.value = roleRes.data;
-    teams.value = teamRes.data;
   } catch (err) {
     console.error(err);
   } finally {
@@ -522,9 +507,9 @@ const filteredEmployees = computed(() => {
   return employees.value.filter(e => {
     const matchSearch = e.fullName.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
                       e.code.toLowerCase().includes(searchQuery.value.toLowerCase());
-    const matchDept = !filterDept.value || e.department?.id === parseInt(filterDept.value);
+    const matchDept = !filterDept.value || e.department?.id == filterDept.value;
     const matchStatus = !filterStatus.value || e.status === filterStatus.value;
-    const matchTeam = !filterTeamId.value || e.team?.id === parseInt(filterTeamId.value);
+    const matchTeam = !filterTeamId.value || e.team?.id == filterTeamId.value;
     return matchSearch && matchDept && matchStatus && matchTeam;
   });
 });

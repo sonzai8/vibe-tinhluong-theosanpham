@@ -39,10 +39,10 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <div class="md:col-span-1 card p-4 flex flex-col gap-1.5">
         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lọc theo phòng ban</label>
-        <select v-model="filterDeptId" class="bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 transition-all">
-          <option value="">Tất cả phòng ban</option>
-          <option v-for="d in departments" :key="d.id" :value="d.id">{{ d.name }}</option>
-        </select>
+        <SelectDepartment 
+          v-model="filterDeptId" 
+          :placeholder="$t('employee.all_departments') || 'Tất cả phòng ban'" 
+        />
       </div>
       <div class="md:col-span-3 card p-6 bg-primary-600 text-white shadow-xl shadow-primary-50 flex items-center gap-4">
         <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
@@ -179,11 +179,11 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <UiSelect
+          <SelectDepartment
             v-model="form.departmentId"
             label="Phòng ban"
-            :options="deptOptions"
             placeholder="Chọn phòng ban..."
+            :allowAll="false"
           />
           <UiSelect
             v-model="form.productionStepId"
@@ -212,7 +212,6 @@ const { $api } = useNuxtApp();
 const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
 const teams = ref([]);
 const productionSteps = ref([]);
-const departments = ref([]);
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
@@ -286,24 +285,15 @@ const stepOptions = computed(() =>
   }))
 );
 
-const deptOptions = computed(() =>
-  departments.value.map(d => ({
-    label: d.name,
-    value: d.id
-  }))
-);
-
 const fetchData = async () => {
   loading.value = true;
   try {
-    const [teamsRes, stepsRes, deptsRes] = await Promise.all([
+    const [teamsRes, stepsRes] = await Promise.all([
       $api.get('/teams'),
-      $api.get('/production-steps'),
-      $api.get('/departments')
+      $api.get('/production-steps')
     ]);
     teams.value = teamsRes.data;
     productionSteps.value = stepsRes.data;
-    departments.value = deptsRes.data;
   } catch (err) {
     console.error(err);
   } finally {

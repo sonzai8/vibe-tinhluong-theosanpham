@@ -31,63 +31,21 @@
         <div class="flex flex-wrap items-end gap-6">
           <!-- Select Group -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-w-[300px]">
-            <div class="flex flex-col gap-1.5 relative" ref="deptFilterRef">
-              <label class="text-[10px] font-black text-slate-400 border-l-2 border-primary-500 pl-2 uppercase tracking-widest">{{ $t('common.department') }}</label>
-              <div class="relative">
-                <button 
-                  type="button"
-                  @click.stop="toggleDeptDropdown"
-                  class="input-field py-3 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold"
-                >
-                  <span class="truncate">
-                    {{ filter.departmentIds.length === 0 ? $t('common.all') : `${filter.departmentIds.length} ${$t('common.department').toLowerCase()}` }}
-                  </span>
-                  <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showDeptDropdown}" />
-                </button>
-                
-                <div v-if="showDeptDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div v-for="d in departments" :key="d.id" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all" @click.stop="toggleDeptFilter(d.id)">
-                    <div 
-                      class="w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all"
-                      :class="[filter.departmentIds.includes(d.id) ? 'bg-primary-600 border-primary-600' : 'border-slate-200 group-hover:border-primary-300']"
-                    >
-                      <Check v-if="filter.departmentIds.includes(d.id)" class="w-3 h-3 text-white" />
-                    </div>
-                    <span class="text-sm font-bold" :class="[filter.departmentIds.includes(d.id) ? 'text-primary-700' : 'text-slate-600']">{{ d.name }}</span>
-                  </div>
-                </div>
-              </div>
+            <div class="flex flex-col gap-1.5 min-w-[200px]">
+              <SelectDepartment 
+                v-model="filter.departmentIds" 
+                multiple
+                :label="$t('common.department')" 
+              />
             </div>
-            
-            <div class="flex flex-col gap-1.5 relative" ref="teamFilterRef">
-              <label class="text-[10px] font-black text-slate-400 border-l-2 border-primary-500 pl-2 uppercase tracking-widest">{{ $t('common.team') }}</label>
-              <div class="relative">
-                <button 
-                  type="button"
-                  @click.stop="toggleTeamDropdown"
-                  class="input-field py-3 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold"
-                >
-                  <span class="truncate">
-                    {{ filter.teamIds.length === 0 ? $t('common.all') : `${filter.teamIds.length} ${$t('common.team').toLowerCase()}` }}
-                  </span>
-                  <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showTeamDropdown}" />
-                </button>
-                
-                <div v-if="showTeamDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div v-for="t in teams" :key="t.id" class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all" @click.stop="toggleTeamFilter(t.id)">
-                    <div 
-                      class="w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all"
-                      :class="[filter.teamIds.includes(t.id) ? 'bg-primary-600 border-primary-600' : 'border-slate-200 group-hover:border-primary-300']"
-                    >
-                      <Check v-if="filter.teamIds.includes(t.id)" class="w-3 h-3 text-white" />
-                    </div>
-                    <span class="text-sm font-bold" :class="[filter.teamIds.includes(t.id) ? 'text-primary-700' : 'text-slate-600']">{{ t.name }}</span>
-                  </div>
-                  <div v-if="teams.length === 0" class="p-4 text-center text-xs text-slate-400 italic font-bold">
-                    {{ $t('common.all') }}
-                  </div>
-                </div>
-              </div>
+
+            <div class="flex flex-col gap-1.5 min-w-[200px]">
+              <SelectTeam 
+                v-model="filter.teamIds" 
+                multiple
+                :departmentId="filter.departmentIds.length === 1 ? filter.departmentIds[0] : null"
+                :label="$t('common.team')" 
+              />
             </div>
           </div>
 
@@ -128,6 +86,22 @@
 
     <!-- View Switcher & Stats -->
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4 py-2">
+      <div class="flex items-center gap-6 px-4">
+        <div v-if="viewMode === 'matrix'" class="flex items-center gap-3">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('production.displaying') }}:</span>
+          <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
+            <span class="text-sm font-black text-primary-600">{{ filteredTeams.length }}</span>
+            <span class="text-[10px] font-bold text-slate-500 uppercase">{{ $t('production.teams_count') }}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('production.total_records') }}:</span>
+          <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
+            <span class="text-sm font-black text-primary-600">{{ records.length }}</span>
+          </div>
+        </div>
+      </div>
+      
       <div class="flex bg-slate-200/50 p-1.5 rounded-2xl shrink-0 backdrop-blur-sm shadow-inner overflow-hidden border border-slate-100">
         <button 
           @click="viewMode = 'list'" 
@@ -145,21 +119,7 @@
         </button>
       </div>
 
-      <div class="flex items-center gap-6 px-4">
-        <div v-if="viewMode === 'matrix'" class="flex items-center gap-3">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('production.displaying') }}:</span>
-          <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
-            <span class="text-sm font-black text-primary-600">{{ filteredTeams.length }}</span>
-            <span class="text-[10px] font-bold text-slate-500 uppercase">{{ $t('production.teams_count') }}</span>
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('production.total_records') }}:</span>
-          <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm">
-            <span class="text-sm font-black text-primary-600">{{ records.length }}</span>
-          </div>
-        </div>
-      </div>
+      
     </div>
 
     <!-- Table / Matrix View -->
@@ -603,48 +563,7 @@ const filter = reactive({
   teamIds: []
 });
 
-const showDeptDropdown = ref(false);
-const showTeamDropdown = ref(false);
-const deptFilterRef = ref(null);
-const teamFilterRef = ref(null);
-
-const toggleDeptDropdown = () => {
-    showDeptDropdown.value = !showDeptDropdown.value;
-    if (showDeptDropdown.value) showTeamDropdown.value = false;
-};
-
-const toggleTeamDropdown = () => {
-    showTeamDropdown.value = !showTeamDropdown.value;
-    if (showTeamDropdown.value) showDeptDropdown.value = false;
-};
-
-const toggleDeptFilter = (id) => {
-  const index = filter.departmentIds.indexOf(id);
-  if (index === -1) {
-    filter.departmentIds.push(id);
-  } else {
-    filter.departmentIds.splice(index, 1);
-  }
-};
-
-const toggleTeamFilter = (id) => {
-  const index = filter.teamIds.indexOf(id);
-  if (index === -1) {
-    filter.teamIds.push(id);
-  } else {
-    filter.teamIds.splice(index, 1);
-  }
-};
-
-// Click outside logic
-const handleClickOutside = (event) => {
-  if (deptFilterRef.value && !deptFilterRef.value.contains(event.target)) {
-    showDeptDropdown.value = false;
-  }
-  if (teamFilterRef.value && !teamFilterRef.value.contains(event.target)) {
-    showTeamDropdown.value = false;
-  }
-};
+// handleClickOutside removed as it is no longer needed with new components
 
 const form = reactive({
   teamId: null,
@@ -1255,11 +1174,9 @@ watch(() => filter.teamIds, () => {
 
 onMounted(async () => {
   viewWeek.value = findCurrentWeekId(viewMonth.value);
-  document.addEventListener('click', handleClickOutside);
   await fetchData();
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside);
 });
 </script>

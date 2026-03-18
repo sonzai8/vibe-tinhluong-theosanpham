@@ -11,6 +11,18 @@
       </UiButton>
     </div>
 
+    <div class="card p-4 bg-white/80 backdrop-blur-md border-none shadow-sm flex flex-col md:flex-row gap-4 items-end">
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+        <SelectDepartment v-model="filterDeptId" :label="$t('common.department')" />
+        <SelectTeam v-model="filterTeamId" :departmentId="filterDeptId" :label="$t('common.team')" />
+      </div>
+      <div class="w-full md:w-auto self-end">
+        <UiButton variant="outline" @click="resetFilters" class="w-full">
+          {{ $t('common.reset_filter') || 'Đặt lại' }}
+        </UiButton>
+      </div>
+    </div>
+
     <div class="card overflow-hidden">
       <div v-if="loading" class="p-20 flex flex-col items-center justify-center gap-4">
         <div class="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
@@ -52,7 +64,7 @@
       </table>
 
       <!-- Pagination -->
-      <div v-if="items.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+      <div v-if="filteredItems.length > 0" class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
         <div class="flex items-center gap-4">
           <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hiển thị</span>
           <select v-model="itemsPerPage" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 outline-none">
@@ -61,7 +73,7 @@
             <option :value="50">50 dòng</option>
           </select>
           <span class="text-xs font-bold text-slate-500">
-            {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, items.length) }} của {{ items.length }}
+            {{ (currentPage - 1) * itemsPerPage + 1 }}-{{ Math.min(currentPage * itemsPerPage, filteredItems.length) }} của {{ filteredItems.length }}
           </span>
         </div>
         <div class="flex items-center gap-2">
@@ -104,10 +116,9 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <UiSelect 
+          <SelectEmployee 
             v-model="form.employeeId" 
             label="Nhân viên" 
-            :options="employeeOptions" 
             placeholder="Chọn nhân viên"
             required
           />
@@ -151,57 +162,45 @@ import { PlusCircle, PencilLine, Trash2, X, ChevronLeft, ChevronRight } from 'lu
 
 const { $api } = useNuxtApp();
 const items = ref([]);
-const employees = ref([]);
+const filterDeptId = ref('');
+const filterTeamId = ref('');
 
-const employeeOptions = computed(() => employees.value.map(e => ({
-  value: e.id,
-  label: `${e.fullName} (${e.code})`
-})));
-
-const loading = ref(true);
-const saving = ref(false);
-const showModal = ref(false);
-
-// Pagination
-const currentPage = ref(1);
-const itemsPerPage = ref(10);
-const totalPages = computed(() => Math.ceil(items.value.length / itemsPerPage.value) || 1);
-
-const paginatedItems = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return items.value.slice(start, end);
-});
-
-watch(itemsPerPage, () => {
-  currentPage.value = 1;
-});
-
-const form = reactive({
-  employeeId: null,
-  type: 'BONUS',
-  amount: 0,
-  reason: '',
-  recordDate: new Date().toISOString().substr(0, 10)
-});
-
-const currentId = ref(null);
+const resetFilters = () => {
+  filterDeptId.value = '';
+  filterTeamId.value = '';
+};
 
 const fetchData = async () => {
   loading.value = true;
   try {
-    const [res, empRes] = await Promise.all([
-      $api.get('/penalty-bonuses'),
-      $api.get('/employees')
-    ]);
-    items.value = res.data;
-    employees.value = empRes.data;
+    const res = await $api.get('/penalty-bonuses');
+    items.value = res.data || [];
   } catch (err) {
     console.error(err);
   } finally {
     loading.value = false;
   }
 };
+
+const filteredItems = computed(() => {
+  return items.value.filter(item => {
+    const matchDept = !filterDeptId.value || item.employee?.department?.id == filterDeptId.value;
+    const matchTeam = !filterTeamId.value || item.employee?.team?.id == filterTeamId.value;
+    return matchDept && matchTeam;
+  });
+});
+
+const paginatedItems = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return filteredItems.value.slice(start, end);
+});
+
+const totalPages = computed(() => Math.ceil(filteredItems.value.length / itemsPerPage.value) || 1);
+
+watch([filterDeptId, filterTeamId], () => {
+  currentPage.value = 1;
+});
 
 const openModal = (item = null) => {
   if (item) {

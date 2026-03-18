@@ -58,72 +58,21 @@
 
     <!-- Filters -->
     <div v-if="viewMode === 'list'" class="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-left-4 duration-500">
-      <!-- Dept Filter -->
-      <div class="flex flex-col gap-1.5 min-w-[200px] relative" id="dept-filter">
-        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lọc Phòng Ban</label>
-        <div class="relative">
-          <button 
-            type="button"
-            @click.stop="showDeptDropdown = !showDeptDropdown"
-            class="input-field py-2.5 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold text-sm h-12"
-          >
-            <span class="truncate">
-              {{ selectedDepartments.length === 0 ? 'Tất cả phòng ban' : `${selectedDepartments.length} phòng ban` }}
-            </span>
-            <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showDeptDropdown}" />
-          </button>
-          
-          <div v-if="showDeptDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div 
-              v-for="dept in departments" :key="dept.id"
-              @click.stop="toggleDept(dept.id)"
-              class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all"
-            >
-              <div 
-                class="w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all text-[10px]"
-                :class="[selectedDepartments.includes(dept.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-slate-200 group-hover:border-primary-300']"
-              >
-                <Check v-if="selectedDepartments.includes(dept.id)" class="w-3 h-3" />
-              </div>
-              <span class="text-xs font-bold" :class="[selectedDepartments.includes(dept.id) ? 'text-primary-700' : 'text-slate-600']">{{ dept.name }}</span>
-            </div>
-            <div v-if="departments.length === 0" class="p-4 text-center text-xs text-slate-400">Đang tải...</div>
-          </div>
-        </div>
+      <div class="flex flex-col gap-1.5 min-w-[200px]">
+        <SelectDepartment 
+          v-model="selectedDepartments" 
+          multiple
+          label="Lọc Phòng Ban" 
+        />
       </div>
 
-      <!-- Team Filter -->
-      <div class="flex flex-col gap-1.5 min-w-[200px] relative" id="team-filter">
-        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lọc Tổ Đội</label>
-        <div class="relative">
-          <button 
-            type="button"
-            @click.stop="showTeamDropdown = !showTeamDropdown"
-            class="input-field py-2.5 flex items-center justify-between w-full text-left bg-white border-slate-200 hover:border-primary-300 transition-all font-bold text-sm h-12"
-          >
-            <span class="truncate">
-              {{ selectedTeams.length === 0 ? 'Tất cả tổ' : `${selectedTeams.length} tổ đội` }}
-            </span>
-            <ChevronDown class="w-4 h-4 text-slate-400 transition-transform" :class="{'rotate-180': showTeamDropdown}" />
-          </button>
-          
-          <div v-if="showTeamDropdown" class="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[70] max-h-64 overflow-y-auto p-2 space-y-1 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div 
-              v-for="team in filteredTeamsList" :key="team.id"
-              @click.stop="toggleTeam(team.id)"
-              class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-primary-50 group cursor-pointer transition-all"
-            >
-              <div 
-                class="w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all text-[10px]"
-                :class="[selectedTeams.includes(team.id) ? 'bg-primary-600 border-primary-600 text-white' : 'border-slate-200 group-hover:border-primary-300']"
-              >
-                <Check v-if="selectedTeams.includes(team.id)" class="w-3 h-3" />
-              </div>
-              <span class="text-xs font-bold" :class="[selectedTeams.includes(team.id) ? 'text-primary-700' : 'text-slate-600']">{{ team.name }}</span>
-            </div>
-            <div v-if="filteredTeamsList.length === 0" class="p-4 text-center text-xs text-slate-400">Chọn phòng ban hoặc chờ tải...</div>
-          </div>
-        </div>
+      <div class="flex flex-col gap-1.5 min-w-[200px]">
+        <SelectTeam 
+          v-model="selectedTeams" 
+          multiple
+          :departmentId="selectedDepartments.length === 1 ? selectedDepartments[0] : null"
+          label="Lọc Tổ Đội" 
+        />
       </div>
 
       <!-- Reset Filter -->
@@ -350,49 +299,13 @@ const viewMode = ref('list');
 const calculating = ref(false);
 const loading = ref(true);
 const payrolls = ref([]);
-const departments = ref([]);
-const teams = ref([]);
 const selectedDepartments = ref([]);
 const selectedTeams = ref([]);
-const showDeptDropdown = ref(false);
-const showTeamDropdown = ref(false);
-
-const toggleDept = (id) => {
-  const index = selectedDepartments.value.indexOf(id);
-  if (index === -1) selectedDepartments.value.push(id);
-  else selectedDepartments.value.splice(index, 1);
-  currentPage.value = 1;
-};
-
-const toggleTeam = (id) => {
-  const index = selectedTeams.value.indexOf(id);
-  if (index === -1) selectedTeams.value.push(id);
-  else selectedTeams.value.splice(index, 1);
-  currentPage.value = 1;
-};
-
 const resetFilters = () => {
   selectedDepartments.value = [];
   selectedTeams.value = [];
   currentPage.value = 1;
 };
-
-const handleClickOutside = (event) => {
-  const deptFilter = document.getElementById('dept-filter');
-  const teamFilter = document.getElementById('team-filter');
-  
-  if (deptFilter && !deptFilter.contains(event.target)) {
-    showDeptDropdown.value = false;
-  }
-  if (teamFilter && !teamFilter.contains(event.target)) {
-    showTeamDropdown.value = false;
-  }
-};
-
-const filteredTeamsList = computed(() => {
-  if (selectedDepartments.value.length === 0) return teams.value;
-  return teams.value.filter(t => t.department && selectedDepartments.value.includes(t.department.id));
-});
 
 // Pagination
 const currentPage = ref(1);
@@ -522,13 +435,10 @@ const showDetails = async (p) => {
 };
 
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside);
   fetchPayrolls();
-  fetchDeptsAndTeams();
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside);
 });
 
 // Reset payrolls when month/year changes in list view

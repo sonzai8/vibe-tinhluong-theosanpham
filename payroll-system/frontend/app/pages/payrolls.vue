@@ -75,14 +75,25 @@
         />
       </div>
 
-      <!-- Reset Filter -->
-      <div class="flex items-end pb-1">
+      <!-- Reset Filter & Export -->
+      <div class="flex items-end pb-1 gap-2">
         <button 
           v-if="selectedDepartments.length > 0 || selectedTeams.length > 0"
           @click="resetFilters"
           class="px-4 py-2 bg-slate-100 hover:bg-primary-50 text-[10px] font-black text-slate-500 hover:text-primary-600 uppercase rounded-xl transition-all tracking-widest"
         >
           Xóa tất cả bộ lọc
+        </button>
+
+        <button 
+          v-if="payrolls.length > 0"
+          @click="handleExportPayslips"
+          class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-[10px] font-black uppercase rounded-xl transition-all tracking-widest shadow-md flex items-center gap-1 whitespace-nowrap"
+          :disabled="exporting"
+        >
+          <Download class="w-3.5 h-3.5" v-if="!exporting" />
+          <div v-else class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+          {{ exporting ? 'Đang xuất...' : 'Xuất Phiếu Lương' }}
         </button>
       </div>
     </div>
@@ -292,7 +303,7 @@
 </template>
 
 <script setup>
-import { Calculator, Play, Wallet, CheckCircle2, ChevronLeft, ChevronRight, X } from 'lucide-vue-next';
+import { Calculator, Play, Wallet, CheckCircle2, ChevronLeft, ChevronRight, X, Download } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const viewMode = ref('list');
@@ -431,6 +442,32 @@ const showDetails = async (p) => {
     alert('Không thể tải chi tiết: ' + err.message);
   } finally {
     loadingDetails.value = false;
+  }
+};
+
+const exporting = ref(false);
+
+const handleExportPayslips = async () => {
+  if (exporting.value) return;
+  exporting.value = true;
+  try {
+    const res = await $api.get(`/payrolls/${calcForm.year}/${calcForm.month}/export-payslips`, {
+      responseType: 'blob'
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([res]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `PhieuLuong_Thang_${calcForm.month}_${calcForm.year}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    alert("Có lỗi xảy ra khi xuất phiếu lương. Thử lại sau!");
+    console.error(error);
+  } finally {
+    exporting.value = false;
   }
 };
 

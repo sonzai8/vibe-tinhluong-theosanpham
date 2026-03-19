@@ -25,6 +25,7 @@ import java.util.Map;
 public class PayrollController {
 
     private final PayrollService payrollService;
+    private final com.plywood.payroll.modules.excel.service.ExcelService excelService;
 
     @PostMapping("/calculate")
     @Operation(summary = "Tính toán lại lương tháng")
@@ -75,5 +76,29 @@ public class PayrollController {
             @PathVariable("teamId") Long teamId) {
         payrollService.confirmByTeam(year, month, teamId);
         return ResponseEntity.ok(ApiResponse.success("Đã chốt bảng lương cho tổ", null));
+    }
+
+    @GetMapping("/{year}/{month}/export-payslips")
+    @Operation(summary = "Xuất phiếu lương tháng ra Excel (mỗi nhân viên 1 sheet)")
+    public ResponseEntity<org.springframework.core.io.Resource> exportPayslips(
+            @PathVariable("year") int year,
+            @PathVariable("month") int month) {
+        
+        List<PayrollItemResponse> items = payrollService.getPayrollItems(month, year);
+        java.util.Map<Long, List<PayrollDailyDetailResponse>> detailsMap = new java.util.HashMap<>();
+        for (PayrollItemResponse item : items) {
+            detailsMap.put(item.getId(), payrollService.getDailyDetails(item.getId()));
+        }
+
+        try {
+            byte[] data = excelService.exportPayslips(month, year, items, detailsMap);
+            org.springframework.core.io.ByteArrayResource resource = new org.springframework.core.io.ByteArrayResource(data);
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"PhieuLuong_" + month + "_" + year + ".xlsx\"")
+                    .contentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(resource);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("Lỗi khi xuất file Excel phiếu lương", e);
+        }
     }
 }

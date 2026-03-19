@@ -7,16 +7,23 @@ import com.plywood.payroll.modules.production.dto.request.ProductionRecordReques
 import com.plywood.payroll.shared.dto.ApiResponse;
 import com.plywood.payroll.modules.production.dto.response.ProductionRecordResponse;
 import com.plywood.payroll.modules.production.service.ProductionRecordService;
+import com.plywood.payroll.modules.excel.service.ExcelService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -26,6 +33,7 @@ import java.util.List;
 public class ProductionRecordController {
 
     private final ProductionRecordService recordService;
+    private final ExcelService excelService;
 
     @GetMapping
     @Operation(summary = "Lấy danh sách bản ghi theo bộ lọc linh hoạt")
@@ -71,5 +79,45 @@ public class ProductionRecordController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         recordService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Xuất file Excel sản lượng")
+    public ResponseEntity<Resource> export(
+            @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(value = "format", defaultValue = "list") String format,
+            @RequestParam(value = "departmentIds", required = false) List<Long> departmentIds,
+            @RequestParam(value = "teamIds", required = false) List<Long> teamIds) throws IOException {
+        
+        List<ProductionRecordResponse> data = recordService.getByFilters(from, to, departmentIds, teamIds);
+        byte[] excelContent;
+        String fileName;
+        
+        if ("matrix".equalsIgnoreCase(format)) {
+            LocalDate start = from != null ? from : LocalDate.now().withDayOfMonth(1);
+            LocalDate end = to != null ? to : start.plusMonths(1).minusDays(1);
+            
+            List<LocalDate> dates = new ArrayList<>();
+            LocalDate current = start;
+            while (!current.isAfter(end)) {
+                dates.add(current);
+                current = current.plusDays(1);
+            }
+            
+            excelContent = excelService.exportProductionRecordMatrix(data, dates);
+            fileName = String.format("SanLuong_Matrix_%s_%s.xlsx", start, end);
+        } else {
+            excelContent = excelService.exportProductionRecords(data);
+            fileName = String.format("SanLuong_DanhSach_%s.xlsx", LocalDate.now());
+        }
+        
+        ByteArrayResource resource = new ByteArrayResource(excelContent);
+        
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .contentLength(excelContent.length)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(fileName).build().toString())
+                .body(resource);
     }
 }

@@ -6,11 +6,11 @@
         <p class="text-slate-500 font-medium">{{ $t('production.subtitle') }}</p>
       </div>
       <div class="flex gap-3">
-        <UiButton variant="outline" @click="handleExportList" >
+        <UiButton variant="outline" @click="handleExportList" :loading="exporting">
           <Download class="w-4 h-4" />
           {{ $t('production.export_list') }}
         </UiButton>
-        <UiButton variant="outline" @click="handleExportMatrix" >
+        <UiButton variant="outline" @click="handleExportMatrix" :loading="exporting">
           <FileSpreadsheet class="w-4 h-4" />
           {{ $t('production.export_matrix') }}
         </UiButton>
@@ -550,6 +550,7 @@ const stepProductsCache = reactive({});
 
 const loading = ref(true);
 const saving = ref(false);
+const exporting = ref(false);
 const showModal = ref(false);
 
 const now = new Date();
@@ -1045,6 +1046,51 @@ const getRowProductOptions = (row) => {
     return stepProductsCache[stepId].map(p => ({ value: p.id, label: `${p.code} (${p.thickness}x${p.length}x${p.width})` }));
   }
   return productOptions.value;
+};
+
+const handleExportList = () => handleExport('list');
+const handleExportMatrix = () => handleExport('matrix');
+
+const handleExport = async (format = 'list') => {
+  exporting.value = true;
+  try {
+    const params = new URLSearchParams();
+    if (format === 'matrix') {
+      const [year, month] = viewMonth.value.split('-').map(Number);
+      const start = `${viewMonth.value}-01`;
+      const end = `${viewMonth.value}-${new Date(year, month, 0).getDate()}`;
+      params.append('from', start);
+      params.append('to', end);
+    } else {
+      if (filter.from) params.append('from', filter.from);
+      if (filter.to) params.append('to', filter.to);
+    }
+    
+    params.append('format', format);
+    if (filter.departmentIds && filter.departmentIds.length > 0) {
+      params.append('departmentIds', filter.departmentIds.join(','));
+    }
+    if (filter.teamIds && filter.teamIds.length > 0) {
+      params.append('teamIds', filter.teamIds.join(','));
+    }
+
+    const response = await $api.get(`/production-records/export?${params.toString()}`, {
+      responseType: 'blob'
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([response]));
+    const link = document.createElement('a');
+    link.href = url;
+    const fileName = format === 'matrix' ? `SanLuong_MaTran_${viewMonth.value}.xlsx` : `SanLuong_DanhSach_${new Date().toISOString().substr(0,10)}.xlsx`;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    alert('Lỗi xuất file: ' + (err.response?.data?.message || err.message));
+  } finally {
+    exporting.value = false;
+  }
 };
 
 const handleDelete = async (id) => {

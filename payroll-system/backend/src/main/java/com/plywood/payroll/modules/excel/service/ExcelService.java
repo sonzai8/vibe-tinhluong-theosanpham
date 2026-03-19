@@ -10,10 +10,13 @@ import com.plywood.payroll.modules.organization.dto.request.TeamRequest;
 import com.plywood.payroll.modules.organization.repository.DepartmentRepository;
 import com.plywood.payroll.modules.organization.repository.RoleRepository;
 import com.plywood.payroll.modules.organization.repository.TeamRepository;
+import com.plywood.payroll.modules.pricing.repository.ProductStepRateRepository;
+import com.plywood.payroll.modules.pricing.entity.ProductStepRate;
 import com.plywood.payroll.modules.product.dto.request.ProductRequest;
 import com.plywood.payroll.modules.production.dto.request.ProductionStepRequest;
 import com.plywood.payroll.modules.pricing.dto.response.ProductStepRateResponse;
 import com.plywood.payroll.modules.product.dto.response.ProductResponse;
+import com.plywood.payroll.modules.production.dto.response.ProductionRecordResponse;
 import com.plywood.payroll.modules.production.dto.response.ProductionStepResponse;
 import com.plywood.payroll.modules.quality.dto.response.ProductQualityResponse;
 import com.plywood.payroll.modules.attendance.repository.AttendanceDefinitionRepository;
@@ -21,14 +24,16 @@ import com.plywood.payroll.shared.utils.ExcelHelper;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.plywood.payroll.modules.payroll.dto.response.PayrollItemResponse;
+import com.plywood.payroll.modules.payroll.dto.response.PayrollDailyDetailResponse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -47,6 +52,7 @@ public class ExcelService {
     private final RoleRepository roleRepository;
     private final DepartmentRepository departmentRepository;
     private final AttendanceDefinitionRepository attendanceDefinitionRepository;
+    private final ProductStepRateRepository productStepRateRepository;
 
     private static final String ATTENDANCE_IMPORT_TEMPLATE = "templates/attendance/import/import_template.xlsx";
     private static final String ATTENDANCE_EXPORT_TEMPLATE = "templates/attendance/export/export_template.xlsx";
@@ -541,9 +547,426 @@ public class ExcelService {
         }
     }
 
+    public byte[] exportProductionRecords(List<ProductionRecordResponse> records) throws IOException {
+        String[] headers = {"Ngày", "Tổ", "Công đoạn", "Sản phẩm", "Chất lượng", "Số lượng"};
+        List<List<String>> data = new ArrayList<>();
+        for (ProductionRecordResponse r : records) {
+            List<String> row = new ArrayList<>();
+            row.add(r.getProductionDate().toString());
+            row.add(r.getTeam() != null ? r.getTeam().getName() : "");
+            row.add(r.getTeam() != null && r.getTeam().getProductionStep() != null ? r.getTeam().getProductionStep().getName() : "");
+            row.add(r.getProduct() != null ? r.getProduct().getCode() : "");
+            row.add(r.getQuality() != null ? r.getQuality().getCode() : "");
+            row.add(r.getQuantity() != null ? r.getQuantity().toString() : "0");
+            data.add(row);
+        }
+        return exportGeneric("Danh sách sản lượng", headers, data);
+    }
+
+    public byte[] exportProductionRecordMatrix(List<ProductionRecordResponse> records, List<LocalDate> dates) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            
+            // Nhóm dữ liệu theo tổ
+            java.util.Map<Long, List<ProductionRecordResponse>> teamMap = records.stream()
+                .filter(r -> r.getTeam() != null)
+                .collect(java.util.stream.Collectors.groupingBy(r -> r.getTeam().getId()));
+            
+            if (teamMap.isEmpty()) {
+                Sheet sheet = workbook.createSheet("Trống");
+                sheet.createRow(0).createCell(0).setCellValue("Không có dữ liệu trong khoảng thời gian này.");
+            } else {
+                for (java.util.Map.Entry<Long, List<ProductionRecordResponse>> entry : teamMap.entrySet()) {
+                    List<ProductionRecordResponse> teamRecords = entry.getValue();
+                    com.plywood.payroll.modules.organization.dto.response.TeamResponse team = teamRecords.get(0).getTeam();
+                    
+                    String safeSheetName = team.getName().replaceAll("[\\\\/:*?\"\\[\\]]", "_");
+                    Sheet sheet = workbook.createSheet(safeSheetName);
+                    buildDetailedTeamSheet(sheet, teamRecords, dates, workbook);
+                }
+            }
+            
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private void buildDetailedTeamSheet(Sheet sheet, List<ProductionRecordResponse> teamRecords, List<LocalDate> dates, Workbook workbook) {
+        CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
+        CellStyle centerStyle = workbook.createCellStyle();
+        centerStyle.setAlignment(org.apache.poi.ss.usermodel.HorizontalAlignment.CENTER);
+        centerStyle.setBorderBottom(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        centerStyle.setBorderLeft(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        centerStyle.setBorderRight(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        centerStyle.setBorderTop(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+        
+        CellStyle priceStyle = workbook.createCellStyle();
+        priceStyle.cloneStyleFrom(centerStyle);
+        priceStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.LEMON_CHIFFON.getIndex());
+        priceStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+        
+        // 1. Phân tích cột: Lấy danh sách duy nhất Product-Quality và phân nhóm
+        List<ColumnMeta> distinctMetas = teamRecords.stream()
+            .map(r -> new ColumnMeta(r.getProduct(), r.getQuality()))
+            .distinct()
+            .collect(java.util.stream.Collectors.toList());
+
+        java.util.Map<String, List<ColumnMeta>> columnGroups = distinctMetas.stream()
+            .collect(java.util.stream.Collectors.groupingBy(m -> {
+                if (m.getProduct() == null || m.getProduct().getFilmCoatingType() == null) return "Nhật ván";
+                return switch (m.getProduct().getFilmCoatingType()) {
+                    case SIDE_1 -> "1M";
+                    case SIDE_2 -> "2M";
+                    default -> "Nhật ván";
+                };
+            }));
+
+        List<String> sortedGroupKeys = new ArrayList<>(columnGroups.keySet());
+        sortedGroupKeys.sort(java.util.Comparator.comparing(k -> {
+            if ("1M".equals(k)) return 1;
+            if ("2M".equals(k)) return 2;
+            return 3;
+        }));
+
+        List<ColumnMeta> allColumns = new ArrayList<>();
+        for (String groupKey : sortedGroupKeys) {
+            List<ColumnMeta> groupCols = columnGroups.get(groupKey).stream()
+                .sorted(java.util.Comparator.comparing(c -> c.getProduct().getCode()))
+                .collect(java.util.stream.Collectors.toList());
+            
+            // Gán group name cho từng cột để làm header
+            groupCols.forEach(c -> c.setGroupName(groupKey));
+            allColumns.addAll(groupCols);
+        }
+
+        // Headers
+        Row groupHeaderRow = sheet.createRow(0);
+        Row subHeaderRow = sheet.createRow(1);
+        Row dgMoiRow = sheet.createRow(2);
+        Row dgCuRow = sheet.createRow(3);
+
+        groupHeaderRow.createCell(0).setCellValue("Ngày");
+        groupHeaderRow.getCell(0).setCellStyle(headerStyle);
+        subHeaderRow.createCell(0); // Empty
+        dgMoiRow.createCell(0).setCellValue("DG mới");
+        dgMoiRow.getCell(0).setCellStyle(priceStyle);
+        dgCuRow.createCell(0).setCellValue("DG cũ");
+        dgCuRow.getCell(0).setCellStyle(priceStyle);
+
+        int colIdx = 1;
+        int lastGroupStart = 1;
+        String currentGroup = null;
+
+        for (int i = 0; i < allColumns.size(); i++) {
+            ColumnMeta col = allColumns.get(i);
+            
+            // Group header merging
+            if (currentGroup == null || !currentGroup.equals(col.getGroupName())) {
+                if (currentGroup != null && colIdx - 1 > lastGroupStart) {
+                    sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, lastGroupStart, colIdx - 1));
+                }
+                currentGroup = col.getGroupName();
+                lastGroupStart = colIdx;
+                Cell groupCell = groupHeaderRow.createCell(colIdx);
+                groupCell.setCellValue(currentGroup);
+                groupCell.setCellStyle(headerStyle);
+            } else {
+                groupHeaderRow.createCell(colIdx).setCellStyle(headerStyle);
+            }
+
+            // Sub header: Code, Thickness, Quality
+            String subHead = String.format("%s-%s", col.getProduct().getThickness().stripTrailingZeros().toPlainString(), col.getProduct().getCode());
+            if (col.getQuality() != null) subHead += " (" + col.getQuality().getCode() + ")";
+            Cell subCell = subHeaderRow.createCell(colIdx);
+            subCell.setCellValue(subHead);
+            subCell.setCellStyle(centerStyle);
+
+            // Fetch Prices
+            Long stepId = teamRecords.get(0).getTeam().getProductionStep().getId();
+            java.util.Optional<ProductStepRate> rateOpt = productStepRateRepository.findEffectiveRate(
+                col.getProduct().getId(), stepId, col.getQuality().getId(), dates.get(dates.size()-1));
+            
+            Cell cellDgMoi = dgMoiRow.createCell(colIdx);
+            Cell cellDgCu = dgCuRow.createCell(colIdx);
+            cellDgMoi.setCellStyle(priceStyle);
+            cellDgCu.setCellStyle(priceStyle);
+
+            if (rateOpt.isPresent()) {
+                cellDgMoi.setCellValue(rateOpt.get().getPriceHigh().doubleValue());
+                cellDgCu.setCellValue(rateOpt.get().getPriceLow().doubleValue());
+                col.setPriceHigh(rateOpt.get().getPriceHigh());
+                col.setPriceLow(rateOpt.get().getPriceLow());
+            }
+
+            colIdx++;
+        }
+        // Last group merge
+        if (allColumns.size() > 0 && colIdx - 1 > lastGroupStart) {
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, lastGroupStart, colIdx - 1));
+        }
+
+        // Extra Columns: Tổ Khác, Đầu Chuyền, Tổng Tiền, Tổng Tiền ĐG mới
+        String[] extras = {"Tổ Khác", "Đầu Chuyền", "Tổng Tiền", "Tổng tiền ĐG mới"};
+        for (String extra : extras) {
+            Cell cell = groupHeaderRow.createCell(colIdx);
+            cell.setCellValue(extra);
+            cell.setCellStyle(headerStyle);
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 1, colIdx, colIdx));
+            dgMoiRow.createCell(colIdx).setCellStyle(priceStyle);
+            dgCuRow.createCell(colIdx).setCellStyle(priceStyle);
+            colIdx++;
+        }
+
+        // Data Rows
+        int rowIdx = 4;
+        for (LocalDate date : dates) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(date.getDayOfMonth());
+            row.getCell(0).setCellStyle(centerStyle);
+
+            java.math.BigDecimal dayTotalMoi = java.math.BigDecimal.ZERO;
+            java.math.BigDecimal dayTotalCu = java.math.BigDecimal.ZERO;
+            boolean hasProduction = false;
+
+            for (int i = 0; i < allColumns.size(); i++) {
+                ColumnMeta col = allColumns.get(i);
+                int qty = teamRecords.stream()
+                    .filter(r -> r.getProductionDate().equals(date) 
+                             && r.getProduct().getId().equals(col.getProduct().getId())
+                             && r.getQuality().getId().equals(col.getQuality().getId()))
+                    .mapToInt(r -> r.getQuantity() != null ? r.getQuantity() : 0)
+                    .sum();
+                
+                Cell dataCell = row.createCell(i + 1);
+                dataCell.setCellStyle(centerStyle);
+                if (qty > 0) {
+                    hasProduction = true;
+                    dataCell.setCellValue(qty);
+                    if (col.getPriceHigh() != null) {
+                        dayTotalMoi = dayTotalMoi.add(col.getPriceHigh().multiply(java.math.BigDecimal.valueOf(qty)));
+                    }
+                    if (col.getPriceLow() != null) {
+                        dayTotalCu = dayTotalCu.add(col.getPriceLow().multiply(java.math.BigDecimal.valueOf(qty)));
+                    }
+                }
+            }
+
+            // Calculations for extra columns
+            int baseColIdx = allColumns.size() + 1;
+            Cell cellToKhac = row.createCell(baseColIdx);
+            cellToKhac.setCellStyle(centerStyle);
+            
+            Cell cellDauChuyen = row.createCell(baseColIdx + 1);
+            cellDauChuyen.setCellStyle(centerStyle);
+
+            Cell cellTotalCu = row.createCell(baseColIdx + 2);
+            cellTotalCu.setCellStyle(centerStyle);
+
+            Cell cellTotalMoi = row.createCell(baseColIdx + 3);
+            cellTotalMoi.setCellStyle(centerStyle);
+
+            if (hasProduction) {
+                cellToKhac.setCellValue(0);
+                cellDauChuyen.setCellValue(20000);
+                cellTotalCu.setCellValue(dayTotalCu.doubleValue() + 20000);
+                cellTotalMoi.setCellValue(dayTotalMoi.doubleValue() + 20000);
+            } else {
+                cellToKhac.setCellValue("-");
+                cellDauChuyen.setCellValue("-");
+                cellTotalCu.setCellValue("-");
+                cellTotalMoi.setCellValue("-");
+            }
+        }
+
+        // Finalize: Auto Size
+        for (int i = 0; i < colIdx; i++) {
+            sheet.autoSizeColumn(i);
+        }
+    }
+
+    @lombok.Data
+    private static class ColumnMeta {
+        private final com.plywood.payroll.modules.product.dto.response.ProductResponse product;
+        private final com.plywood.payroll.modules.quality.dto.response.ProductQualityResponse quality;
+        private String groupName;
+        private java.math.BigDecimal priceHigh;
+        private java.math.BigDecimal priceLow;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            ColumnMeta that = (ColumnMeta) o;
+            return java.util.Objects.equals(product.getId(), that.product.getId()) &&
+                   java.util.Objects.equals(quality.getId(), that.quality.getId());
+        }
+
+        @Override
+        public int hashCode() {
+            return java.util.Objects.hash(product.getId(), quality.getId());
+        }
+    }
+
     private boolean isRowEmpty(Row row) {
         if (row == null) return true;
-        Cell firstCell = row.getCell(0);
-        return firstCell == null || firstCell.getCellType() == CellType.BLANK;
+        return row.getPhysicalNumberOfCells() == 0;
+    }
+
+    public byte[] exportPayslips(int month, int year, List<PayrollItemResponse> items, java.util.Map<Long, List<PayrollDailyDetailResponse>> detailsMap) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+             
+            CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
+            CellStyle titleStyle = workbook.createCellStyle();
+            org.apache.poi.ss.usermodel.Font titleFont = workbook.createFont();
+            titleFont.setBold(true);
+            titleFont.setFontHeightInPoints((short) 14);
+            titleStyle.setFont(titleFont);
+            titleStyle.setAlignment(org.apache.poi.ss.usermodel.HorizontalAlignment.CENTER);
+
+            CellStyle boldStyle = workbook.createCellStyle();
+            org.apache.poi.ss.usermodel.Font boldFont = workbook.createFont();
+            boldFont.setBold(true);
+            boldStyle.setFont(boldFont);
+            
+            CellStyle numberStyle = workbook.createCellStyle();
+            org.apache.poi.ss.usermodel.DataFormat format = workbook.createDataFormat();
+            numberStyle.setDataFormat(format.getFormat("#,##0"));
+
+            CellStyle boldNumberStyle = workbook.createCellStyle();
+            boldNumberStyle.setFont(boldFont);
+            boldNumberStyle.setDataFormat(format.getFormat("#,##0"));
+
+            for (PayrollItemResponse item : items) {
+                String safeName = item.getEmployeeName().replaceAll("[\\\\/:*?\"\\[\\]]", "_");
+                if (safeName.length() > 31) {
+                    safeName = safeName.substring(0, 31);
+                }
+                // Determine valid sheet name (might have duplicates if same name, handle by adding id)
+                String sheetName = safeName;
+                int suffix = 1;
+                while (workbook.getSheet(sheetName) != null) {
+                    sheetName = safeName + "_" + suffix;
+                    if (sheetName.length() > 31) {
+                        sheetName = safeName.substring(0, 31 - String.valueOf(suffix).length() - 1) + "_" + suffix;
+                    }
+                    suffix++;
+                }
+
+                Sheet sheet = workbook.createSheet(sheetName);
+
+                // --- Header Section ---
+                Row titleRow = sheet.createRow(0);
+                Cell titleCell = titleRow.createCell(0);
+                titleCell.setCellValue("PHIẾU LƯƠNG THÁNG " + month + "/" + year);
+                titleCell.setCellStyle(titleStyle);
+                sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 3));
+
+                int r = 2;
+                
+                // Employee Info
+                Row empRow1 = sheet.createRow(r++);
+                empRow1.createCell(0).setCellValue("Họ và tên:");
+                empRow1.getCell(0).setCellStyle(boldStyle);
+                empRow1.createCell(1).setCellValue(item.getEmployeeName());
+                
+                empRow1.createCell(2).setCellValue("Mã NV:");
+                empRow1.getCell(2).setCellStyle(boldStyle);
+                empRow1.createCell(3).setCellValue(item.getEmployeeCode());
+
+                Row empRow2 = sheet.createRow(r++);
+                empRow2.createCell(0).setCellValue("Phòng ban:");
+                empRow2.getCell(0).setCellStyle(boldStyle);
+                empRow2.createCell(1).setCellValue(item.getDepartmentName() != null ? item.getDepartmentName() : "");
+                
+                empRow2.createCell(2).setCellValue("Tổ:");
+                empRow2.getCell(2).setCellStyle(boldStyle);
+                empRow2.createCell(3).setCellValue(item.getTeamName() != null ? item.getTeamName() : "");
+
+                r++; // blank row
+
+                // --- Salary Summary ---
+                Row summaryTitleRow = sheet.createRow(r++);
+                summaryTitleRow.createCell(0).setCellValue("TỔNG HỢP LƯƠNG");
+                summaryTitleRow.getCell(0).setCellStyle(boldStyle);
+                sheet.addMergedRegion(new CellRangeAddress(r-1, r-1, 0, 3));
+
+                Row sumRow1 = sheet.createRow(r++);
+                sumRow1.createCell(0).setCellValue("Lương sản phẩm (1):");
+                Cell c1 = sumRow1.createCell(1);
+                c1.setCellValue(item.getProductSalary() != null ? item.getProductSalary().doubleValue() : 0);
+                c1.setCellStyle(numberStyle);
+
+                Row sumRow2 = sheet.createRow(r++);
+                sumRow2.createCell(0).setCellValue("Phụ cấp chức vụ (2):");
+                Cell c2 = sumRow2.createCell(1);
+                c2.setCellValue(item.getBenefitSalary() != null ? item.getBenefitSalary().doubleValue() : 0);
+                c2.setCellStyle(numberStyle);
+
+                Row sumRow3 = sheet.createRow(r++);
+                sumRow3.createCell(0).setCellValue("Thưởng / Phạt (3):");
+                Cell c3 = sumRow3.createCell(1);
+                c3.setCellValue(item.getTotalPenaltyBonus() != null ? item.getTotalPenaltyBonus().doubleValue() : 0);
+                c3.setCellStyle(numberStyle);
+
+                r++;
+                Row netRow = sheet.createRow(r++);
+                netRow.createCell(0).setCellValue("THỰC LĨNH = (1) + (2) + (3):");
+                netRow.getCell(0).setCellStyle(boldStyle);
+                Cell cNet = netRow.createCell(1);
+                cNet.setCellValue(item.getTotalSalary() != null ? item.getTotalSalary().doubleValue() : 0);
+                cNet.setCellStyle(boldNumberStyle);
+
+                r += 2; // blank row
+
+                // --- Daily Details ---
+                List<PayrollDailyDetailResponse> details = detailsMap.get(item.getId());
+                if (details != null && !details.isEmpty()) {
+                    Row detailTitleRow = sheet.createRow(r++);
+                    detailTitleRow.createCell(0).setCellValue("CHI TIẾT LƯƠNG TỪNG NGÀY");
+                    detailTitleRow.getCell(0).setCellStyle(boldStyle);
+                    sheet.addMergedRegion(new CellRangeAddress(r-1, r-1, 0, 5));
+
+                    Row thRow = sheet.createRow(r++);
+                    String[] headers = {"Ngày", "Chấm công", "Tổ làm việc", "Lương SP (đ)", "Phụ cấp (đ)", "Thưởng/Phạt (đ)"};
+                    for (int i = 0; i < headers.length; i++) {
+                        Cell c = thRow.createCell(i);
+                        c.setCellValue(headers[i]);
+                        c.setCellStyle(headerStyle);
+                    }
+
+                    for (PayrollDailyDetailResponse d : details) {
+                        Row dr = sheet.createRow(r++);
+                        
+                        dr.createCell(0).setCellValue(d.getDate() != null ? d.getDate().toString() : "");
+                        dr.createCell(1).setCellValue(d.getAttendanceSymbol() != null ? d.getAttendanceSymbol() : "");
+                        dr.createCell(2).setCellValue(d.getTeamName() != null ? d.getTeamName() : "");
+                        
+                        Cell spC = dr.createCell(3);
+                        spC.setCellValue(d.getProductSalary() != null ? d.getProductSalary().doubleValue() : 0);
+                        spC.setCellStyle(numberStyle);
+
+                        Cell pcC = dr.createCell(4);
+                        pcC.setCellValue(d.getBenefitSalary() != null ? d.getBenefitSalary().doubleValue() : 0);
+                        pcC.setCellStyle(numberStyle);
+
+                        double tBonus = d.getBonus() != null ? d.getBonus().doubleValue() : 0;
+                        double tPenalty = d.getPenalty() != null ? d.getPenalty().doubleValue() : 0;
+                        
+                        Cell penC = dr.createCell(5);
+                        penC.setCellValue(tBonus - tPenalty);
+                        penC.setCellStyle(numberStyle);
+                    }
+                }
+
+                // Auto size column
+                for (int i = 0; i < 6; i++) {
+                    sheet.autoSizeColumn(i);
+                }
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
     }
 }

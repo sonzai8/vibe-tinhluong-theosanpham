@@ -17,7 +17,7 @@
               {{ $t('attendance.export') }}
               <ChevronDown class="w-3 h-3 ml-1 opacity-50" />
             </UiButton>
-            <div class="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-2xl border border-slate-100 p-1.5 z-[100] hidden group-hover/export:block animate-in fade-in slide-in-from-top-1 duration-200">
+            <div class="absolute top-full right-0 w-48 bg-white rounded-xl shadow-2xl border border-slate-100 p-1.5 z-[100] invisible group-hover/export:visible opacity-0 group-hover/export:opacity-100 translate-y-1 group-hover/export:translate-y-0 transition-all duration-200">
               <button @click="handleExport('list')" class="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-2">
                 <LayoutList class="w-3.5 h-3.5" /> {{ $t('common.list_view') }}
               </button>

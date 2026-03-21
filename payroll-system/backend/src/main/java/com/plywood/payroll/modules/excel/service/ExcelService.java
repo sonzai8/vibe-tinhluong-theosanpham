@@ -10,8 +10,6 @@ import com.plywood.payroll.modules.organization.dto.request.TeamRequest;
 import com.plywood.payroll.modules.organization.repository.DepartmentRepository;
 import com.plywood.payroll.modules.organization.repository.RoleRepository;
 import com.plywood.payroll.modules.organization.repository.TeamRepository;
-import com.plywood.payroll.modules.pricing.repository.ProductStepRateRepository;
-import com.plywood.payroll.modules.pricing.entity.ProductStepRate;
 import com.plywood.payroll.modules.product.dto.request.ProductRequest;
 import com.plywood.payroll.modules.production.dto.request.ProductionStepRequest;
 import com.plywood.payroll.modules.pricing.dto.response.ProductStepRateResponse;
@@ -26,8 +24,8 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -52,95 +50,90 @@ public class ExcelService {
     private final RoleRepository roleRepository;
     private final DepartmentRepository departmentRepository;
     private final AttendanceDefinitionRepository attendanceDefinitionRepository;
-    private final ProductStepRateRepository productStepRateRepository;
+    private final com.plywood.payroll.shared.utils.ExcelTemplateFiller excelTemplateFiller;
 
     private static final String ATTENDANCE_IMPORT_TEMPLATE = "templates/attendance/import/import_template.xlsx";
-    private static final String ATTENDANCE_EXPORT_TEMPLATE = "templates/attendance/export/export_template.xlsx";
     private static final String EMPLOYEE_TEMPLATE = "templates/employee/employee_template.xlsx";
 
     public byte[] exportAttendances(List<DailyAttendanceResponse> attendances) throws IOException {
-        ClassPathResource resource = new ClassPathResource(ATTENDANCE_EXPORT_TEMPLATE);
-        try (InputStream is = resource.getInputStream();
-             Workbook workbook = ExcelHelper.createWorkbook(is);
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-            Sheet sheet = workbook.getSheetAt(0);
-            int rowIdx = 1;
+        org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("templates/export/attendance_list.xlsx");
+        try (InputStream is = resource.getInputStream()) {
+            java.util.Map<String, Object> singleValues = new java.util.HashMap<>();
+            java.util.List<java.util.Map<String, Object>> items = new java.util.ArrayList<>();
+            
+            System.out.println("Exporting " + attendances.size() + " attendances");
             for (DailyAttendanceResponse att : attendances) {
-                Row row = sheet.getRow(rowIdx);
-                if (row == null) row = sheet.createRow(rowIdx);
-                rowIdx++;
-
-                row.createCell(0).setCellValue(att.getEmployee().getCode());
-                row.createCell(1).setCellValue(att.getEmployee().getFullName());
-                row.createCell(2).setCellValue(att.getAttendanceDate().toString());
-                row.createCell(3).setCellValue(att.getOriginalTeam() != null ? att.getOriginalTeam().getName() : "");
-                row.createCell(4).setCellValue(att.getActualTeam() != null ? att.getActualTeam().getName() : "");
-                row.createCell(5).setCellValue(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "");
+                java.util.Map<String, Object> item = new java.util.HashMap<>();
+                if (att.getEmployee() != null) {
+                    item.put("empCode", att.getEmployee().getCode());
+                    item.put("fullName", att.getEmployee().getFullName());
+                } else {
+                    item.put("empCode", "");
+                    item.put("fullName", "");
+                }
+                item.put("date", att.getAttendanceDate() != null ? att.getAttendanceDate().toString() : "");
+                item.put("origTeam", att.getOriginalTeam() != null ? att.getOriginalTeam().getName() : "");
+                item.put("actTeam", att.getActualTeam() != null ? att.getActualTeam().getName() : "");
+                item.put("symbol", att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "");
+                items.add(item);
             }
-
-            workbook.write(out);
-            return out.toByteArray();
+            
+            java.util.Map<String, List<java.util.Map<String, Object>>> listData = new java.util.HashMap<>();
+            listData.put("item", items);
+            return excelTemplateFiller.fillTemplate(is, singleValues, listData);
         }
     }
 
     public byte[] exportAttendanceMatrix(List<DailyAttendanceResponse> attendances, List<LocalDate> dates) throws IOException {
-        try (Workbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = workbook.createSheet("Matrix");
-            CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
-            
-            // Header: Code, Name, Team, Dates...
-            Row headerRow = sheet.createRow(0);
-            headerRow.createCell(0).setCellValue("Mã NV");
-            headerRow.createCell(1).setCellValue("Họ Tên");
-            headerRow.createCell(2).setCellValue("Tổ");
-            
-            for (int i = 0; i < dates.size(); i++) {
-                Cell cell = headerRow.createCell(i + 3);
-                cell.setCellValue(dates.get(i).getDayOfMonth());
-                cell.setCellStyle(headerStyle);
+        org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("templates/export/attendance_matrix.xlsx");
+        try (InputStream is = resource.getInputStream()) {
+            java.util.Map<String, Object> singleValues = new java.util.HashMap<>();
+            if (!dates.isEmpty()) {
+                singleValues.put("month", dates.get(0).getMonthValue());
+                singleValues.put("year", dates.get(0).getYear());
             }
-            
-            // Group attendances by employee
+
             java.util.Map<Long, List<DailyAttendanceResponse>> employeeMap = attendances.stream()
                 .collect(java.util.stream.Collectors.groupingBy(a -> a.getEmployee().getId()));
             
-            // Get all employees from the data
             List<com.plywood.payroll.modules.employee.dto.response.EmployeeResponse> employees = attendances.stream()
                 .map(DailyAttendanceResponse::getEmployee)
                 .distinct()
                 .sorted(java.util.Comparator.comparing(e -> e.getTeam() != null ? e.getTeam().getName() : ""))
                 .collect(java.util.stream.Collectors.toList());
-            
-            int rowIdx = 1;
+
+            java.util.List<java.util.Map<String, Object>> items = new java.util.ArrayList<>();
             for (com.plywood.payroll.modules.employee.dto.response.EmployeeResponse emp : employees) {
-                Row row = sheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(emp.getCode());
-                row.createCell(1).setCellValue(emp.getFullName());
-                row.createCell(2).setCellValue(emp.getTeam() != null ? emp.getTeam().getName() : "");
+                java.util.Map<String, Object> item = new java.util.HashMap<>();
+                item.put("empCode", emp.getCode());
+                item.put("fullName", emp.getFullName());
+                item.put("team", emp.getTeam() != null ? emp.getTeam().getName() : "");
                 
                 List<DailyAttendanceResponse> empAtts = employeeMap.getOrDefault(emp.getId(), new ArrayList<>());
+                int totalNc = 0;
                 for (int i = 0; i < dates.size(); i++) {
                     LocalDate date = dates.get(i);
                     DailyAttendanceResponse att = empAtts.stream()
                         .filter(a -> a.getAttendanceDate().equals(date))
                         .findFirst().orElse(null);
                     
-                    if (att != null) {
-                        row.createCell(i + 3).setCellValue(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "X");
+                    String symbol = "";
+                    if (att != null && att.getAttendanceDefinition() != null) {
+                        symbol = att.getAttendanceDefinition().getCode();
+                        totalNc++; 
                     }
+                    item.put("d" + (i + 1), symbol); 
                 }
+                item.put("total", totalNc);
+                items.add(item);
             }
+            java.util.Map<String, List<java.util.Map<String, Object>>> listData = new java.util.HashMap<>();
+            listData.put("item", items);
             
-            for (int i = 0; i < dates.size() + 3; i++) {
-                sheet.autoSizeColumn(i);
-            }
-            
-            workbook.write(out);
-            return out.toByteArray();
+            return excelTemplateFiller.fillTemplate(is, singleValues, listData);
         }
     }
+
 
     public byte[] getImportTemplate() throws IOException {
         try {
@@ -548,249 +541,172 @@ public class ExcelService {
     }
 
     public byte[] exportProductionRecords(List<ProductionRecordResponse> records) throws IOException {
-        String[] headers = {"Ngày", "Tổ", "Công đoạn", "Sản phẩm", "Chất lượng", "Số lượng"};
-        List<List<String>> data = new ArrayList<>();
-        for (ProductionRecordResponse r : records) {
-            List<String> row = new ArrayList<>();
-            row.add(r.getProductionDate().toString());
-            row.add(r.getTeam() != null ? r.getTeam().getName() : "");
-            row.add(r.getTeam() != null && r.getTeam().getProductionStep() != null ? r.getTeam().getProductionStep().getName() : "");
-            row.add(r.getProduct() != null ? r.getProduct().getCode() : "");
-            row.add(r.getQuality() != null ? r.getQuality().getCode() : "");
-            row.add(r.getQuantity() != null ? r.getQuantity().toString() : "0");
-            data.add(row);
+        org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("templates/export/production_list.xlsx");
+        try (InputStream is = resource.getInputStream()) {
+            java.util.Map<String, Object> singleValues = new java.util.HashMap<>();
+            java.util.List<java.util.Map<String, Object>> items = new java.util.ArrayList<>();
+            
+            for (ProductionRecordResponse r : records) {
+                java.util.Map<String, Object> item = new java.util.HashMap<>();
+                item.put("date", r.getProductionDate().toString());
+                item.put("product", r.getProduct() != null ? r.getProduct().getCode() : "");
+                item.put("quality", r.getQuality() != null ? r.getQuality().getCode() : "");
+                item.put("size", r.getProduct() != null ? r.getProduct().getThickness() + "x" + r.getProduct().getLength() + "x" + r.getProduct().getWidth() : "");
+                item.put("layer", ""); 
+                item.put("team", r.getTeam() != null ? r.getTeam().getName() : "");
+                item.put("qty", r.getQuantity() != null ? r.getQuantity() : 0);
+                
+                // Fetch price for list (optional, but keep it simple for now)
+                item.put("price", 0);
+                item.put("total", 0);
+                item.put("note", "");
+                items.add(item);
+            }
+            
+            java.util.Map<String, List<java.util.Map<String, Object>>> listData = new java.util.HashMap<>();
+            listData.put("item", items);
+            return excelTemplateFiller.fillTemplate(is, singleValues, listData);
         }
-        return exportGeneric("Danh sách sản lượng", headers, data);
     }
 
     public byte[] exportProductionRecordMatrix(List<ProductionRecordResponse> records, List<LocalDate> dates) throws IOException {
-        try (Workbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("templates/export/production_matrix.xlsx");
+        
+        // Nhóm dữ liệu theo tổ
+        java.util.Map<Long, List<ProductionRecordResponse>> teamMap = records.stream()
+            .filter(r -> r.getTeam() != null)
+            .collect(java.util.stream.Collectors.groupingBy(r -> r.getTeam().getId()));
+
+        java.util.List<java.util.Map<String, Object>> sheetsData = new java.util.ArrayList<>();
+        
+        for (java.util.Map.Entry<Long, List<ProductionRecordResponse>> entry : teamMap.entrySet()) {
+            List<ProductionRecordResponse> teamRecords = entry.getValue();
+            com.plywood.payroll.modules.organization.dto.response.TeamResponse team = teamRecords.get(0).getTeam();
             
-            // Nhóm dữ liệu theo tổ
-            java.util.Map<Long, List<ProductionRecordResponse>> teamMap = records.stream()
-                .filter(r -> r.getTeam() != null)
-                .collect(java.util.stream.Collectors.groupingBy(r -> r.getTeam().getId()));
+            java.util.Map<String, Object> sheetData = new java.util.HashMap<>();
+            sheetData.put("sheetName", team.getName());
+            sheetData.put("team", team.getName());
+            sheetData.put("month", dates.isEmpty() ? "" : dates.get(0).getMonthValue());
+            sheetData.put("year", dates.isEmpty() ? "" : dates.get(0).getYear());
+
+            // Phân tích các sản phẩm duy nhất của tổ này trong tháng
+            List<ColumnMeta> distinctMetas = teamRecords.stream()
+                .map(r -> new ColumnMeta(r.getProduct(), r.getQuality()))
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
             
-            if (teamMap.isEmpty()) {
-                Sheet sheet = workbook.createSheet("Trống");
-                sheet.createRow(0).createCell(0).setCellValue("Không có dữ liệu trong khoảng thời gian này.");
-            } else {
-                for (java.util.Map.Entry<Long, List<ProductionRecordResponse>> entry : teamMap.entrySet()) {
-                    List<ProductionRecordResponse> teamRecords = entry.getValue();
-                    com.plywood.payroll.modules.organization.dto.response.TeamResponse team = teamRecords.get(0).getTeam();
-                    
-                    String safeSheetName = team.getName().replaceAll("[\\\\/:*?\"\\[\\]]", "_");
-                    Sheet sheet = workbook.createSheet(safeSheetName);
-                    buildDetailedTeamSheet(sheet, teamRecords, dates, workbook);
+            // Điền tên sản phẩm vào header (prod_1_name...)
+            for (int i = 0; i < 20; i++) {
+                if (i < distinctMetas.size()) {
+                    ColumnMeta meta = distinctMetas.get(i);
+                    String name = meta.getProduct().getCode() + " (" + meta.getQuality().getCode() + ")";
+                    sheetData.put("prod_" + (i + 1) + "_name", name);
+                } else {
+                    sheetData.put("prod_" + (i + 1) + "_name", "");
                 }
             }
+
+            java.util.List<java.util.Map<String, Object>> items = new java.util.ArrayList<>();
+            for (LocalDate date : dates) {
+                java.util.Map<String, Object> item = new java.util.HashMap<>();
+                item.put("date", date.getDayOfMonth());
+                
+                for (int i = 0; i < 20; i++) {
+                    if (i < distinctMetas.size()) {
+                        ColumnMeta meta = distinctMetas.get(i);
+                        int qty = teamRecords.stream()
+                            .filter(r -> r.getProductionDate().equals(date) 
+                                     && r.getProduct().getId().equals(meta.getProduct().getId())
+                                     && r.getQuality().getId().equals(meta.getQuality().getId()))
+                            .mapToInt(r -> r.getQuantity() != null ? r.getQuantity() : 0)
+                            .sum();
+                        item.put("p" + (i + 1), qty > 0 ? qty : "");
+                    } else {
+                        item.put("p" + (i + 1), "");
+                    }
+                }
+                item.put("penalty", 0);
+                item.put("total", 0);
+                items.add(item);
+            }
             
-            workbook.write(out);
-            return out.toByteArray();
+            java.util.Map<String, List<java.util.Map<String, Object>>> listMap = new java.util.HashMap<>();
+            listMap.put("item", items);
+            sheetData.put("_lists", listMap);
+            sheetsData.add(sheetData);
+        }
+
+        try (InputStream is = resource.getInputStream()) {
+            return excelTemplateFiller.fillMultiSheetTemplate(is, sheetsData, "sheetName");
         }
     }
 
-    private void buildDetailedTeamSheet(Sheet sheet, List<ProductionRecordResponse> teamRecords, List<LocalDate> dates, Workbook workbook) {
-        CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
-        CellStyle centerStyle = workbook.createCellStyle();
-        centerStyle.setAlignment(org.apache.poi.ss.usermodel.HorizontalAlignment.CENTER);
-        centerStyle.setBorderBottom(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-        centerStyle.setBorderLeft(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-        centerStyle.setBorderRight(org.apache.poi.ss.usermodel.BorderStyle.THIN);
-        centerStyle.setBorderTop(org.apache.poi.ss.usermodel.BorderStyle.THIN);
+    public byte[] exportPayslips(int month, int year, List<PayrollItemResponse> items, java.util.Map<Long, List<PayrollDailyDetailResponse>> detailsMap) throws IOException {
+        org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("templates/export/payslip.xlsx");
         
-        CellStyle priceStyle = workbook.createCellStyle();
-        priceStyle.cloneStyleFrom(centerStyle);
-        priceStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.LEMON_CHIFFON.getIndex());
-        priceStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+        java.util.List<java.util.Map<String, Object>> sheetsData = new java.util.ArrayList<>();
         
-        // 1. Phân tích cột: Lấy danh sách duy nhất Product-Quality và phân nhóm
-        List<ColumnMeta> distinctMetas = teamRecords.stream()
-            .map(r -> new ColumnMeta(r.getProduct(), r.getQuality()))
-            .distinct()
-            .collect(java.util.stream.Collectors.toList());
-
-        java.util.Map<String, List<ColumnMeta>> columnGroups = distinctMetas.stream()
-            .collect(java.util.stream.Collectors.groupingBy(m -> {
-                if (m.getProduct() == null || m.getProduct().getFilmCoatingType() == null) return "Nhật ván";
-                return switch (m.getProduct().getFilmCoatingType()) {
-                    case SIDE_1 -> "1M";
-                    case SIDE_2 -> "2M";
-                    default -> "Nhật ván";
-                };
-            }));
-
-        List<String> sortedGroupKeys = new ArrayList<>(columnGroups.keySet());
-        sortedGroupKeys.sort(java.util.Comparator.comparing(k -> {
-            if ("1M".equals(k)) return 1;
-            if ("2M".equals(k)) return 2;
-            return 3;
-        }));
-
-        List<ColumnMeta> allColumns = new ArrayList<>();
-        for (String groupKey : sortedGroupKeys) {
-            List<ColumnMeta> groupCols = columnGroups.get(groupKey).stream()
-                .sorted(java.util.Comparator.comparing(c -> c.getProduct().getCode()))
-                .collect(java.util.stream.Collectors.toList());
+        for (PayrollItemResponse item : items) {
+            java.util.Map<String, Object> sheetData = new java.util.HashMap<>();
+            sheetData.put("sheetName", item.getEmployeeName());
+            sheetData.put("month", month);
+            sheetData.put("year", year);
+            sheetData.put("fullName", item.getEmployeeName());
+            sheetData.put("empCode", item.getEmployeeCode());
+            sheetData.put("department", item.getDepartmentName() != null ? item.getDepartmentName() : "");
+            sheetData.put("team", item.getTeamName() != null ? item.getTeamName() : "");
             
-            // Gán group name cho từng cột để làm header
-            groupCols.forEach(c -> c.setGroupName(groupKey));
-            allColumns.addAll(groupCols);
-        }
+            sheetData.put("prodSalary", item.getProductSalary());
+            sheetData.put("benefit", item.getBenefitSalary());
+            sheetData.put("bonusPenalty", item.getTotalPenaltyBonus());
+            sheetData.put("netPay", item.getTotalSalary());
 
-        // Headers
-        Row groupHeaderRow = sheet.createRow(0);
-        Row subHeaderRow = sheet.createRow(1);
-        Row dgMoiRow = sheet.createRow(2);
-        Row dgCuRow = sheet.createRow(3);
-
-        groupHeaderRow.createCell(0).setCellValue("Ngày");
-        groupHeaderRow.getCell(0).setCellStyle(headerStyle);
-        subHeaderRow.createCell(0); // Empty
-        dgMoiRow.createCell(0).setCellValue("DG mới");
-        dgMoiRow.getCell(0).setCellStyle(priceStyle);
-        dgCuRow.createCell(0).setCellValue("DG cũ");
-        dgCuRow.getCell(0).setCellStyle(priceStyle);
-
-        int colIdx = 1;
-        int lastGroupStart = 1;
-        String currentGroup = null;
-
-        for (int i = 0; i < allColumns.size(); i++) {
-            ColumnMeta col = allColumns.get(i);
-            
-            // Group header merging
-            if (currentGroup == null || !currentGroup.equals(col.getGroupName())) {
-                if (currentGroup != null && colIdx - 1 > lastGroupStart) {
-                    sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, lastGroupStart, colIdx - 1));
-                }
-                currentGroup = col.getGroupName();
-                lastGroupStart = colIdx;
-                Cell groupCell = groupHeaderRow.createCell(colIdx);
-                groupCell.setCellValue(currentGroup);
-                groupCell.setCellStyle(headerStyle);
-            } else {
-                groupHeaderRow.createCell(colIdx).setCellStyle(headerStyle);
-            }
-
-            // Sub header: Code, Thickness, Quality
-            String subHead = String.format("%s-%s", col.getProduct().getThickness().stripTrailingZeros().toPlainString(), col.getProduct().getCode());
-            if (col.getQuality() != null) subHead += " (" + col.getQuality().getCode() + ")";
-            Cell subCell = subHeaderRow.createCell(colIdx);
-            subCell.setCellValue(subHead);
-            subCell.setCellStyle(centerStyle);
-
-            // Fetch Prices
-            Long stepId = teamRecords.get(0).getTeam().getProductionStep().getId();
-            java.util.Optional<ProductStepRate> rateOpt = productStepRateRepository.findEffectiveRate(
-                col.getProduct().getId(), stepId, col.getQuality().getId(), dates.get(dates.size()-1));
-            
-            Cell cellDgMoi = dgMoiRow.createCell(colIdx);
-            Cell cellDgCu = dgCuRow.createCell(colIdx);
-            cellDgMoi.setCellStyle(priceStyle);
-            cellDgCu.setCellStyle(priceStyle);
-
-            if (rateOpt.isPresent()) {
-                cellDgMoi.setCellValue(rateOpt.get().getPriceHigh().doubleValue());
-                cellDgCu.setCellValue(rateOpt.get().getPriceLow().doubleValue());
-                col.setPriceHigh(rateOpt.get().getPriceHigh());
-                col.setPriceLow(rateOpt.get().getPriceLow());
-            }
-
-            colIdx++;
-        }
-        // Last group merge
-        if (allColumns.size() > 0 && colIdx - 1 > lastGroupStart) {
-            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, lastGroupStart, colIdx - 1));
-        }
-
-        // Extra Columns: Tổ Khác, Đầu Chuyền, Tổng Tiền, Tổng Tiền ĐG mới
-        String[] extras = {"Tổ Khác", "Đầu Chuyền", "Tổng Tiền", "Tổng tiền ĐG mới"};
-        for (String extra : extras) {
-            Cell cell = groupHeaderRow.createCell(colIdx);
-            cell.setCellValue(extra);
-            cell.setCellStyle(headerStyle);
-            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 1, colIdx, colIdx));
-            dgMoiRow.createCell(colIdx).setCellStyle(priceStyle);
-            dgCuRow.createCell(colIdx).setCellStyle(priceStyle);
-            colIdx++;
-        }
-
-        // Data Rows
-        int rowIdx = 4;
-        for (LocalDate date : dates) {
-            Row row = sheet.createRow(rowIdx++);
-            row.createCell(0).setCellValue(date.getDayOfMonth());
-            row.getCell(0).setCellStyle(centerStyle);
-
-            java.math.BigDecimal dayTotalMoi = java.math.BigDecimal.ZERO;
-            java.math.BigDecimal dayTotalCu = java.math.BigDecimal.ZERO;
-            boolean hasProduction = false;
-
-            for (int i = 0; i < allColumns.size(); i++) {
-                ColumnMeta col = allColumns.get(i);
-                int qty = teamRecords.stream()
-                    .filter(r -> r.getProductionDate().equals(date) 
-                             && r.getProduct().getId().equals(col.getProduct().getId())
-                             && r.getQuality().getId().equals(col.getQuality().getId()))
-                    .mapToInt(r -> r.getQuantity() != null ? r.getQuantity() : 0)
-                    .sum();
-                
-                Cell dataCell = row.createCell(i + 1);
-                dataCell.setCellStyle(centerStyle);
-                if (qty > 0) {
-                    hasProduction = true;
-                    dataCell.setCellValue(qty);
-                    if (col.getPriceHigh() != null) {
-                        dayTotalMoi = dayTotalMoi.add(col.getPriceHigh().multiply(java.math.BigDecimal.valueOf(qty)));
-                    }
-                    if (col.getPriceLow() != null) {
-                        dayTotalCu = dayTotalCu.add(col.getPriceLow().multiply(java.math.BigDecimal.valueOf(qty)));
-                    }
+            java.util.List<java.util.Map<String, Object>> itemDetails = new java.util.ArrayList<>();
+            List<PayrollDailyDetailResponse> details = detailsMap.get(item.getId());
+            if (details != null) {
+                for (PayrollDailyDetailResponse d : details) {
+                    java.util.Map<String, Object> detail = new java.util.HashMap<>();
+                    detail.put("date", d.getDate() != null ? d.getDate().toString() : "");
+                    detail.put("symbol", d.getAttendanceSymbol() != null ? d.getAttendanceSymbol() : "");
+                    detail.put("team", d.getTeamName() != null ? d.getTeamName() : "");
+                    detail.put("prod", d.getProductSalary());
+                    detail.put("ben", d.getBenefitSalary());
+                    
+                    double bonus = d.getBonus() != null ? d.getBonus().doubleValue() : 0;
+                    double penalty = d.getPenalty() != null ? d.getPenalty().doubleValue() : 0;
+                    detail.put("netpen", bonus - penalty);
+                    itemDetails.add(detail);
                 }
             }
-
-            // Calculations for extra columns
-            int baseColIdx = allColumns.size() + 1;
-            Cell cellToKhac = row.createCell(baseColIdx);
-            cellToKhac.setCellStyle(centerStyle);
             
-            Cell cellDauChuyen = row.createCell(baseColIdx + 1);
-            cellDauChuyen.setCellStyle(centerStyle);
+            java.util.Map<String, List<java.util.Map<String, Object>>> listMap = new java.util.HashMap<>();
+            listMap.put("item", itemDetails);
+            sheetData.put("_lists", listMap);
+            sheetsData.add(sheetData);
+        }
 
-            Cell cellTotalCu = row.createCell(baseColIdx + 2);
-            cellTotalCu.setCellStyle(centerStyle);
+        try (InputStream is = resource.getInputStream()) {
+            return excelTemplateFiller.fillMultiSheetTemplate(is, sheetsData, "sheetName");
+        }
+    }
 
-            Cell cellTotalMoi = row.createCell(baseColIdx + 3);
-            cellTotalMoi.setCellStyle(centerStyle);
-
-            if (hasProduction) {
-                cellToKhac.setCellValue(0);
-                cellDauChuyen.setCellValue(20000);
-                cellTotalCu.setCellValue(dayTotalCu.doubleValue() + 20000);
-                cellTotalMoi.setCellValue(dayTotalMoi.doubleValue() + 20000);
-            } else {
-                cellToKhac.setCellValue("-");
-                cellDauChuyen.setCellValue("-");
-                cellTotalCu.setCellValue("-");
-                cellTotalMoi.setCellValue("-");
+    private boolean isRowEmpty(Row row) {
+        if (row == null) return true;
+        // Check if all cells in the row are blank or empty
+        for (int i = row.getFirstCellNum(); i < row.getLastCellNum(); i++) {
+            Cell cell = row.getCell(i);
+            if (cell != null && cell.getCellType() != CellType.BLANK &&
+                (cell.getCellType() != CellType.STRING || !cell.getStringCellValue().trim().isEmpty())) {
+                return false;
             }
         }
-
-        // Finalize: Auto Size
-        for (int i = 0; i < colIdx; i++) {
-            sheet.autoSizeColumn(i);
-        }
+        return true;
     }
 
     @lombok.Data
     private static class ColumnMeta {
         private final com.plywood.payroll.modules.product.dto.response.ProductResponse product;
         private final com.plywood.payroll.modules.quality.dto.response.ProductQualityResponse quality;
-        private String groupName;
-        private java.math.BigDecimal priceHigh;
-        private java.math.BigDecimal priceLow;
 
         @Override
         public boolean equals(Object o) {
@@ -804,169 +720,6 @@ public class ExcelService {
         @Override
         public int hashCode() {
             return java.util.Objects.hash(product.getId(), quality.getId());
-        }
-    }
-
-    private boolean isRowEmpty(Row row) {
-        if (row == null) return true;
-        return row.getPhysicalNumberOfCells() == 0;
-    }
-
-    public byte[] exportPayslips(int month, int year, List<PayrollItemResponse> items, java.util.Map<Long, List<PayrollDailyDetailResponse>> detailsMap) throws IOException {
-        try (Workbook workbook = new XSSFWorkbook();
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-             
-            CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
-            CellStyle titleStyle = workbook.createCellStyle();
-            org.apache.poi.ss.usermodel.Font titleFont = workbook.createFont();
-            titleFont.setBold(true);
-            titleFont.setFontHeightInPoints((short) 14);
-            titleStyle.setFont(titleFont);
-            titleStyle.setAlignment(org.apache.poi.ss.usermodel.HorizontalAlignment.CENTER);
-
-            CellStyle boldStyle = workbook.createCellStyle();
-            org.apache.poi.ss.usermodel.Font boldFont = workbook.createFont();
-            boldFont.setBold(true);
-            boldStyle.setFont(boldFont);
-            
-            CellStyle numberStyle = workbook.createCellStyle();
-            org.apache.poi.ss.usermodel.DataFormat format = workbook.createDataFormat();
-            numberStyle.setDataFormat(format.getFormat("#,##0"));
-
-            CellStyle boldNumberStyle = workbook.createCellStyle();
-            boldNumberStyle.setFont(boldFont);
-            boldNumberStyle.setDataFormat(format.getFormat("#,##0"));
-
-            for (PayrollItemResponse item : items) {
-                String safeName = item.getEmployeeName().replaceAll("[\\\\/:*?\"\\[\\]]", "_");
-                if (safeName.length() > 31) {
-                    safeName = safeName.substring(0, 31);
-                }
-                // Determine valid sheet name (might have duplicates if same name, handle by adding id)
-                String sheetName = safeName;
-                int suffix = 1;
-                while (workbook.getSheet(sheetName) != null) {
-                    sheetName = safeName + "_" + suffix;
-                    if (sheetName.length() > 31) {
-                        sheetName = safeName.substring(0, 31 - String.valueOf(suffix).length() - 1) + "_" + suffix;
-                    }
-                    suffix++;
-                }
-
-                Sheet sheet = workbook.createSheet(sheetName);
-
-                // --- Header Section ---
-                Row titleRow = sheet.createRow(0);
-                Cell titleCell = titleRow.createCell(0);
-                titleCell.setCellValue("PHIẾU LƯƠNG THÁNG " + month + "/" + year);
-                titleCell.setCellStyle(titleStyle);
-                sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 3));
-
-                int r = 2;
-                
-                // Employee Info
-                Row empRow1 = sheet.createRow(r++);
-                empRow1.createCell(0).setCellValue("Họ và tên:");
-                empRow1.getCell(0).setCellStyle(boldStyle);
-                empRow1.createCell(1).setCellValue(item.getEmployeeName());
-                
-                empRow1.createCell(2).setCellValue("Mã NV:");
-                empRow1.getCell(2).setCellStyle(boldStyle);
-                empRow1.createCell(3).setCellValue(item.getEmployeeCode());
-
-                Row empRow2 = sheet.createRow(r++);
-                empRow2.createCell(0).setCellValue("Phòng ban:");
-                empRow2.getCell(0).setCellStyle(boldStyle);
-                empRow2.createCell(1).setCellValue(item.getDepartmentName() != null ? item.getDepartmentName() : "");
-                
-                empRow2.createCell(2).setCellValue("Tổ:");
-                empRow2.getCell(2).setCellStyle(boldStyle);
-                empRow2.createCell(3).setCellValue(item.getTeamName() != null ? item.getTeamName() : "");
-
-                r++; // blank row
-
-                // --- Salary Summary ---
-                Row summaryTitleRow = sheet.createRow(r++);
-                summaryTitleRow.createCell(0).setCellValue("TỔNG HỢP LƯƠNG");
-                summaryTitleRow.getCell(0).setCellStyle(boldStyle);
-                sheet.addMergedRegion(new CellRangeAddress(r-1, r-1, 0, 3));
-
-                Row sumRow1 = sheet.createRow(r++);
-                sumRow1.createCell(0).setCellValue("Lương sản phẩm (1):");
-                Cell c1 = sumRow1.createCell(1);
-                c1.setCellValue(item.getProductSalary() != null ? item.getProductSalary().doubleValue() : 0);
-                c1.setCellStyle(numberStyle);
-
-                Row sumRow2 = sheet.createRow(r++);
-                sumRow2.createCell(0).setCellValue("Phụ cấp chức vụ (2):");
-                Cell c2 = sumRow2.createCell(1);
-                c2.setCellValue(item.getBenefitSalary() != null ? item.getBenefitSalary().doubleValue() : 0);
-                c2.setCellStyle(numberStyle);
-
-                Row sumRow3 = sheet.createRow(r++);
-                sumRow3.createCell(0).setCellValue("Thưởng / Phạt (3):");
-                Cell c3 = sumRow3.createCell(1);
-                c3.setCellValue(item.getTotalPenaltyBonus() != null ? item.getTotalPenaltyBonus().doubleValue() : 0);
-                c3.setCellStyle(numberStyle);
-
-                r++;
-                Row netRow = sheet.createRow(r++);
-                netRow.createCell(0).setCellValue("THỰC LĨNH = (1) + (2) + (3):");
-                netRow.getCell(0).setCellStyle(boldStyle);
-                Cell cNet = netRow.createCell(1);
-                cNet.setCellValue(item.getTotalSalary() != null ? item.getTotalSalary().doubleValue() : 0);
-                cNet.setCellStyle(boldNumberStyle);
-
-                r += 2; // blank row
-
-                // --- Daily Details ---
-                List<PayrollDailyDetailResponse> details = detailsMap.get(item.getId());
-                if (details != null && !details.isEmpty()) {
-                    Row detailTitleRow = sheet.createRow(r++);
-                    detailTitleRow.createCell(0).setCellValue("CHI TIẾT LƯƠNG TỪNG NGÀY");
-                    detailTitleRow.getCell(0).setCellStyle(boldStyle);
-                    sheet.addMergedRegion(new CellRangeAddress(r-1, r-1, 0, 5));
-
-                    Row thRow = sheet.createRow(r++);
-                    String[] headers = {"Ngày", "Chấm công", "Tổ làm việc", "Lương SP (đ)", "Phụ cấp (đ)", "Thưởng/Phạt (đ)"};
-                    for (int i = 0; i < headers.length; i++) {
-                        Cell c = thRow.createCell(i);
-                        c.setCellValue(headers[i]);
-                        c.setCellStyle(headerStyle);
-                    }
-
-                    for (PayrollDailyDetailResponse d : details) {
-                        Row dr = sheet.createRow(r++);
-                        
-                        dr.createCell(0).setCellValue(d.getDate() != null ? d.getDate().toString() : "");
-                        dr.createCell(1).setCellValue(d.getAttendanceSymbol() != null ? d.getAttendanceSymbol() : "");
-                        dr.createCell(2).setCellValue(d.getTeamName() != null ? d.getTeamName() : "");
-                        
-                        Cell spC = dr.createCell(3);
-                        spC.setCellValue(d.getProductSalary() != null ? d.getProductSalary().doubleValue() : 0);
-                        spC.setCellStyle(numberStyle);
-
-                        Cell pcC = dr.createCell(4);
-                        pcC.setCellValue(d.getBenefitSalary() != null ? d.getBenefitSalary().doubleValue() : 0);
-                        pcC.setCellStyle(numberStyle);
-
-                        double tBonus = d.getBonus() != null ? d.getBonus().doubleValue() : 0;
-                        double tPenalty = d.getPenalty() != null ? d.getPenalty().doubleValue() : 0;
-                        
-                        Cell penC = dr.createCell(5);
-                        penC.setCellValue(tBonus - tPenalty);
-                        penC.setCellStyle(numberStyle);
-                    }
-                }
-
-                // Auto size column
-                for (int i = 0; i < 6; i++) {
-                    sheet.autoSizeColumn(i);
-                }
-            }
-
-            workbook.write(out);
-            return out.toByteArray();
         }
     }
 }

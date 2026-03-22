@@ -80,13 +80,17 @@
     "overview": "Tổng quan",
     "search_placeholder": "Tìm kiếm theo mã hoặc tên...",
     "select_product": "Chọn sản phẩm",
+    "selected": "Đã chọn",
     "select_quality": "Chọn chất lượng",
     "select_team": "Chọn tổ sản xuất",
     "export": "Xuất Excel",
     "import": "Nhập Excel",
     "status_inactive": "Không hoạt động",
     "loading": "Đang tải...",
-    "update": "Cập nhật"
+    "update": "Cập nhật",
+    "filter_by_dept": "Lọc theo phòng ban",
+    "filter_by_status": "Lọc theo trạng thái",
+    "not_found": "Không tìm thấy dữ liệu"
   },
   "employee": {
     "title": "Quản lý Nhân viên",

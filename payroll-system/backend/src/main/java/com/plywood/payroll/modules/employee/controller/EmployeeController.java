@@ -8,6 +8,9 @@ import com.plywood.payroll.shared.constant.MessageConstants;
 import com.plywood.payroll.modules.employee.dto.request.EmployeeRequest;
 import com.plywood.payroll.shared.dto.ApiResponse;
 import com.plywood.payroll.modules.employee.dto.response.EmployeeResponse;
+import com.plywood.payroll.modules.employee.dto.response.EmployeeAuditLogResponse;
+import com.plywood.payroll.modules.employee.dto.request.EmployeeNoteRequest;
+import com.plywood.payroll.modules.employee.dto.response.EmployeeNoteResponse;
 import com.plywood.payroll.modules.employee.service.EmployeeService;
 import com.plywood.payroll.modules.excel.service.ExcelService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,14 +38,14 @@ public class EmployeeController {
     private final ExcelService excelService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('PRODUCTION_VIEW') or hasAuthority('PAYROLL_VIEW')")
     @Operation(summary = "Lấy danh sách nhân viên")
     public ResponseEntity<ApiResponse<List<EmployeeResponse>>> getAll() {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, employeeService.getAll()));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('PRODUCTION_VIEW') or hasAuthority('PAYROLL_VIEW')")
     @Operation(summary = "Lấy thông tin nhân viên theo ID")
     public ResponseEntity<ApiResponse<EmployeeResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, employeeService.getById(id)));
@@ -114,5 +117,27 @@ public class EmployeeController {
     public ResponseEntity<ApiResponse<String>> updateAvatar(@PathVariable("id") Long id, @RequestParam("file") MultipartFile file) throws IOException {
         String avatarUrl = employeeService.updateAvatar(id, file);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, avatarUrl));
+    }
+
+    @GetMapping("/{id}/notes")
+    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Lấy danh sách ghi chú của nhân viên")
+    public ResponseEntity<ApiResponse<List<EmployeeNoteResponse>>> getNotes(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, employeeService.getNotes(id)));
+    }
+
+    @PostMapping("/{id}/notes")
+    @PreAuthorize("hasAuthority('EMPLOYEE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Thêm ghi chú mới cho nhân viên")
+    public ResponseEntity<ApiResponse<EmployeeNoteResponse>> addNote(@PathVariable("id") Long id, @Valid @RequestBody EmployeeNoteRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_CREATE, employeeService.addNote(id, request)));
+    }
+
+    @DeleteMapping("/notes/{noteId}")
+    @PreAuthorize("hasAuthority('EMPLOYEE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Xóa ghi chú")
+    public ResponseEntity<ApiResponse<Void>> deleteNote(@PathVariable("noteId") Long noteId) {
+        employeeService.deleteNote(noteId);
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }
 }

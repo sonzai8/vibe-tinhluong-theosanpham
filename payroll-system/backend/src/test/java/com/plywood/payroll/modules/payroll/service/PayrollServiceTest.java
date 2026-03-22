@@ -111,7 +111,7 @@ class PayrollServiceTest {
         att.setEmployee(employee);
         att.setActualTeam(team);
         att.setAttendanceDate(date);
-        when(dailyAttendanceRepository.findByFilters(any(), any(), anyInt(), anyInt(), any(), any(), any())).thenReturn(Collections.singletonList(att));
+        when(dailyAttendanceRepository.findByFilters(any(), any(), anyInt(), anyInt(), any(), any(), anyBoolean(), any(), anyBoolean())).thenReturn(Collections.singletonList(att));
 
         // Mock Rates
         ProductStepRate rate = new ProductStepRate();

@@ -9,6 +9,9 @@ import com.plywood.payroll.modules.employee.dto.response.EmployeeAuditLogRespons
 import com.plywood.payroll.modules.organization.dto.response.TeamResponse;
 import com.plywood.payroll.modules.employee.entity.Employee;
 import com.plywood.payroll.modules.organization.entity.Team;
+import com.plywood.payroll.modules.employee.dto.request.EmployeeNoteRequest;
+import com.plywood.payroll.modules.employee.dto.response.EmployeeNoteResponse;
+import com.plywood.payroll.modules.employee.repository.EmployeeNoteRepository;
 import com.plywood.payroll.shared.exception.ResourceNotFoundException;
 import com.plywood.payroll.modules.organization.repository.DepartmentRepository;
 import com.plywood.payroll.modules.employee.repository.EmployeeRepository;
@@ -31,6 +34,7 @@ public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
     private final EmployeeAuditLogRepository employeeAuditLogRepository;
+    private final EmployeeNoteRepository employeeNoteRepository;
     private final PasswordEncoder passwordEncoder;
     private final DepartmentRepository departmentRepository;
     private final RoleRepository roleRepository;
@@ -57,6 +61,43 @@ public class EmployeeService {
         return employeeAuditLogRepository.findByEmployeeIdOrderByChangedAtDesc(employeeId).stream()
                 .map(this::mapToAuditResponse)
                 .collect(Collectors.toList());
+    }
+
+    public List<EmployeeNoteResponse> getNotes(Long employeeId) {
+        return employeeNoteRepository.findByEmployeeIdOrderByCreatedAtDesc(employeeId).stream()
+                .map(this::mapNoteToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public EmployeeNoteResponse addNote(Long employeeId, EmployeeNoteRequest request) {
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", employeeId));
+        
+        com.plywood.payroll.modules.employee.entity.EmployeeNote note = new com.plywood.payroll.modules.employee.entity.EmployeeNote();
+        note.setEmployee(employee);
+        note.setContent(request.getContent());
+        note.setMonth(request.getMonth());
+        note.setYear(request.getYear());
+        note.setCreatedBy("ADMIN"); // Có thể lấy từ SecurityContext nếu có
+        
+        return mapNoteToResponse(employeeNoteRepository.save(note));
+    }
+
+    @Transactional
+    public void deleteNote(Long noteId) {
+        employeeNoteRepository.deleteById(noteId);
+    }
+
+    private EmployeeNoteResponse mapNoteToResponse(com.plywood.payroll.modules.employee.entity.EmployeeNote entity) {
+        EmployeeNoteResponse r = new EmployeeNoteResponse();
+        r.setId(entity.getId());
+        r.setContent(entity.getContent());
+        r.setMonth(entity.getMonth());
+        r.setYear(entity.getYear());
+        r.setCreatedBy(entity.getCreatedBy());
+        r.setCreatedAt(entity.getCreatedAt());
+        return r;
     }
 
     private EmployeeAuditLogResponse mapToAuditResponse(com.plywood.payroll.modules.employee.entity.EmployeeAuditLog entity) {

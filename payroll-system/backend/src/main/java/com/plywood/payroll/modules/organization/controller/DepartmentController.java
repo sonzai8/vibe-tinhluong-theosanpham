@@ -29,14 +29,14 @@ public class DepartmentController {
     private final DepartmentService departmentService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('PRODUCTION_VIEW')")
     @Operation(summary = "Lấy danh sách tất cả phòng ban")
     public ResponseEntity<ApiResponse<List<DepartmentResponse>>> getAll() {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, departmentService.getAll()));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('PRODUCTION_VIEW')")
     @Operation(summary = "Lấy thông tin phòng ban theo ID")
     public ResponseEntity<ApiResponse<DepartmentResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, departmentService.getById(id)));

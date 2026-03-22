@@ -18,10 +18,12 @@ import com.plywood.payroll.modules.production.dto.response.ProductionRecordRespo
 import com.plywood.payroll.shared.exception.ResourceNotFoundException;
 // REMOVED_WILDCARD_REPO_IMPORT - please update manually
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,7 +42,30 @@ public class ProductionRecordService {
     private final ProductQualityService qualityService;
 
     public List<ProductionRecordResponse> getByFilters(LocalDate from, LocalDate to, List<Long> departmentIds, List<Long> teamIds) {
-        List<ProductionRecord> records = recordRepository.findByFilters(from, to, departmentIds, teamIds);
+        Specification<ProductionRecord> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("productionDate"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("productionDate"), to));
+            }
+            if (departmentIds != null && !departmentIds.isEmpty()) {
+                predicates.add(root.get("team").get("department").get("id").in(departmentIds));
+            }
+            if (teamIds != null && !teamIds.isEmpty()) {
+                predicates.add(root.get("team").get("id").in(teamIds));
+            }
+
+            if (query != null) {
+                query.orderBy(cb.desc(root.get("productionDate")), cb.desc(root.get("createdAt")));
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        List<ProductionRecord> records = recordRepository.findAll(spec);
         return records.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());

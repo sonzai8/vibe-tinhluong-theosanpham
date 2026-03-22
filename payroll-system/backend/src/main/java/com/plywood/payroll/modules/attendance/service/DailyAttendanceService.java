@@ -14,10 +14,12 @@ import com.plywood.payroll.modules.attendance.repository.DailyAttendanceReposito
 import com.plywood.payroll.modules.employee.repository.EmployeeRepository;
 import com.plywood.payroll.modules.organization.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,7 +36,35 @@ public class DailyAttendanceService {
     private final AttendanceDefinitionService definitionService;
 
     public List<DailyAttendanceResponse> getByFilters(LocalDate fromDate, LocalDate toDate, Integer month, Integer year, LocalDate date, List<Long> departmentIds, List<Long> teamIds) {
-        return attendanceRepository.findByFilters(fromDate, toDate, month, year, date, departmentIds, teamIds).stream()
+        Specification<DailyAttendance> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            if (fromDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("attendanceDate"), fromDate));
+            }
+            if (toDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("attendanceDate"), toDate));
+            }
+            if (month != null) {
+                predicates.add(cb.equal(cb.function("MONTH", Integer.class, root.get("attendanceDate")), month));
+            }
+            if (year != null) {
+                predicates.add(cb.equal(cb.function("YEAR", Integer.class, root.get("attendanceDate")), year));
+            }
+            if (date != null) {
+                predicates.add(cb.equal(root.get("attendanceDate"), date));
+            }
+            if (departmentIds != null && !departmentIds.isEmpty()) {
+                predicates.add(root.get("employee").get("department").get("id").in(departmentIds));
+            }
+            if (teamIds != null && !teamIds.isEmpty()) {
+                predicates.add(root.get("actualTeam").get("id").in(teamIds));
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return attendanceRepository.findAll(spec).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

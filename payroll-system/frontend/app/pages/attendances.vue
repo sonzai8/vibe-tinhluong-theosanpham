@@ -491,20 +491,21 @@
         <div class="overflow-y-auto flex-1 pr-2 space-y-8">
           <!-- Filters for Bulk -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">
-            <UiSelect 
-              v-model="bulkForm.departmentId" 
-              :label="$t('common.filter_by_dept') || 'Lọc theo phòng ban'" 
-              :options="deptOptions" 
-              :placeholder="$t('common.all_departments') || 'Tất cả phòng ban'"
-              @update:modelValue="loadBulkEmployees"
-            />
-            <UiSelect 
-              v-model="bulkForm.teamId" 
-              :label="$t('attendance.original_team')" 
-              :options="teamFilterOptions" 
-              :placeholder="$t('common.select_team_to_load') || 'Chọn tổ để nạp danh sách'"
-              @update:modelValue="loadBulkEmployees"
-            />
+            <div class="w-full">
+               <SelectDepartment 
+                 v-model="bulkForm.departmentId" 
+                 :label="$t('common.filter_by_dept') || 'Lọc theo phòng ban'" 
+                 @update:modelValue="loadBulkEmployees"
+               />
+            </div>
+            <div class="w-full">
+               <SelectTeam 
+                 v-model="bulkForm.teamId" 
+                 :departmentId="bulkForm.departmentId"
+                 :label="$t('attendance.original_team')"
+                 @update:modelValue="loadBulkEmployees"
+               />
+            </div>
             <UiSelect 
               v-model="bulkForm.attendanceDefinitionId" 
               :label="$t('attendance.definition.name')" 
@@ -811,19 +812,38 @@ const fetchData = async () => {
       ? `/attendances/date/${filterDate.value}` 
       : `/attendances`; // Assuming /attendances with month/year params works
 
-    const [attRes, empRes, teamRes, deptRes, defRes] = await Promise.all([
-      $api.get(endpoint, { params: Object.fromEntries(params) }),
-      $api.get('/employees'),
-      $api.get('/teams'),
-      $api.get('/departments'),
-      $api.get('/attendance-definitions')
+    const fetchWrapper = async (promise, fallback = []) => {
+      try {
+        const res = await promise;
+        return res.data || res || fallback;
+      } catch (err) {
+        // Handle 404 specifically as empty list for attendances
+        if (err.response?.status === 404) return [];
+        console.error('Fetch error:', err);
+        return fallback;
+      }
+    };
+
+    const [attData, empData, teamData, deptData, defData] = await Promise.all([
+      fetchWrapper($api.get(endpoint, { params: Object.fromEntries(params) })),
+      fetchWrapper($api.get('/employees')),
+      fetchWrapper($api.get('/teams')),
+      fetchWrapper($api.get('/departments')),
+      fetchWrapper($api.get('/attendance-definitions'))
     ]);
     
-    attendances.value = attRes.data;
-    employees.value = empRes.data;
-    teams.value = teamRes.data;
-    departments.value = deptRes.data;
-    attendanceDefs.value = defRes.data;
+    attendances.value = Array.isArray(attData) ? attData : [];
+    employees.value = Array.isArray(empData) ? empData : [];
+    teams.value = Array.isArray(teamData) ? teamData : [];
+    departments.value = Array.isArray(deptData) ? deptData : [];
+    attendanceDefs.value = Array.isArray(defData) ? defData : [];
+
+    console.log('Data fetch results:', {
+      attendances: attendances.value.length,
+      employees: employees.value.length,
+      teams: teams.value.length,
+      attendanceDefs: attendanceDefs.value.length
+    });
   } catch (err) {
     console.error(err);
     if (err.response?.status === 404) attendances.value = [];

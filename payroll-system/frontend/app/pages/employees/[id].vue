@@ -109,8 +109,49 @@
              <UiInput v-model="form.insuranceStartDate" type="date" label="Ngày bắt đầu đóng BHXH" />
           </div>
 
-          <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mt-10 mb-6 pb-2 border-b border-slate-100">Ghi chú</h3>
-          <textarea v-model="form.notes" rows="4" class="w-full bg-slate-50 border border-transparent rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:bg-white focus:border-slate-200 transition-all resize-none" placeholder="Nhập ghi chú chi tiết..."></textarea>
+          <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mt-10 mb-6 pb-2 border-b border-slate-100">Lịch sử Ghi chú</h3>
+          
+          <!-- Add Note Form -->
+          <div class="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+             <div class="grid grid-cols-2 gap-4">
+                <UiInput v-model="noteForm.month" type="number" label="Tháng" placeholder="1-12" />
+                <UiInput v-model="noteForm.year" type="number" label="Năm" placeholder="202x" />
+             </div>
+             <textarea v-model="noteForm.content" rows="3" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all resize-none" placeholder="Nhập ghi chú mới..."></textarea>
+             <div class="flex justify-end">
+                <UiButton size="sm" @click="handleAddNote" :loading="addingNote" :disabled="!noteForm.content">
+                  <Plus class="w-4 h-4" />
+                  Thêm ghi chú
+                </UiButton>
+             </div>
+          </div>
+
+          <!-- Notes Timeline -->
+          <div class="space-y-6">
+             <div v-if="notes.length === 0" class="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <p class="text-slate-400 text-xs font-medium italic">Chưa có ghi chú nào</p>
+             </div>
+             <div v-else class="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                <div v-for="note in notes" :key="note.id" class="relative">
+                   <div class="absolute -left-[27px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-primary-500 z-10"></div>
+                   <div class="bg-white border border-slate-100 rounded-2xl p-5 hover:shadow-md transition-all group">
+                      <div class="flex items-center justify-between mb-2">
+                         <div class="flex items-center gap-2">
+                            <span v-if="note.month && note.year" class="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-black rounded-lg">Tháng {{ note.month }}/{{ note.year }}</span>
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ formatDate(note.createdAt) }}</span>
+                         </div>
+                         <button @click="handleDeleteNote(note.id)" class="p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50">
+                            <Trash2 class="w-3.5 h-3.5" />
+                         </button>
+                      </div>
+                      <p class="text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-wrap">{{ note.content }}</p>
+                      <p class="mt-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                         <User class="w-3 h-3" /> {{ note.createdBy }}
+                      </p>
+                   </div>
+                </div>
+             </div>
+          </div>
         </div>
       </div>
     </div>
@@ -118,7 +159,7 @@
 </template>
 
 <script setup>
-import { ChevronLeft, Save, User, Camera } from 'lucide-vue-next';
+import { ChevronLeft, Save, User, Camera, Trash2, Plus } from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
@@ -126,6 +167,8 @@ const { $api } = useNuxtApp();
 
 const employee = ref({});
 const saving = ref(false);
+const notes = ref([]);
+const addingNote = ref(false);
 
 const form = reactive({
   fullName: '',
@@ -140,6 +183,12 @@ const form = reactive({
   joinDate: '',
   insuranceStartDate: '',
   notes: '',
+});
+
+const noteForm = reactive({
+  content: '',
+  month: new Date().getMonth() + 1,
+  year: new Date().getFullYear()
 });
 
 const fullAvatarUrl = computed(() => {
@@ -158,9 +207,43 @@ const fetchData = async () => {
     });
     
     if (!form.gender) form.gender = 'MALE';
+    fetchNotes();
   } catch (err) {
     console.error(err);
     alert('Không thể tải thông tin nhân viên');
+  }
+};
+
+const fetchNotes = async () => {
+  try {
+    const res = await $api.get(`/employees/${route.params.id}/notes`);
+    notes.value = res.data;
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+const handleAddNote = async () => {
+  if (!noteForm.content) return;
+  addingNote.value = true;
+  try {
+    await $api.post(`/employees/${employee.value.id}/notes`, noteForm);
+    noteForm.content = '';
+    fetchNotes();
+  } catch (err) {
+    alert('Lỗi khi thêm ghi chú');
+  } finally {
+    addingNote.value = false;
+  }
+};
+
+const handleDeleteNote = async (noteId) => {
+  if (!confirm('Bạn có chắc chắn muốn xóa ghi chú này?')) return;
+  try {
+    await $api.delete(`/employees/notes/${noteId}`);
+    fetchNotes();
+  } catch (err) {
+    alert('Lỗi khi xóa ghi chú');
   }
 };
 
@@ -204,6 +287,17 @@ const handleAvatarUpload = async (event) => {
   } catch (err) {
     alert(err.response?.data?.message || 'Lỗi khi tải ảnh lên');
   }
+};
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 };
 
 const handleBack = () => router.push('/employees');

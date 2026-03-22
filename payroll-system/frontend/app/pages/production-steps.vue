@@ -188,9 +188,7 @@ const availableProducts = computed(() => {
   return products.value.filter(p => !modalStepProducts.value.find(mp => mp.id === p.id));
 });
 
-const getStepProductCodes = (stepId) => {
-  return (stepMappings.value[stepId] || []).map(p => p.code);
-};
+// (Removed unused getStepProductCodes)
 
 const handleExport = async () => {
   try {

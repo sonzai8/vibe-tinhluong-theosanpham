@@ -33,6 +33,15 @@
           {{ $t('product.add_new') }}
         </UiButton>
       </div>
+    
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
     </div>
 
     <!-- Table -->
@@ -195,15 +204,26 @@ const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
 const products = ref([]);
 const units = ref([]);
 const loading = ref(true);
-const saving = ref(false);
-const showModal = ref(false);
 const isCodeCustomized = ref(false);
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
 
 const handleExport = async () => {
   try {
     await exportExcel('/products/export', 'danh_sach_san_pham.xlsx');
   } catch (err) {
-    alert('Không thể xuất dữ liệu');
+    triggerError('Lỗi xuất file', 'Không thể xuất danh sách sản phẩm ra Excel.', err.message);
   }
 };
 
@@ -211,7 +231,7 @@ const downloadTemplate = async () => {
   try {
     await dlTemplate('/products/download-template', 'mau_nhap_san_pham.xlsx');
   } catch (err) {
-    alert('Không thể tải file mẫu');
+    triggerError('Lỗi tải mẫu', 'Không thể tải xuống tệp tin mẫu cho sản phẩm.', err.message);
   }
 };
 
@@ -225,7 +245,7 @@ const handleImport = async (event) => {
     alert('Nhập dữ liệu thành công');
     fetchAllData();
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi nhập dữ liệu');
+    triggerError('Lỗi nhập file', 'Hệ thống gặp sự cố khi xử lý tệp Excel nhập sản phẩm.', err.response?.data?.message || err.message);
   } finally {
     loading.value = false;
     event.target.value = ''; // Reset input
@@ -334,7 +354,7 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchAllData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi lưu sản phẩm', 'Đã xảy ra lỗi khi lưu thông tin sản phẩm.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
@@ -346,7 +366,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/products/${id}`);
     fetchAllData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi xóa sản phẩm', 'Hệ thống gặp sự cố khi xóa sản phẩm này.', err.response?.data?.message || err.message);
   }
 };
 

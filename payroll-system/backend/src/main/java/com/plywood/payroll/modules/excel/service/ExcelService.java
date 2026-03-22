@@ -32,6 +32,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import com.plywood.payroll.modules.excel.dto.response.ImportError;
+import com.plywood.payroll.modules.excel.dto.response.ImportResult;
 import com.plywood.payroll.modules.payroll.dto.response.PayrollItemResponse;
 import com.plywood.payroll.modules.payroll.dto.response.PayrollDailyDetailResponse;
 
@@ -203,45 +205,121 @@ public class ExcelService {
         }
     }
 
-    public List<DailyAttendanceRequest> importAttendances(MultipartFile file) throws IOException {
+    public ImportResult<DailyAttendanceRequest> importAttendances(MultipartFile file) throws IOException {
         List<DailyAttendanceRequest> requests = new ArrayList<>();
+        List<ImportError> errors = new ArrayList<>();
+        
         try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
             Sheet sheet = workbook.getSheetAt(0);
             Iterator<Row> rows = sheet.iterator();
 
-            if (rows.hasNext()) rows.next(); // Skip header
+            if (!rows.hasNext()) {
+                errors.add(ImportError.builder().errorMessage("File trống hoặc sai định dạng").build());
+                return ImportResult.<DailyAttendanceRequest>builder().errors(errors).errorCount(1).build();
+            }
 
+            Row headerRow = rows.next();
+            // Validate header
+            String[] expectedHeaders = {"Mã NV", "Họ Tên", "Ngày", "Tổ biên chế", "Tổ thực tế", "Mã loại công"};
+            for (int i = 0; i < expectedHeaders.length; i++) {
+                String actual = ExcelHelper.getCellValueAsString(headerRow.getCell(i));
+                if (actual == null || !actual.toLowerCase().contains(expectedHeaders[i].toLowerCase())) {
+                    errors.add(ImportError.builder()
+                            .rowNumber(1)
+                            .columnName(expectedHeaders[i])
+                            .errorMessage("Tiêu đề cột không khớp. Mong đợi: " + expectedHeaders[i])
+                            .build());
+                    return ImportResult.<DailyAttendanceRequest>builder().errors(errors).errorCount(1).build();
+                }
+            }
+
+            int rowIdx = 1;
             while (rows.hasNext()) {
+                rowIdx++;
                 Row currentRow = rows.next();
                 if (isRowEmpty(currentRow)) continue;
 
                 String empCode = ExcelHelper.getCellValueAsString(currentRow.getCell(0));
-                if (empCode == null || empCode.isEmpty()) continue;
+                if (empCode == null || empCode.isEmpty()) {
+                    errors.add(ImportError.builder()
+                            .rowNumber(rowIdx)
+                            .columnName("Mã NV")
+                            .errorMessage("Mã nhân viên không được để trống")
+                            .build());
+                    continue;
+                }
 
-                employeeRepository.findByCode(empCode).ifPresent(emp -> {
-                    DailyAttendanceRequest req = new DailyAttendanceRequest();
-                    req.setEmployeeId(emp.getId());
+                var empOpt = employeeRepository.findByCode(empCode);
+                if (empOpt.isEmpty()) {
+                    errors.add(ImportError.builder()
+                            .rowNumber(rowIdx)
+                            .columnName("Mã NV")
+                            .cellValue(empCode)
+                            .errorMessage("Không tìm thấy nhân viên với mã này")
+                            .build());
+                    continue;
+                }
 
+                var emp = empOpt.get();
+                DailyAttendanceRequest req = new DailyAttendanceRequest();
+                req.setEmployeeId(emp.getId());
+
+                try {
                     String dateStr = ExcelHelper.getCellValueAsString(currentRow.getCell(2));
                     req.setAttendanceDate(dateStr != null ? LocalDate.parse(dateStr) : LocalDate.now());
+                } catch (Exception e) {
+                    errors.add(ImportError.builder()
+                            .rowNumber(rowIdx)
+                            .columnName("Ngày")
+                            .errorMessage("Ngày không đúng định dạng YYYY-MM-DD")
+                            .build());
+                    continue;
+                }
 
-                    String origTeamName = ExcelHelper.getCellValueAsString(currentRow.getCell(3));
-                    if (origTeamName != null) teamRepository.findByName(origTeamName).ifPresent(t -> req.setOriginalTeamId(t.getId()));
-
-                    String actualTeamName = ExcelHelper.getCellValueAsString(currentRow.getCell(4));
-                    if (actualTeamName != null) teamRepository.findByName(actualTeamName).ifPresent(t -> req.setActualTeamId(t.getId()));
-                    else req.setActualTeamId(req.getOriginalTeamId());
-
-                    String defCode = ExcelHelper.getCellValueAsString(currentRow.getCell(5));
-                    if (defCode != null && !defCode.isEmpty()) {
-                        attendanceDefinitionRepository.findByCode(defCode).ifPresent(def -> req.setAttendanceDefinitionId(def.getId()));
+                String origTeamName = ExcelHelper.getCellValueAsString(currentRow.getCell(3));
+                if (origTeamName != null && !origTeamName.isEmpty()) {
+                    var teamOpt = teamRepository.findByName(origTeamName);
+                    if (teamOpt.isPresent()) req.setOriginalTeamId(teamOpt.get().getId());
+                    else {
+                         errors.add(ImportError.builder().rowNumber(rowIdx).columnName("Tổ biên chế").cellValue(origTeamName).errorMessage("Không tìm thấy tổ này").build());
+                         continue;
                     }
+                }
 
-                    requests.add(req);
-                });
+                String actualTeamName = ExcelHelper.getCellValueAsString(currentRow.getCell(4));
+                if (actualTeamName != null && !actualTeamName.isEmpty()) {
+                    var teamOpt = teamRepository.findByName(actualTeamName);
+                    if (teamOpt.isPresent()) req.setActualTeamId(teamOpt.get().getId());
+                    else {
+                        errors.add(ImportError.builder().rowNumber(rowIdx).columnName("Tổ thực tế").cellValue(actualTeamName).errorMessage("Không tìm thấy tổ này").build());
+                        continue;
+                    }
+                } else {
+                    req.setActualTeamId(req.getOriginalTeamId());
+                }
+
+                String defCode = ExcelHelper.getCellValueAsString(currentRow.getCell(5));
+                if (defCode != null && !defCode.isEmpty()) {
+                    var defOpt = attendanceDefinitionRepository.findByCode(defCode);
+                    if (defOpt.isPresent()) req.setAttendanceDefinitionId(defOpt.get().getId());
+                    else {
+                        errors.add(ImportError.builder().rowNumber(rowIdx).columnName("Mã loại công").cellValue(defCode).errorMessage("Mã loại công không tồn tại").build());
+                        continue;
+                    }
+                } else {
+                     errors.add(ImportError.builder().rowNumber(rowIdx).columnName("Mã loại công").errorMessage("Thiếu mã loại công").build());
+                     continue;
+                }
+
+                requests.add(req);
             }
         }
-        return requests;
+        return ImportResult.<DailyAttendanceRequest>builder()
+                .data(requests)
+                .errors(errors)
+                .successCount(requests.size())
+                .errorCount(errors.size())
+                .build();
     }
 
     public List<EmployeeRequest> importEmployees(MultipartFile file) throws IOException {
@@ -327,24 +405,53 @@ public class ExcelService {
         }
     }
 
-    public List<DepartmentRequest> importDepartments(MultipartFile file) throws IOException {
-        List<DepartmentRequest> requests = new ArrayList<>();
+    public ImportResult<DepartmentRequest> importDepartments(MultipartFile file) throws IOException {
+        List<DepartmentRequest> data = new ArrayList<>();
+        List<ImportError> errors = new ArrayList<>();
+        
         try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
             Sheet sheet = workbook.getSheetAt(0);
+            Row headerRow = sheet.getRow(0);
+            
+            // Validate headers
+            String[] expectedHeaders = {"Tên phòng ban"};
+            if (headerRow == null || !validateHeaders(headerRow, expectedHeaders)) {
+                throw new IOException("Tiêu đề cột không khớp. Yêu cầu: Tên phòng ban");
+            }
+
             Iterator<Row> rows = sheet.iterator();
-            if (rows.hasNext()) rows.next();
+            if (rows.hasNext()) rows.next(); // Skip header
+            
+            int rowIdx = 1;
             while (rows.hasNext()) {
+                rowIdx++;
                 Row row = rows.next();
                 if (isRowEmpty(row)) continue;
+                
                 String name = ExcelHelper.getCellValueAsString(row.getCell(0));
-                if (name != null && !name.isEmpty()) {
-                    DepartmentRequest req = new DepartmentRequest();
-                    req.setName(name);
-                    requests.add(req);
+                
+                if (name == null || name.trim().isEmpty()) {
+                    errors.add(new ImportError(rowIdx, "Tên phòng ban", "", "Tên phòng ban không được để trống"));
+                    continue;
                 }
+                
+                if (departmentRepository.findByName(name).isPresent()) {
+                    errors.add(new ImportError(rowIdx, "Tên phòng ban", name, "Phòng ban này đã tồn tại trong hệ thống"));
+                    continue;
+                }
+
+                DepartmentRequest req = new DepartmentRequest();
+                req.setName(name);
+                data.add(req);
             }
         }
-        return requests;
+        
+        return ImportResult.<DepartmentRequest>builder()
+                .data(data)
+                .errors(errors)
+                .successCount(data.size())
+                .errorCount(errors.size())
+                .build();
     }
 
     public List<RoleRequest> importRoles(MultipartFile file) throws IOException {
@@ -721,6 +828,17 @@ public class ExcelService {
         try (InputStream is = resource.getInputStream()) {
             return excelTemplateFiller.fillMultiSheetTemplate(is, sheetsData, "sheetName");
         }
+    }
+
+    private boolean validateHeaders(Row headerRow, String[] expectedHeaders) {
+        for (int i = 0; i < expectedHeaders.length; i++) {
+            Cell cell = headerRow.getCell(i);
+            String actual = ExcelHelper.getCellValueAsString(cell);
+            if (actual == null || !actual.trim().equalsIgnoreCase(expectedHeaders[i].trim())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean isRowEmpty(Row row) {

@@ -1,8 +1,6 @@
 package com.plywood.payroll.modules.attendance.service;
-
 import com.plywood.payroll.modules.attendance.dto.request.DailyAttendanceRequest;
 import com.plywood.payroll.modules.attendance.entity.AttendanceDefinition;
-import com.plywood.payroll.modules.attendance.entity.DailyAttendance;
 import com.plywood.payroll.modules.attendance.repository.AttendanceDefinitionRepository;
 import com.plywood.payroll.modules.attendance.repository.DailyAttendanceRepository;
 import com.plywood.payroll.modules.employee.entity.Employee;
@@ -12,7 +10,6 @@ import com.plywood.payroll.modules.organization.repository.TeamRepository;
 import com.plywood.payroll.shared.exception.ResourceNotFoundException;
 import com.plywood.payroll.modules.employee.service.EmployeeService;
 import com.plywood.payroll.modules.organization.service.TeamService;
-import com.plywood.payroll.modules.attendance.service.AttendanceDefinitionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

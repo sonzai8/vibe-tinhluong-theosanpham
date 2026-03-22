@@ -31,6 +31,15 @@
       </div>
     </div>
 
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
+
     <!-- Filter Section -->
     <div class="card p-8">
       <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -168,6 +177,19 @@ const viewMode = ref('matrix');
 const viewType = ref('daily');
 const loading = ref(false);
 
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
+
 const filter = reactive({
   month: new Date().getMonth() + 1,
   year: new Date().getFullYear(),
@@ -224,6 +246,7 @@ const fetchData = async () => {
     productions.value = prodRes?.data || [];
   } catch (err) {
     console.error('Lỗi tải dữ liệu:', err);
+    triggerError('Lỗi tải dữ liệu', 'Không thể lấy thông tin sản lượng cá nhân.', err.response?.data?.message || err.message);
     employees.value = [];
     productions.value = [];
   } finally {

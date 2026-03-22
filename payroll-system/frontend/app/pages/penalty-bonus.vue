@@ -11,6 +11,15 @@
       </UiButton>
     </div>
 
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
+
     <div class="card p-4 bg-white/80 backdrop-blur-md border-none shadow-sm flex flex-col md:flex-row gap-4 items-end">
       <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
         <SelectDepartment v-model="filterDeptId" :label="$t('common.department')" />
@@ -165,6 +174,19 @@ const items = ref([]);
 const filterDeptId = ref('');
 const filterTeamId = ref('');
 
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
+
 const resetFilters = () => {
   filterDeptId.value = '';
   filterTeamId.value = '';
@@ -176,7 +198,7 @@ const fetchData = async () => {
     const res = await $api.get('/penalty-bonuses');
     items.value = res.data || [];
   } catch (err) {
-    console.error(err);
+    triggerError('Lỗi tải dữ liệu', 'Không thể lấy danh sách khen thưởng & kỷ luật.', err.message);
   } finally {
     loading.value = false;
   }
@@ -232,7 +254,7 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.message);
+    triggerError('Lỗi lưu bản ghi', 'Đã xảy ra lỗi khi lưu thông tin khen thưởng/kỷ luật.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
@@ -244,7 +266,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/penalty-bonuses/${id}`);
     fetchData();
   } catch (err) {
-    alert(err.message);
+    triggerError('Lỗi xóa bản ghi', 'Hệ thống gặp sự cố khi xóa bản ghi này.', err.response?.data?.message || err.message);
   }
 };
 

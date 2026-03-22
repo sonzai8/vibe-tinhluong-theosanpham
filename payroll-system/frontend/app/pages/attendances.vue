@@ -32,6 +32,22 @@
         </UiButton>
         <input type="file" ref="fileInput" class="hidden" accept=".xlsx, .xls" @change="handleImport" />
         
+        <!-- Import Error Dialog -->
+        <ImportErrorDialog 
+          :show="showImportError" 
+          :errors="importErrors" 
+          @close="showImportError = false" 
+        />
+        
+        <!-- Common Error Modal -->
+        <UiErrorModal
+          :show="showErrorModal"
+          :title="errorTitle"
+          :message="errorMessage"
+          :detail="errorDetail"
+          @close="showErrorModal = false"
+        />
+        
         <UiButton @click="openBulkModal" variant="outline" >
           <Users class="w-4 h-4" />
           {{ $t('attendance.bulk_attendance') }}
@@ -643,6 +659,22 @@ const showAbsentModal = ref(false);
 const showDuplicateModal = ref(false);
 const duplicateRecord = ref(null);
 
+const showImportError = ref(false);
+const importErrors = ref([]);
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
+
 const showBulkModal = ref(false);
 
 const bulkForm = reactive({
@@ -1081,9 +1113,9 @@ const handleSubmit = async () => {
   } catch (err) {
     const msg = err.response?.data?.message || err.message || '';
     if (msg.includes('Duplicate entry') || msg.includes('constraint')) {
-      alert('Lỗi: Nhân viên này đã được chấm công trong ngày, dữ liệu bị trùng lặp ở Database!');
+      triggerError('Sửa lỗi trùng lặp', 'Nhân viên này đã được chấm công trong ngày, dữ liệu bị trùng lặp ở Database!', msg);
     } else {
-      alert('Lỗi xử lý: ' + msg);
+      triggerError('Lỗi xử lý', 'Đã xảy ra lỗi khi lưu thông tin chấm công.', msg);
     }
   } finally {
     saving.value = false;
@@ -1192,7 +1224,7 @@ const handleBulkSubmit = async () => {
     showBulkModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Lỗi xử lý');
+    triggerError('Lỗi lưu hàng loạt', 'Hệ thống gặp sự cố khi lưu danh sách chấm công hàng loạt.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
@@ -1229,7 +1261,7 @@ const handleExport = async (format = 'list') => {
     link.click();
     document.body.removeChild(link);
   } catch (err) {
-    alert('Lỗi xuất file: ' + err.message);
+    triggerError('Lỗi xuất file', 'Không thể tạo file báo cáo chấm công. Vui lòng thử lại.', err.message);
   } finally {
     exporting.value = false;
   }
@@ -1250,7 +1282,7 @@ const handleDownloadTemplate = async () => {
     link.click();
     document.body.removeChild(link);
   } catch (err) {
-    alert('Lỗi tải file mẫu: ' + err.message);
+    triggerError('Lỗi tải file mẫu', 'Không thể tải xuống tệp tin mẫu nhập chấm công.', err.message);
   }
 };
 
@@ -1263,13 +1295,28 @@ const handleImport = async (event) => {
   
   importing.value = true;
   try {
-    await $api.post('/attendances/import', formData, {
+    const res = await $api.post('/attendances/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    alert('Nhập dữ liệu thành công!');
+    
+    const result = res.data;
+    if (result.errorCount > 0) {
+      importErrors.value = result.errors;
+      showImportError.value = true;
+      if (result.successCount > 0) {
+        alert(`Đã nhập thành công ${result.successCount} dòng, nhưng có ${result.errorCount} dòng lỗi.`);
+      }
+    } else {
+      alert('Nhập dữ liệu thành công!');
+    }
     fetchData();
   } catch (err) {
-    alert('Lỗi nhập file: ' + err.response?.data?.message || err.message);
+    const msg = err.response?.data?.message || err.message;
+    if (msg.includes('Tiêu đề cột không khớp')) {
+      triggerError('Sai mẫu file', 'Cấu trúc file Excel không đúng với quy định của hệ thống.', msg);
+    } else {
+      triggerError('Lỗi nhập file', 'Đã xảy ra lỗi không mong muốn khi đọc file Excel.', msg);
+    }
   } finally {
     importing.value = false;
     event.target.value = ''; // Reset input

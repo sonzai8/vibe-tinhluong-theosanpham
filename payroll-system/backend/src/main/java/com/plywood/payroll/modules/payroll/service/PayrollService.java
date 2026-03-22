@@ -27,7 +27,6 @@ import com.plywood.payroll.modules.payroll.dto.response.PayrollDailyDetailRespon
 // REMOVED_WILDCARD_REPO_IMPORT - please update manually
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

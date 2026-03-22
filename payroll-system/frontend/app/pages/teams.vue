@@ -33,6 +33,15 @@
           Thêm tổ mới
         </UiButton>
       </div>
+    
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
     </div>
 
     <!-- Filters & Stats -->
@@ -212,15 +221,26 @@ const { $api } = useNuxtApp();
 const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
 const teams = ref([]);
 const productionSteps = ref([]);
-const loading = ref(true);
-const saving = ref(false);
 const showModal = ref(false);
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
 
 const handleExport = async () => {
   try {
     await exportExcel('/teams/export', 'danh_sach_to_doi.xlsx');
   } catch (err) {
-    alert('Không thể xuất dữ liệu');
+    triggerError('Lỗi xuất file', 'Không thể xuất danh sách tổ đội ra Excel.', err.message);
   }
 };
 
@@ -228,7 +248,7 @@ const downloadTemplate = async () => {
   try {
     await dlTemplate('/teams/download-template', 'mau_nhap_to_doi.xlsx');
   } catch (err) {
-    alert('Không thể tải file mẫu');
+    triggerError('Lỗi tải mẫu', 'Không thể tải xuống tệp tin mẫu nhập liệu.', err.message);
   }
 };
 
@@ -242,7 +262,7 @@ const handleImport = async (event) => {
     alert('Nhập dữ liệu thành công');
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi nhập dữ liệu');
+    triggerError('Lỗi nhập file', 'Đã xảy ra lỗi khi xử lý tệp tin Excel nhập tổ đội.', err.response?.data?.message || err.message);
   } finally {
     loading.value = false;
     event.target.value = ''; // Reset input
@@ -333,7 +353,7 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi lưu tổ đội', 'Đã xảy ra lỗi khi lưu thông tin tổ đội sản xuất.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
@@ -345,7 +365,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/teams/${id}`);
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi xóa tổ đội', 'Hệ thống gặp sự cố khi xóa tổ đội này.', err.response?.data?.message || err.message);
   }
 };
 

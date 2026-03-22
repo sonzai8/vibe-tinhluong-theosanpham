@@ -33,6 +33,15 @@
           {{ $t('employee.add_new') }}
         </UiButton>
       </div>
+    
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
     </div>
 
     <!-- Filters & Search -->
@@ -393,7 +402,7 @@ const handleExport = async () => {
   try {
     await exportExcel('/employees/export', 'danh_sach_nhan_vien.xlsx');
   } catch (err) {
-    alert('Không thể xuất dữ liệu');
+    triggerError('Lỗi xuất file', 'Không thể xuất danh sách nhân viên ra Excel.', err.message);
   }
 };
 
@@ -407,6 +416,19 @@ const teams = ref([]);
 const deptOptions = computed(() => departments.value.map(d => ({ value: d.id, label: d.name })));
 const roleOptions = computed(() => roles.value.map(r => ({ value: r.id, label: r.name })));
 const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t.name })));
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
 
 const loading = ref(true);
 const saving = ref(false);
@@ -466,15 +488,16 @@ const openResetPassword = (emp) => {
 
 const handleResetPassword = async () => {
   if (resetForm.newPassword !== resetForm.confirmPassword) {
-    alert('Mật khẩu xác nhận không khớp');
+    triggerError('Lỗi xác thực', 'Mật khẩu xác nhận không khớp.');
     return;
   }
   try {
     await $api.put(`/employees/${resetForm.id}/reset-password`, { newPassword: resetForm.newPassword });
+    // Dùng alert cho thành công cũng được, hoặc triggerSuccess nếu có. Nhưng ở đây user yêu cầu Error Modal cho lỗi.
     alert('Đã đặt lại mật khẩu thành công');
-    showResetPassword.value = false;
+    showResetModal.value = false;
   } catch (err) {
-    alert(err.response?.data?.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi đặt lại mật khẩu', 'Hệ thống không thể cập nhật mật khẩu mới.', err.response?.data?.message || err.message);
   }
 };
 
@@ -573,7 +596,7 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi lưu nhân viên', 'Đã xảy ra lỗi khi lưu thông tin nhân viên.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
@@ -585,7 +608,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/employees/${id}`);
     fetchData();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi xóa nhân viên', 'Không thể xóa nhân viên này khỏi hệ thống.', err.message || 'Có lỗi xảy ra');
   }
 };
 
@@ -593,7 +616,7 @@ const handleDownloadTemplate = async () => {
   try {
     await dlTemplate('/employees/download-template', 'mau_nhap_nhan_vien.xlsx');
   } catch (err) {
-    alert('Không thể tải file mẫu');
+    triggerError('Lỗi tải mẫu', 'Không thể tải xuống tệp tin mẫu nhập liệu.', err.message);
   }
 };
 
@@ -607,7 +630,7 @@ const handleImport = async (event) => {
     alert('Nhập dữ liệu thành công');
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi nhập file Excel');
+    triggerError('Lỗi nhập file', 'Đã xảy ra lỗi khi xử lý tệp tin Excel nhập nhân viên.', err.response?.data?.message || err.message);
   } finally {
     loading.value = false;
     event.target.value = ''; // Reset input

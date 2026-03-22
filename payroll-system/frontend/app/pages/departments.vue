@@ -165,6 +165,26 @@
         </form>
       </div>
     </div>
+
+    <!-- Import Preview Dialog -->
+    <ImportPreviewDialog
+      :show="showImportPreview"
+      :data="previewData"
+      :errors="importErrors"
+      :loading="importing"
+      title="Kiểm tra dữ liệu phòng ban"
+      @close="showImportPreview = false"
+      @confirm="handleConfirmImport"
+    />
+
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
   </div>
 </template>
 
@@ -172,17 +192,36 @@
 import { Plus, Briefcase, PencilLine, Trash2, X, ChevronRight, ChevronLeft, Download, Upload, FileDown, FileUp } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
-const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
+const { downloadTemplate: dlTemplate, exportExcel } = useExcel();
 const departments = ref([]);
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
 
+// Import Preview State
+const showImportPreview = ref(false);
+const previewData = ref([]);
+const importErrors = ref([]);
+const importing = ref(false);
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
+
 const handleExport = async () => {
   try {
     await exportExcel('/departments/export', 'danh_sach_phong_ban.xlsx');
   } catch (err) {
-    alert('Không thể xuất dữ liệu');
+    triggerError('Lỗi xuất file', 'Không thể tải xuống danh sách phòng ban.', err.message);
   }
 };
 
@@ -190,7 +229,7 @@ const downloadTemplate = async () => {
   try {
     await dlTemplate('/departments/download-template', 'mau_nhap_phong_ban.xlsx');
   } catch (err) {
-    alert('Không thể tải file mẫu');
+    triggerError('Lỗi tải file mẫu', 'Không thể tải xuống tệp tin mẫu.', err.message);
   }
 };
 
@@ -198,16 +237,40 @@ const handleImport = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
   
+  const formData = new FormData();
+  formData.append('file', file);
+
   try {
     loading.value = true;
-    await importExcel('/departments/import', file);
-    alert('Nhập dữ liệu thành công');
-    fetchDepartments();
+    const res = await $api.post('/departments/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    previewData.value = res.data.data;
+    importErrors.value = res.data.errors;
+    showImportPreview.value = true;
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi nhập dữ liệu');
+    const msg = err.response?.data?.message || 'Hệ thống không thể đọc nội dung file Excel này. Vui lòng kiểm tra lại định dạng hoặc template.';
+    triggerError('Lỗi nhập dữ liệu', msg, err.response?.data?.errors?.join('\n') || err.message);
   } finally {
     loading.value = false;
     event.target.value = ''; // Reset input
+  }
+};
+
+const handleConfirmImport = async () => {
+  if (previewData.value.length === 0) return;
+  
+  importing.value = true;
+  try {
+    await $api.post('/departments/import/confirm', previewData.value);
+    alert('Nhập dữ liệu thành công');
+    showImportPreview.value = false;
+    fetchDepartments();
+  } catch (err) {
+    triggerError('Lỗi lưu dữ liệu', 'Đã xảy ra lỗi khi lưu danh sách phòng ban mới vào hệ thống.', err.response?.data?.message || err.message);
+  } finally {
+    importing.value = false;
   }
 };
 

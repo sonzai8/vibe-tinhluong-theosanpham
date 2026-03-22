@@ -8,7 +8,6 @@ import com.plywood.payroll.shared.constant.MessageConstants;
 import com.plywood.payroll.modules.employee.dto.request.EmployeeRequest;
 import com.plywood.payroll.shared.dto.ApiResponse;
 import com.plywood.payroll.modules.employee.dto.response.EmployeeResponse;
-import com.plywood.payroll.modules.employee.dto.response.EmployeeAuditLogResponse;
 import com.plywood.payroll.modules.employee.dto.request.EmployeeNoteRequest;
 import com.plywood.payroll.modules.employee.dto.response.EmployeeNoteResponse;
 import com.plywood.payroll.modules.employee.service.EmployeeService;

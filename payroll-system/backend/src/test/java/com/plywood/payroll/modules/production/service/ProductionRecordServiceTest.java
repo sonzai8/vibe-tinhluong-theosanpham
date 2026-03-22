@@ -5,7 +5,6 @@ import com.plywood.payroll.modules.organization.repository.TeamRepository;
 import com.plywood.payroll.modules.product.entity.Product;
 import com.plywood.payroll.modules.product.repository.ProductRepository;
 import com.plywood.payroll.modules.production.dto.request.ProductionRecordRequest;
-import com.plywood.payroll.modules.production.entity.ProductionRecord;
 import com.plywood.payroll.modules.production.entity.ProductionStep;
 import com.plywood.payroll.modules.production.repository.ProductionRecordRepository;
 import com.plywood.payroll.modules.production.repository.StageProductMappingRepository;

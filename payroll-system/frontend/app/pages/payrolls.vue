@@ -98,6 +98,15 @@
       </div>
     </div>
 
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
+
     <!-- History List View -->
     <div v-if="viewMode === 'list'" class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div class="card overflow-hidden">
@@ -312,6 +321,20 @@ const loading = ref(true);
 const payrolls = ref([]);
 const selectedDepartments = ref([]);
 const selectedTeams = ref([]);
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
+
 const resetFilters = () => {
   selectedDepartments.value = [];
   selectedTeams.value = [];
@@ -367,7 +390,7 @@ const fetchPayrolls = async () => {
     const res = await $api.get(`/payrolls/${calcForm.year}/${calcForm.month}/items`);
     payrolls.value = res.data;
   } catch (err) {
-    console.error(err);
+    triggerError('Lỗi tải bảng lương', 'Không thể lấy dữ liệu bảng lương cho kỳ này.', err.message);
   } finally {
     loading.value = false;
   }
@@ -394,7 +417,7 @@ const handleCalculate = async () => {
     viewMode.value = 'list';
     fetchPayrolls();
   } catch (err) {
-    alert(err.message || 'Lỗi tính toán');
+    triggerError('Lỗi tính lương', 'Quá trình tính toán lương gặp sự cố.', err.response?.data?.message || err.message);
   } finally {
     calculating.value = false;
   }
@@ -409,7 +432,7 @@ const handleConfirm = async (p) => {
     await $api.put(`/payrolls/${p.payrollId}/confirm`);
     fetchPayrolls();
   } catch (err) {
-    alert(err.message);
+    triggerError('Lỗi chốt lương', 'Không thể chốt lương cho cá nhân này.', err.response?.data?.message || err.message);
   }
 };
 
@@ -418,11 +441,10 @@ const showConfirmTeam = async (p) => {
   if (!confirm(`Xác nhận chốt bảng lương cho toàn bộ [${p.teamName}]?`)) return;
   
   try {
-    await $api.put(`/payrolls/${p.year}/${p.month}/confirm-team/${p.teamId}`);
     alert(`Đã chốt lương cho tổ ${p.teamName}`);
     fetchPayrolls();
   } catch (err) {
-    alert(err.message);
+    triggerError('Lỗi chốt tổ', 'Không thể chốt lương cho toàn bộ tổ đội.', err.response?.data?.message || err.message);
   }
 };
 
@@ -439,9 +461,9 @@ const showDetails = async (p) => {
     const res = await $api.get(`/payrolls/items/${p.id}/daily-details`);
     dailyDetails.value = res.data;
   } catch (err) {
-    alert('Không thể tải chi tiết: ' + err.message);
+    triggerError('Lỗi tải chi tiết', 'Không thể lấy thông tin chi tiết các ngày làm việc.', err.message);
   } finally {
-    loadingDetails.value = false;
+    loading.value = false;
   }
 };
 
@@ -463,8 +485,9 @@ const handleExportPayslips = async () => {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
+    window.URL.revokeObjectURL(url);
   } catch (error) {
-    alert("Có lỗi xảy ra khi xuất phiếu lương. Thử lại sau!");
+    triggerError('Lỗi xuất phiếu lương', 'Không thể tạo file Excel phiếu lương.', error.message);
     console.error(error);
   } finally {
     exporting.value = false;

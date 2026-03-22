@@ -24,6 +24,15 @@
         </UiButton>
       </div>
     </div>
+    
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
 
     <!-- Filter -->
     <div class="card overflow-visible border-none shadow-sm bg-white/80 backdrop-blur-md">
@@ -581,6 +590,19 @@ const bulkDate = ref(new Date().toISOString().substr(0, 10));
 const bulkRecords = ref([]);
 const bulkError = ref('');
 
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
+
 // Calendar View State
 const viewMode = ref('list'); // 'list' or 'matrix'
 const viewMonth = ref(new Date().toISOString().substr(0, 7)); // YYYY-MM
@@ -834,9 +856,9 @@ const deleteFromDetail = async (id) => {
   try {
     await $api.delete(`/production-records/${id}`);
     showDetailModal.value = false;
-    fetchData();
+    fetchRecords();
   } catch (err) {
-    alert('Lỗi: ' + (err.response?.data?.message || err.message));
+    triggerError('Lỗi xóa bản ghi', 'Không thể xóa bản ghi sản lượng này.', err.response?.data?.message || err.message);
   }
 };
 
@@ -1007,9 +1029,10 @@ const handleSubmit = async () => {
       await $api.post('/production-records', payload);
     }
     showModal.value = false;
-    fetchData();
+    fetchRecords();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
+    console.error(err);
+    triggerError('Lỗi xử lý', 'Đã xảy ra lỗi khi lưu nhật ký sản lượng.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }

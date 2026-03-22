@@ -33,6 +33,15 @@
           Thêm chức vụ
         </UiButton>
       </div>
+    
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
     </div>
 
     <!-- Table -->
@@ -165,15 +174,26 @@ const { $api } = useNuxtApp();
 const { hasPermission } = useAuth();
 const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
 const roles = ref([]);
-const loading = ref(true);
-const saving = ref(false);
 const showModal = ref(false);
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
 
 const handleExport = async () => {
   try {
     await exportExcel('/roles/export', 'danh_sach_chuc_vu.xlsx');
   } catch (err) {
-    alert('Không thể xuất dữ liệu');
+    triggerError('Lỗi xuất file', 'Không thể xuất danh sách chức vụ ra Excel.', err.message);
   }
 };
 
@@ -181,7 +201,7 @@ const downloadTemplate = async () => {
   try {
     await dlTemplate('/roles/download-template', 'mau_nhap_chuc_vu.xlsx');
   } catch (err) {
-    alert('Không thể tải file mẫu');
+    triggerError('Lỗi tải mẫu', 'Không thể tải xuống tệp tin mẫu cho chức vụ.', err.message);
   }
 };
 
@@ -195,7 +215,7 @@ const handleImport = async (event) => {
     alert('Nhập dữ liệu thành công');
     fetchRoles();
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi nhập dữ liệu');
+    triggerError('Lỗi nhập file', 'Đã xảy ra lỗi khi xử lý tệp Excel nhập chức vụ.', err.response?.data?.message || err.message);
   } finally {
     loading.value = false;
     event.target.value = ''; // Reset input
@@ -278,7 +298,7 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchRoles();
   } catch (err) {
-    alert(err.response?.data?.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi lưu chức vụ', 'Đã xảy ra lỗi khi lưu thông tin chức vụ.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
@@ -290,7 +310,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/roles/${id}`);
     fetchRoles();
   } catch (err) {
-    alert(err.message || 'Lỗi');
+    triggerError('Lỗi xóa chức vụ', 'Hệ thống gặp sự cố khi xóa chức vụ này.', err.response?.data?.message || err.message);
   }
 };
 

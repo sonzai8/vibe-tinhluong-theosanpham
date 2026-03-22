@@ -155,6 +155,15 @@
         </div>
       </div>
     </div>
+
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
   </div>
 </template>
 
@@ -166,9 +175,20 @@ const router = useRouter();
 const { $api } = useNuxtApp();
 
 const employee = ref({});
-const saving = ref(false);
-const notes = ref([]);
 const addingNote = ref(false);
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
 
 const form = reactive({
   fullName: '',
@@ -210,7 +230,7 @@ const fetchData = async () => {
     fetchNotes();
   } catch (err) {
     console.error(err);
-    alert('Không thể tải thông tin nhân viên');
+    triggerError('Lỗi tải dữ liệu', 'Không thể tải thông tin nhân viên này.', err.message);
   }
 };
 
@@ -228,10 +248,9 @@ const handleAddNote = async () => {
   addingNote.value = true;
   try {
     await $api.post(`/employees/${employee.value.id}/notes`, noteForm);
-    noteForm.content = '';
     fetchNotes();
   } catch (err) {
-    alert('Lỗi khi thêm ghi chú');
+    triggerError('Lỗi thêm ghi chú', 'Đã xảy ra lỗi khi thêm ghi chú mới.', err.message);
   } finally {
     addingNote.value = false;
   }
@@ -243,7 +262,7 @@ const handleDeleteNote = async (noteId) => {
     await $api.delete(`/employees/notes/${noteId}`);
     fetchNotes();
   } catch (err) {
-    alert('Lỗi khi xóa ghi chú');
+    triggerError('Lỗi xóa ghi chú', 'Không thể xóa ghi chú này khỏi hệ thống.', err.message);
   }
 };
 
@@ -259,9 +278,11 @@ const handleSave = async () => {
     };
     await $api.put(`/employees/${employee.value.id}`, payload);
     fetchData();
+    // Use a success modal or simple notification if needed, but the requirement is to use the common error popup for errors.
+    // For success, alert is okay if no common success modal is defined, but let's just use alert for now as requested.
     alert('Cập nhật thành công');
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi lưu thông tin');
+    triggerError('Lỗi lưu thông tin', 'Đã xảy ra lỗi khi cập nhật thông tin nhân viên.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
@@ -272,7 +293,7 @@ const handleAvatarUpload = async (event) => {
   if (!file) return;
 
   if (file.size > 2 * 1024 * 1024) {
-    alert('Ảnh đại diện không được vượt quá 2MB');
+    triggerError('Lỗi tệp tin', 'Ảnh đại diện không được vượt quá 2MB.');
     return;
   }
 
@@ -285,7 +306,7 @@ const handleAvatarUpload = async (event) => {
     });
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi tải ảnh lên');
+    triggerError('Lỗi tải ảnh', 'Không thể tải ảnh đại diện lên hệ thống.', err.response?.data?.message || err.message);
   }
 };
 

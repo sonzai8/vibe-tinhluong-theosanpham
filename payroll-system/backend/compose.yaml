@@ -1,19 +1,18 @@
 version: "3.9"
 
 services:
-  mysql:
-    image: mysql:8
-    container_name: plywood_mysql
+  postgres:
+    image: postgres:15-alpine
+    container_name: plywood_postgres
     restart: always
     environment:
-      MYSQL_DATABASE: plywood_db
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_USER: payroll
-      MYSQL_PASSWORD: payroll123
+      POSTGRES_DB: plywood_db
+      POSTGRES_USER: payroll
+      POSTGRES_PASSWORD: payroll123
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  mysql_data:
+  postgres_data:

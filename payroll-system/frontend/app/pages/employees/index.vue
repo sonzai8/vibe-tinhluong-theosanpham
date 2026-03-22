@@ -84,11 +84,19 @@
           <tr v-for="emp in paginatedEmployees" :key="emp.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xs shadow-sm">
-                  {{ emp.fullName.substring(0, 1).toUpperCase() }}
+                <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm ring-1 ring-slate-100">
+                  <img v-if="emp.avatarUrl" :src="`http://localhost:8080${emp.avatarUrl}`" class="w-full h-full object-cover" />
+                  <span v-else class="text-slate-400 font-black text-xs">{{ emp.fullName.substring(0, 1).toUpperCase() }}</span>
                 </div>
                 <div>
-                  <p class="font-bold text-slate-900 tracking-tight leading-none mb-1">{{ emp.fullName }}</p>
+                  <NuxtLink 
+                    v-if="hasPermission('EMPLOYEE_VIEW') || hasPermission('EMPLOYEE_EDIT') || hasPermission('SYSTEM_ADMIN')" 
+                    :to="`/employees/${emp.id}`" 
+                    class="font-bold text-slate-900 tracking-tight leading-none mb-1 hover:text-primary-600 transition-colors block"
+                  >
+                    {{ emp.fullName }}
+                  </NuxtLink>
+                  <p v-else class="font-bold text-slate-900 tracking-tight leading-none mb-1">{{ emp.fullName }}</p>
                   <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ emp.code }}</p>
                 </div>
               </div>
@@ -129,10 +137,13 @@
               </div>
             </td>
             <td class="px-6 py-4 text-right pr-6">
-              <div v-if="hasPermission('EMPLOYEE_EDIT')" class="flex items-center justify-end gap-1.5 text-slate-400">
-                <button @click="openAuditLogs(emp)" class="p-2 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" :title="$t('employee.history_title')">
+              <div v-if="hasPermission('EMPLOYEE_VIEW') || hasPermission('EMPLOYEE_EDIT') || hasPermission('SYSTEM_ADMIN')" class="flex items-center justify-end gap-1.5 text-slate-400">
+                <button v-if="hasPermission('EMPLOYEE_EDIT') || hasPermission('SYSTEM_ADMIN')" @click="openAuditLogs(emp)" class="p-2 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" :title="$t('employee.history_title')">
                   <History class="w-4 h-4" />
                 </button>
+                <NuxtLink :to="`/employees/${emp.id}`" class="p-2 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all inline-flex items-center justify-center" title="Xem chi tiết">
+                  <UserCircle class="w-4 h-4" />
+                </NuxtLink>
                 <button @click="openModal(emp)" class="p-2 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" :title="$t('employee.edit_profile')">
                   <PencilLine class="w-4 h-4" />
                 </button>
@@ -205,7 +216,7 @@
         <form @submit.prevent="handleSubmit" class="space-y-8">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             <UiInput v-model="form.fullName" label="Họ và tên" placeholder="VD: Nguyễn Văn A" required />
-            <UiInput v-model="form.code" label="Mã nhân viên" placeholder="VD: NV001" required />
+            <UiInput v-if="currentEmp.id" v-model="form.code" label="Mã nhân viên" disabled />
             
             <UiInput v-model="form.phone" label="Số điện thoại" placeholder="0xxx xxx xxx" />
             <UiInput v-model="form.citizenId" label="Số CCCD" placeholder="Nhập 12 số CCCD" />
@@ -370,7 +381,7 @@
 import { 
   Plus, UserPlus, PencilLine, Trash2, X, Search, Briefcase, 
   ChevronLeft, ChevronRight, Download, Upload, FileDown, FileUp,
-  Phone, CreditCard, KeyRound, History, Clock, UserCog, CheckCircle2
+  Phone, CreditCard, KeyRound, History, Clock, UserCog, CheckCircle2, UserCircle
 } from 'lucide-vue-next';
 
 const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
@@ -569,7 +580,7 @@ const handleSubmit = async () => {
 };
 
 const handleDelete = async (id) => {
-  if (!confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) return;
+  if (!confirm('Bạn có chắc chắn muốn chuyển nhân viên này sang trạng thái Không hoạt động?')) return;
   try {
     await $api.delete(`/employees/${id}`);
     fetchData();

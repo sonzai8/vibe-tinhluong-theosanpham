@@ -47,4 +47,18 @@ public class Employee extends BaseEntity {
 
     @Column(length = 20)
     private String citizenId;
+
+    private String gender;
+    private java.time.LocalDate dob;
+    private java.time.LocalDate joinDate;
+    private java.time.LocalDate insuranceStartDate;
+    private java.time.LocalDate citizenIdIssuedDate;
+    private String citizenIdIssuedPlace;
+    private String birthAddress;
+    private String permanentAddress;
+    
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+    
+    private String avatarPath;
 }

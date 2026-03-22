@@ -86,8 +86,7 @@ public class ProductController {
     @PreAuthorize("hasAuthority('PRODUCTION_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Tải file mẫu nhập sản phẩm")
     public ResponseEntity<byte[]> downloadTemplate() throws java.io.IOException {
-        String[] headers = {"Mã SP", "Độ dày (ly)", "Dài (m)", "Rộng (m)"};
-        byte[] bytes = excelService.getGenericTemplate("MauNhap", headers);
+        byte[] bytes = excelService.getProductImportTemplate();
         return ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=mau_nhap_san_pham.xlsx")
                 .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)

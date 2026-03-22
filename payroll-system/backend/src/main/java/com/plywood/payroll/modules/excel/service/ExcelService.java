@@ -15,9 +15,11 @@ import com.plywood.payroll.modules.production.dto.request.ProductionStepRequest;
 import com.plywood.payroll.modules.pricing.dto.response.ProductStepRateResponse;
 import com.plywood.payroll.modules.product.dto.response.ProductResponse;
 import com.plywood.payroll.modules.production.dto.response.ProductionRecordResponse;
-import com.plywood.payroll.modules.production.dto.response.ProductionStepResponse;
 import com.plywood.payroll.modules.quality.dto.response.ProductQualityResponse;
+import com.plywood.payroll.modules.production.dto.response.ProductionStepResponse;
 import com.plywood.payroll.modules.attendance.repository.AttendanceDefinitionRepository;
+import com.plywood.payroll.modules.product.repository.ProductUnitRepository;
+import com.plywood.payroll.modules.product.enums.FilmCoatingType;
 import com.plywood.payroll.shared.utils.ExcelHelper;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
@@ -50,10 +52,12 @@ public class ExcelService {
     private final RoleRepository roleRepository;
     private final DepartmentRepository departmentRepository;
     private final AttendanceDefinitionRepository attendanceDefinitionRepository;
+    private final ProductUnitRepository productUnitRepository;
     private final com.plywood.payroll.shared.utils.ExcelTemplateFiller excelTemplateFiller;
 
     private static final String ATTENDANCE_IMPORT_TEMPLATE = "templates/attendance/import/import_template.xlsx";
-    private static final String EMPLOYEE_TEMPLATE = "templates/employee/employee_template.xlsx";
+    private static final String EMPLOYEE_TEMPLATE = "templates/import/employee_template.xlsx";
+    private static final String PRODUCT_IMPORT_TEMPLATE = "templates/import/product_template.xlsx";
 
     public byte[] exportAttendances(List<DailyAttendanceResponse> attendances) throws IOException {
         org.springframework.core.io.ClassPathResource resource = new org.springframework.core.io.ClassPathResource("templates/export/attendance_list.xlsx");
@@ -141,6 +145,10 @@ public class ExcelService {
         } catch (IOException e) {
             return generateDynamicAttendanceTemplate();
         }
+    }
+
+    public byte[] getProductImportTemplate() throws IOException {
+        return getTemplateBytes(PRODUCT_IMPORT_TEMPLATE);
     }
 
     public byte[] getEmployeeTemplate() throws IOException {
@@ -248,27 +256,27 @@ public class ExcelService {
                 Row currentRow = rows.next();
                 if (isRowEmpty(currentRow)) continue;
 
-                String code = ExcelHelper.getCellValueAsString(currentRow.getCell(0));
-                String name = ExcelHelper.getCellValueAsString(currentRow.getCell(1));
-                if (code == null || code.isEmpty() || name == null || name.isEmpty()) continue;
+                String name = ExcelHelper.getCellValueAsString(currentRow.getCell(0));
+                if (name == null || name.isEmpty()) continue;
 
                 EmployeeRequest req = new EmployeeRequest();
-                req.setCode(code);
                 req.setFullName(name);
-                req.setUsername(ExcelHelper.getCellValueAsString(currentRow.getCell(2)));
+                req.setPhone(ExcelHelper.getCellValueAsString(currentRow.getCell(1)));
+                req.setCitizenId(ExcelHelper.getCellValueAsString(currentRow.getCell(2)));
+//                req.setUsername(ExcelHelper.getCellValueAsString(currentRow.getCell(3)));
                 req.setPassword(ExcelHelper.getCellValueAsString(currentRow.getCell(3)));
 
-                String deptName = ExcelHelper.getCellValueAsString(currentRow.getCell(4));
-                if (deptName != null) departmentRepository.findByName(deptName).ifPresent(d -> req.setDepartmentId(d.getId()));
+//                String deptName = ExcelHelper.getCellValueAsString(currentRow.getCell(5));
+//                if (deptName != null) departmentRepository.findByName(deptName).ifPresent(d -> req.setDepartmentId(d.getId()));
 
-                String teamName = ExcelHelper.getCellValueAsString(currentRow.getCell(5));
+                String teamName = ExcelHelper.getCellValueAsString(currentRow.getCell(4));
                 if (teamName != null) teamRepository.findByName(teamName).ifPresent(t -> req.setTeamId(t.getId()));
 
-                String roleName = ExcelHelper.getCellValueAsString(currentRow.getCell(6));
+                String roleName = ExcelHelper.getCellValueAsString(currentRow.getCell(5));
                 if (roleName != null) roleRepository.findByName(roleName).ifPresent(r -> req.setRoleId(r.getId()));
 
-                String canLogin = ExcelHelper.getCellValueAsString(currentRow.getCell(7));
-                req.setCanLogin("Y".equalsIgnoreCase(canLogin) || "Có".equalsIgnoreCase(canLogin) || "1".equals(canLogin));
+                req.setStatus("ACTIVE");
+                req.setCanLogin(req.getUsername() != null && !req.getUsername().isEmpty());
 
                 requests.add(req);
             }
@@ -394,18 +402,43 @@ public class ExcelService {
             while (rows.hasNext()) {
                 Row row = rows.next();
                 if (isRowEmpty(row)) continue;
-                String code = ExcelHelper.getCellValueAsString(row.getCell(0));
-                String thickness = ExcelHelper.getCellValueAsString(row.getCell(1));
-                String length = ExcelHelper.getCellValueAsString(row.getCell(2));
-                String width = ExcelHelper.getCellValueAsString(row.getCell(3));
+                String name = ExcelHelper.getCellValueAsString(row.getCell(0));
+                String code = ExcelHelper.getCellValueAsString(row.getCell(1));
+                String thickness = ExcelHelper.getCellValueAsString(row.getCell(2));
+                String length = ExcelHelper.getCellValueAsString(row.getCell(3));
+                String width = ExcelHelper.getCellValueAsString(row.getCell(4));
+                String coatingStr = ExcelHelper.getCellValueAsString(row.getCell(5));
+                String unitName = ExcelHelper.getCellValueAsString(row.getCell(6));
 
                 if (code != null && !code.isEmpty()) {
                     ProductRequest req = new ProductRequest();
+                    req.setName(name != null ? name : code);
                     req.setCode(code);
                     req.setThickness(thickness != null ? new java.math.BigDecimal(thickness) : java.math.BigDecimal.ZERO);
                     req.setLength(length != null ? new java.math.BigDecimal(length) : java.math.BigDecimal.ZERO);
                     req.setWidth(width != null ? new java.math.BigDecimal(width) : java.math.BigDecimal.ZERO);
-                    requests.add(req);
+                    
+                    // Map FilmCoatingType
+                    FilmCoatingType coating = FilmCoatingType.NONE;
+                    if (coatingStr != null) {
+                        if (coatingStr.contains("1 mặt")) coating = FilmCoatingType.SIDE_1;
+                        else if (coatingStr.contains("2 mặt")) coating = FilmCoatingType.SIDE_2;
+                    }
+                    req.setFilmCoatingType(coating);
+                    
+                    // Map unit by name
+                    if (unitName != null && !unitName.isEmpty()) {
+                        productUnitRepository.findByName(unitName).ifPresent(u -> req.setUnitId(u.getId()));
+                    }
+                    
+                    // Default to 'Tấm' if unit is missing and exists in DB
+                    if (req.getUnitId() == null) {
+                        productUnitRepository.findByName("Tấm").ifPresent(u -> req.setUnitId(u.getId()));
+                    }
+
+                    if (req.getUnitId() != null) {
+                        requests.add(req);
+                    }
                 }
             }
         }

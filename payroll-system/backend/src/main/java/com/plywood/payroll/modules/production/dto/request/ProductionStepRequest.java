@@ -9,4 +9,6 @@ public class ProductionStepRequest {
     private String name;
 
     private String description;
+
+    private java.util.List<Long> productIds;
 }

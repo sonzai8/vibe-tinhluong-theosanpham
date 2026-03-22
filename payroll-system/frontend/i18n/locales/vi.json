@@ -81,7 +81,12 @@
     "search_placeholder": "Tìm kiếm theo mã hoặc tên...",
     "select_product": "Chọn sản phẩm",
     "select_quality": "Chọn chất lượng",
-    "select_team": "Chọn tổ sản xuất"
+    "select_team": "Chọn tổ sản xuất",
+    "export": "Xuất Excel",
+    "import": "Nhập Excel",
+    "status_inactive": "Không hoạt động",
+    "loading": "Đang tải...",
+    "update": "Cập nhật"
   },
   "employee": {
     "title": "Quản lý Nhân viên",

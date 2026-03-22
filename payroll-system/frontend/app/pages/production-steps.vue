@@ -58,8 +58,8 @@
             <td class="px-6 py-4 font-bold text-primary-700">{{ step.name }}</td>
             <td class="px-6 py-4">
                <div class="flex flex-wrap gap-1">
-                  <span v-for="p in getStepProductCodes(step.id)" :key="p" class="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-600 uppercase">{{ p }}</span>
-                  <span v-if="!getStepProductCodes(step.id).length" class="text-[10px] text-slate-300 italic">Chưa cấu hình</span>
+                  <span v-for="p in step.products" :key="p.id" class="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-600 uppercase">{{ p.code }}</span>
+                  <span v-if="!step.products?.length" class="text-[10px] text-slate-300 italic">Chưa cấu hình</span>
                </div>
             </td>
             <td class="px-6 py-4 text-sm text-slate-500 font-medium">{{ step.description || '---' }}</td>
@@ -136,7 +136,7 @@
           <UiInput v-model="form.description" label="Mô tả" placeholder="Mô tả về kỹ thuật công đoạn..." />
           
           <!-- Product Mapping Section -->
-          <div v-if="currentStep.id" class="space-y-3 pt-2">
+          <div class="space-y-3 pt-2">
             <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Sản phẩm cho phép</label>
             <div class="border border-slate-100 rounded-xl p-3 bg-slate-50/50 space-y-3">
               <div class="flex flex-wrap gap-1.5">
@@ -177,7 +177,6 @@ const { $api } = useNuxtApp();
 const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
 const steps = ref([]);
 const products = ref([]);
-const stepMappings = ref({}); // { stepId: [products] }
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
@@ -228,7 +227,8 @@ const handleImport = async (event) => {
 const currentStep = ref({});
 const form = reactive({
   name: '',
-  description: ''
+  description: '',
+  productIds: []
 });
 
 // Pagination
@@ -255,12 +255,6 @@ const fetchSteps = async () => {
     ]);
     steps.value = stepRes.data;
     products.value = prodRes.data;
-    
-    // Fetch mappings for each step
-    for (const step of steps.value) {
-      const { data } = await $api.get(`/production-steps/${step.id}/products`);
-      stepMappings.value[step.id] = data;
-    }
   } catch (err) {
     console.error(err);
     alert(err.response?.data?.message || err.message || 'Không thể tải dữ liệu. Vui lòng thử lại sau.');
@@ -274,47 +268,39 @@ const openModal = (step = null) => {
     currentStep.value = { ...step };
     form.name = step.name;
     form.description = step.description;
-    modalStepProducts.value = [...(stepMappings.value[step.id] || [])];
+    form.productIds = step.products.map(p => p.id);
+    modalStepProducts.value = [...step.products];
   } else {
     currentStep.value = {};
     form.name = '';
     form.description = '';
+    form.productIds = [];
     modalStepProducts.value = [];
   }
   selectedProductId.value = null;
   showModal.value = true;
 };
 
-const addProduct = async () => {
-  if (!selectedProductId.value || !currentStep.value.id) return;
-  try {
-    await $api.post(`/production-steps/${currentStep.value.id}/products`, [selectedProductId.value]);
-    const addedProduct = products.value.find(p => p.id === selectedProductId.value);
-    if (addedProduct) {
-      modalStepProducts.value.push(addedProduct);
-      stepMappings.value[currentStep.value.id] = [...modalStepProducts.value];
-    }
-    selectedProductId.value = null;
-  } catch (err) {
-    alert('Không thể thêm sản phẩm');
+const addProduct = () => {
+  if (!selectedProductId.value) return;
+  const addedProduct = products.value.find(p => p.id === selectedProductId.value);
+  if (addedProduct && !form.productIds.includes(addedProduct.id)) {
+    form.productIds.push(addedProduct.id);
+    modalStepProducts.value.push(addedProduct);
   }
+  selectedProductId.value = null;
 };
 
-const removeProduct = async (productId) => {
-  if (!currentStep.value.id) return;
-  try {
-    await $api.delete(`/production-steps/${currentStep.value.id}/products/${productId}`);
-    modalStepProducts.value = modalStepProducts.value.filter(p => p.id !== productId);
-    stepMappings.value[currentStep.value.id] = [...modalStepProducts.value];
-  } catch (err) {
-    alert('Không thể xóa sản phẩm');
-  }
+const removeProduct = (productId) => {
+  form.productIds = form.productIds.filter(id => id !== productId);
+  modalStepProducts.value = modalStepProducts.value.filter(p => p.id !== productId);
 };
 
 const handleSubmit = async () => {
   saving.value = true;
   try {
     if (currentStep.value.id) {
+      console.log(form);
       await $api.put(`/production-steps/${currentStep.value.id}`, form);
     } else {
       await $api.post('/production-steps', form);

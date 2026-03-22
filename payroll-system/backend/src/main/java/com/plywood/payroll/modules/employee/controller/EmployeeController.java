@@ -87,14 +87,14 @@ public class EmployeeController {
     }
 
     @GetMapping("/download-template")
-    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Tải file mẫu nhập nhân viên")
-    public ResponseEntity<byte[]> downloadTemplate() throws IOException {
-        byte[] data = excelService.getEmployeeTemplate();
+    public ResponseEntity<byte[]> downloadTemplate() throws java.io.IOException {
+        byte[] bytes = excelService.getEmployeeTemplate();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=employee_template.xlsx")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(data);
+                .body(bytes);
     }
 
     @PostMapping("/import")
@@ -106,5 +106,13 @@ public class EmployeeController {
                 .map(employeeService::create)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success("Nhập dữ liệu thành công " + responses.size() + " nhân viên", responses));
+    }
+
+    @PostMapping("/{id}/avatar")
+    @PreAuthorize("hasAuthority('EMPLOYEE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Tải lên ảnh đại diện nhân viên")
+    public ResponseEntity<ApiResponse<String>> updateAvatar(@PathVariable("id") Long id, @RequestParam("file") MultipartFile file) throws IOException {
+        String avatarUrl = employeeService.updateAvatar(id, file);
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, avatarUrl));
     }
 }

@@ -99,14 +99,35 @@ public class EmployeeController {
                 .body(bytes);
     }
 
+    @PostMapping("/import/preview")
+    @PreAuthorize("hasAuthority('EMPLOYEE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Xem trước danh sách nhân viên từ file Excel")
+    public ResponseEntity<ApiResponse<com.plywood.payroll.modules.excel.dto.response.ImportResult<EmployeeRequest>>> importPreview(@RequestParam("file") MultipartFile file) throws IOException {
+        com.plywood.payroll.modules.excel.dto.response.ImportResult<EmployeeRequest> result = excelService.importEmployeesPreview(file);
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, result));
+    }
+
+    @PostMapping("/import/confirm")
+    @PreAuthorize("hasAuthority('EMPLOYEE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Xác nhận nhập danh sách nhân viên")
+    public ResponseEntity<ApiResponse<Void>> importConfirm(@Valid @RequestBody List<EmployeeRequest> requests) {
+        for (EmployeeRequest req : requests) {
+            employeeService.create(req);
+        }
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_CREATE, null));
+    }
+
     @PostMapping("/import")
     @PreAuthorize("hasAuthority('EMPLOYEE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
-    @Operation(summary = "Nhập nhân viên từ file Excel")
+    @Operation(summary = "Nhập nhân viên từ file Excel (Trực tiếp)")
     public ResponseEntity<ApiResponse<List<EmployeeResponse>>> importEmployees(@RequestParam("file") MultipartFile file) throws IOException {
-        List<EmployeeRequest> requests = excelService.importEmployees(file);
-        List<EmployeeResponse> responses = requests.stream()
-                .map(employeeService::create)
-                .toList();
+        com.plywood.payroll.modules.excel.dto.response.ImportResult<EmployeeRequest> result = excelService.importEmployeesPreview(file);
+        List<EmployeeResponse> responses = new java.util.ArrayList<>();
+        if (result.getErrorCount() == 0) {
+            responses = result.getData().stream()
+                    .map(employeeService::create)
+                    .toList();
+        }
         return ResponseEntity.ok(ApiResponse.success("Nhập dữ liệu thành công " + responses.size() + " nhân viên", responses));
     }
 

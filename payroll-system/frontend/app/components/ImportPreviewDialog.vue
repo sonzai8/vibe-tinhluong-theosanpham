@@ -36,14 +36,14 @@
               <thead>
                 <tr class="bg-slate-100/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-200/50">
                   <th class="px-6 py-4 w-16">STT</th>
-                  <th class="px-6 py-4">Tên phòng ban</th>
+                  <th v-for="col in columns" :key="col.key" class="px-6 py-4">{{ col.label }}</th>
                   <th class="px-6 py-4 text-right">Trạng thái</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 text-sm">
                 <tr v-for="(item, idx) in data" :key="idx" class="hover:bg-white transition-colors group">
                   <td class="px-6 py-4 font-black text-slate-400 text-xs">#{{ idx + 1 }}</td>
-                  <td class="px-6 py-4 font-bold text-slate-700">{{ item.name }}</td>
+                  <td v-for="col in columns" :key="col.key" class="px-6 py-4 font-bold text-slate-700">{{ item[col.key] }}</td>
                   <td class="px-6 py-4 text-right">
                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-wider ring-1 ring-primary-100">
                       Mới
@@ -123,6 +123,12 @@ defineProps({
   errors: {
     type: Array,
     default: () => []
+  },
+  columns: {
+    type: Array,
+    default: () => [
+      { label: 'Tên', key: 'name' }
+    ]
   }
 });
 

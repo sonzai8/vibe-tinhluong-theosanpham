@@ -285,6 +285,18 @@
       </div>
     </div>
 
+    <!-- Import Preview Dialog -->
+    <ImportPreviewDialog
+      :show="showImportPreview"
+      :data="previewData"
+      :errors="importErrors"
+      :loading="importing"
+      :columns="importCols"
+      :title="$t('employee.preview_title')"
+      @close="showImportPreview = false"
+      @confirm="handleConfirmImport"
+    />
+
     <!-- Reset Password Modal -->
     <div v-if="showResetModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
       <div class="card w-full max-w-sm p-8 shadow-2xl border-amber-100 animate-in zoom-in duration-200">
@@ -433,6 +445,19 @@ const triggerError = (title, message, detail = '') => {
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
+
+// Import Preview State
+const showImportPreview = ref(false);
+const previewData = ref([]);
+const importErrors = ref([]);
+const importing = ref(false);
+
+const importCols = [
+  { label: 'Mã NV', key: 'code' },
+  { label: 'Họ Tên', key: 'fullName' },
+  { label: 'SĐT', key: 'phone' },
+  { label: 'CCCD', key: 'citizenId' }
+];
 
 const searchQuery = ref('');
 const filterDept = ref('');
@@ -624,16 +649,40 @@ const handleImport = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
+  const formData = new FormData();
+  formData.append('file', file);
+
   try {
     loading.value = true;
-    const res = await importExcel('/employees/import', file);
-    alert('Nhập dữ liệu thành công');
-    fetchData();
+    const res = await $api.post('/employees/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    previewData.value = res.data.data;
+    importErrors.value = res.data.errors;
+    showImportPreview.value = true;
   } catch (err) {
-    triggerError('Lỗi nhập file', 'Đã xảy ra lỗi khi xử lý tệp tin Excel nhập nhân viên.', err.response?.data?.message || err.message);
+    const msg = err.response?.data?.message || 'Hệ thống không thể đọc nội dung file Excel này. Vui lòng kiểm tra lại định dạng hoặc template.';
+    triggerError('Lỗi nhập dữ liệu', msg, err.response?.data?.errors?.join('\n') || err.message);
   } finally {
     loading.value = false;
     event.target.value = ''; // Reset input
+  }
+};
+
+const handleConfirmImport = async () => {
+  if (previewData.value.length === 0) return;
+  
+  importing.value = true;
+  try {
+    await $api.post('/employees/import/confirm', previewData.value);
+    alert('Nhập dữ liệu thành công');
+    showImportPreview.value = false;
+    fetchData();
+  } catch (err) {
+    triggerError('Lỗi lưu dữ liệu', 'Đã xảy ra lỗi khi lưu danh sách nhân viên mới vào hệ thống.', err.response?.data?.message || err.message);
+  } finally {
+    importing.value = false;
   }
 };
 

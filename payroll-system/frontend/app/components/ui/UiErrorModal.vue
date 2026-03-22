@@ -27,7 +27,7 @@
       <div class="p-8 bg-slate-50/50 border-t border-slate-100 mt-2">
         <UiButton 
           variant="outline" 
-          class="w-full !rounded-2xl !py-4 font-black shadow-sm bg-white"
+          class="w-full !rounded-2xl !py-4 font-black shadow-sm"
           @click="$emit('close')"
         >
           {{ confirmText || 'Đã hiểu' }}

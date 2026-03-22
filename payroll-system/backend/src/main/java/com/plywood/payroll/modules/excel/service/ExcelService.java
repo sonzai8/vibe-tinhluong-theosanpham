@@ -174,7 +174,7 @@ public class ExcelService {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Nhân viên");
             Row header = sheet.createRow(0);
-            String[] headers = {"Mã NV", "Họ Tên", "Tên đăng nhập", "Mật khẩu", "Phòng ban", "Tổ đội", "Chức vụ", "Quyền Đăng nhập (Y/N)"};
+            String[] headers = {"Mã NV", "Họ Tên", "Số điện thoại", "Số CCCD", "Tên đăng nhập", "Mật khẩu", "Phòng ban", "Tổ đội", "Chức vụ", "Quyền Đăng nhập (Y/N)"};
 
             CellStyle headerStyle = ExcelHelper.createHeaderStyle(workbook);
             for (int i = 0; i < headers.length; i++) {
@@ -187,19 +187,19 @@ public class ExcelService {
             String[] depts = departmentRepository.findAll().stream()
                     .map(com.plywood.payroll.modules.organization.entity.Department::getName)
                     .toArray(String[]::new);
-            ExcelHelper.addDataValidation(sheet, depts, 1, 1000, 4, 4);
+            ExcelHelper.addDataValidation(sheet, depts, 1, 1000, 6, 6);
 
             String[] teams = teamRepository.findAll().stream()
                     .map(com.plywood.payroll.modules.organization.entity.Team::getName)
                     .toArray(String[]::new);
-            ExcelHelper.addDataValidation(sheet, teams, 1, 1000, 5, 5);
+            ExcelHelper.addDataValidation(sheet, teams, 1, 1000, 7, 7);
 
             String[] roles = roleRepository.findAll().stream()
                     .map(com.plywood.payroll.modules.organization.entity.Role::getName)
                     .toArray(String[]::new);
-            ExcelHelper.addDataValidation(sheet, roles, 1, 1000, 6, 6);
+            ExcelHelper.addDataValidation(sheet, roles, 1, 1000, 8, 8);
 
-            ExcelHelper.addDataValidation(sheet, new String[]{"Y", "N", "Có", "Không"}, 1, 1000, 7, 7);
+            ExcelHelper.addDataValidation(sheet, new String[]{"Y", "N", "Có", "Không"}, 1, 1000, 9, 9);
 
             return ExcelHelper.createWorkbookBytes(workbook);
         }
@@ -322,44 +322,97 @@ public class ExcelService {
                 .build();
     }
 
-    public List<EmployeeRequest> importEmployees(MultipartFile file) throws IOException {
-        List<EmployeeRequest> requests = new ArrayList<>();
+    public ImportResult<EmployeeRequest> importEmployeesPreview(MultipartFile file) throws IOException {
+        List<EmployeeRequest> data = new ArrayList<>();
+        List<ImportError> errors = new ArrayList<>();
+
         try (InputStream is = file.getInputStream(); Workbook workbook = ExcelHelper.createWorkbook(is)) {
             Sheet sheet = workbook.getSheetAt(0);
-            Iterator<Row> rows = sheet.iterator();
+            Row headerRow = sheet.getRow(0);
 
+            // Validate headers
+            String[] expectedHeaders = {"Mã NV", "Họ Tên", "Số điện thoại", "Số CCCD", "Tên đăng nhập", "Mật khẩu", "Phòng ban", "Tổ đội", "Chức vụ", "Quyền Đăng nhập"};
+            if (headerRow == null || !validateHeaders(headerRow, expectedHeaders)) {
+                throw new IOException("Tiêu đề cột không khớp. Vui lòng sử dụng file mẫu đúng định dạng.");
+            }
+
+            Iterator<Row> rows = sheet.iterator();
             if (rows.hasNext()) rows.next(); // Skip header
 
+            int rowIdx = 1;
             while (rows.hasNext()) {
-                Row currentRow = rows.next();
-                if (isRowEmpty(currentRow)) continue;
+                rowIdx++;
+                Row row = rows.next();
+                if (isRowEmpty(row)) continue;
 
-                String name = ExcelHelper.getCellValueAsString(currentRow.getCell(0));
-                if (name == null || name.isEmpty()) continue;
+                String code = ExcelHelper.getCellValueAsString(row.getCell(0));
+                String name = ExcelHelper.getCellValueAsString(row.getCell(1));
+                String phone = ExcelHelper.getCellValueAsString(row.getCell(2));
+                String citizenId = ExcelHelper.getCellValueAsString(row.getCell(3));
+                String username = ExcelHelper.getCellValueAsString(row.getCell(4));
+                String password = ExcelHelper.getCellValueAsString(row.getCell(5));
+                String deptName = ExcelHelper.getCellValueAsString(row.getCell(6));
+                String teamName = ExcelHelper.getCellValueAsString(row.getCell(7));
+                String roleName = ExcelHelper.getCellValueAsString(row.getCell(8));
+                String canLoginStr = ExcelHelper.getCellValueAsString(row.getCell(9));
+
+                if (name == null || name.trim().isEmpty()) {
+                    errors.add(new ImportError(rowIdx, "Họ Tên", "", "Họ tên không được để trống"));
+                    continue;
+                }
 
                 EmployeeRequest req = new EmployeeRequest();
+                req.setCode(code);
                 req.setFullName(name);
-                req.setPhone(ExcelHelper.getCellValueAsString(currentRow.getCell(1)));
-                req.setCitizenId(ExcelHelper.getCellValueAsString(currentRow.getCell(2)));
-//                req.setUsername(ExcelHelper.getCellValueAsString(currentRow.getCell(3)));
-                req.setPassword(ExcelHelper.getCellValueAsString(currentRow.getCell(3)));
+                req.setPhone(phone);
+                req.setCitizenId(citizenId);
+                req.setUsername(username);
+                req.setPassword(password);
+                req.setCanLogin("Y".equalsIgnoreCase(canLoginStr) || "Có".equalsIgnoreCase(canLoginStr));
 
-//                String deptName = ExcelHelper.getCellValueAsString(currentRow.getCell(5));
-//                if (deptName != null) departmentRepository.findByName(deptName).ifPresent(d -> req.setDepartmentId(d.getId()));
+                // Department
+                if (deptName != null && !deptName.trim().isEmpty()) {
+                    var dept = departmentRepository.findByName(deptName);
+                    if (dept.isPresent()) req.setDepartmentId(dept.get().getId());
+                    else errors.add(new ImportError(rowIdx, "Phòng ban", deptName, "Phòng ban không tồn tại"));
+                }
 
-                String teamName = ExcelHelper.getCellValueAsString(currentRow.getCell(4));
-                if (teamName != null) teamRepository.findByName(teamName).ifPresent(t -> req.setTeamId(t.getId()));
+                // Team
+                if (teamName != null && !teamName.trim().isEmpty()) {
+                    var team = teamRepository.findByName(teamName);
+                    if (team.isPresent()) req.setTeamId(team.get().getId());
+                    else errors.add(new ImportError(rowIdx, "Tổ đội", teamName, "Tổ đội không tồn tại"));
+                }
 
-                String roleName = ExcelHelper.getCellValueAsString(currentRow.getCell(5));
-                if (roleName != null) roleRepository.findByName(roleName).ifPresent(r -> req.setRoleId(r.getId()));
+                // Role
+                if (roleName != null && !roleName.trim().isEmpty()) {
+                    var role = roleRepository.findByName(roleName);
+                    if (role.isPresent()) req.setRoleId(role.get().getId());
+                    else errors.add(new ImportError(rowIdx, "Chức vụ", roleName, "Chức vụ không tồn tại"));
+                }
 
-                req.setStatus("ACTIVE");
-                req.setCanLogin(req.getUsername() != null && !req.getUsername().isEmpty());
+                // Check duplicate code if provided
+                final int currentRowIdx = rowIdx;
+                if (code != null && !code.trim().isEmpty() && employeeRepository.findByCode(code).isPresent()) {
+                    errors.add(new ImportError(currentRowIdx, "Mã NV", code, "Mã nhân viên đã tồn tại"));
+                }
 
-                requests.add(req);
+                if (errors.stream().noneMatch(e -> e.getRowNumber() == currentRowIdx)) {
+                    data.add(req);
+                }
             }
         }
-        return requests;
+
+        return ImportResult.<EmployeeRequest>builder()
+                .data(data)
+                .errors(errors)
+                .successCount(data.size())
+                .errorCount(errors.size())
+                .build();
+    }
+
+    public List<EmployeeRequest> importEmployees(MultipartFile file) throws IOException {
+        return importEmployeesPreview(file).getData();
     }
 
     // --- UNIVERSAL METHODS ---

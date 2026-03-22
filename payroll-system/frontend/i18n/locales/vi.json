@@ -119,7 +119,8 @@
     "performed_by": "Thực hiện bởi",
     "old_value": "Giá trị cũ",
     "new_value": "Giá trị mới",
-    "close_window": "Đóng cửa sổ"
+    "close_window": "Đóng cửa sổ",
+    "preview_title": "Xác nhận danh sách nhân sự nhập từ Excel"
   },
   "product": {
     "title": "Danh mục Sản phẩm",

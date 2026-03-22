@@ -173,6 +173,12 @@ const { $api } = useNuxtApp();
 const items = ref([]);
 const filterDeptId = ref('');
 const filterTeamId = ref('');
+const currentId = ref(null);
+const loading = ref(false);
+const showModal = ref(false);
+const saving = ref(false);
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
 
 // Error Modal State
 const showErrorModal = ref(false);

@@ -50,10 +50,10 @@
       </div>
 
       <!-- Footer -->
-      <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3 sticky bottom-0">
+      <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 sticky bottom-0">
         <button
           @click="$emit('close')"
-          class="px-6 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all shadow-sm"
+          class="px-6 py-2  rounded-xl font-semibold"
         >
           {{ $t('common.close') }}
         </button>

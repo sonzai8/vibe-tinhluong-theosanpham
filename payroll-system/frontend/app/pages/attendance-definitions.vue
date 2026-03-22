@@ -95,6 +95,9 @@ const { $api } = useNuxtApp();
 
 const definitions = ref([]);
 const currentId = ref(null);
+const showModal = ref(false);
+const loading = ref(false);
+const saving = ref(false);
 
 // Error Modal State
 const showErrorModal = ref(false);

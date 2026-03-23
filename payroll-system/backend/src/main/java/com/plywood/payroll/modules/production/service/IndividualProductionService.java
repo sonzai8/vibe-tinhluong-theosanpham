@@ -8,6 +8,8 @@ import com.plywood.payroll.modules.production.repository.ProductionRecordReposit
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.jpa.domain.Specification;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +41,20 @@ public class IndividualProductionService {
 
         // 3. Lấy tất cả bản ghi chấm công trong khoảng thời gian
         // Lưu ý: filter theo actualTeam (tổ thực tế làm việc)
-        List<DailyAttendance> attendances = attendanceRepository.findByFilters(from, to, null, null, null, departmentIds, teamIds);
+        Specification<DailyAttendance> attendanceSpec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("attendanceDate"), from));
+            if (to != null) predicates.add(cb.lessThanOrEqualTo(root.get("attendanceDate"), to));
+            if (departmentIds != null && !departmentIds.isEmpty()) {
+                predicates.add(root.get("employee").get("department").get("id").in(departmentIds));
+            }
+            if (teamIds != null && !teamIds.isEmpty()) {
+                predicates.add(root.get("actualTeam").get("id").in(teamIds));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        List<DailyAttendance> attendances = attendanceRepository.findAll(attendanceSpec);
 
         // 4. Đếm số người đi làm theo ngày và tổ thực tế: Map<Date, Map<TeamId, Count>>
         Map<LocalDate, Map<Long, Long>> teamAttendanceCountMap = attendances.stream()

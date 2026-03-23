@@ -1,14 +1,12 @@
 package com.plywood.payroll.modules.organization.controller;
 import com.plywood.payroll.modules.excel.service.ExcelService;
-import com.plywood.payroll.modules.organization.entity.Department;
-
-import com.plywood.payroll.shared.constant.MessageConstants;
-
-
 import com.plywood.payroll.modules.organization.dto.request.DepartmentRequest;
 import com.plywood.payroll.shared.dto.ApiResponse;
 import com.plywood.payroll.modules.organization.dto.response.DepartmentResponse;
+import com.plywood.payroll.modules.excel.dto.response.ImportResult;
 import com.plywood.payroll.modules.organization.service.DepartmentService;
+import com.plywood.payroll.modules.organization.repository.DepartmentRepository;
+import com.plywood.payroll.shared.constant.MessageConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,16 +25,18 @@ import java.util.List;
 public class DepartmentController {
 
     private final DepartmentService departmentService;
+    private final DepartmentRepository departmentRepository;
+    private final ExcelService excelService;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('PRODUCTION_VIEW')")
     @Operation(summary = "Lấy danh sách tất cả phòng ban")
     public ResponseEntity<ApiResponse<List<DepartmentResponse>>> getAll() {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, departmentService.getAll()));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('PRODUCTION_VIEW')")
     @Operation(summary = "Lấy thông tin phòng ban theo ID")
     public ResponseEntity<ApiResponse<DepartmentResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, departmentService.getById(id)));
@@ -97,16 +97,41 @@ public class DepartmentController {
                 .body(bytes);
     }
 
-    @PostMapping("/import")
+    @PostMapping("/import/preview")
     @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
-    @Operation(summary = "Nhập danh sách phòng ban từ Excel")
-    public ResponseEntity<ApiResponse<Void>> importExcel(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
-        List<DepartmentRequest> requests = excelService.importDepartments(file);
+    @Operation(summary = "Xem trước danh sách phòng ban từ Excel")
+    public ResponseEntity<ApiResponse<ImportResult<DepartmentRequest>>> importPreview(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        ImportResult<DepartmentRequest> result = excelService.importDepartments(file);
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, result));
+    }
+
+    @PostMapping("/import/confirm")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Xác nhận nhập danh sách phòng ban")
+    public ResponseEntity<ApiResponse<Void>> importConfirm(@Valid @RequestBody List<DepartmentRequest> requests) {
         for (DepartmentRequest req : requests) {
-            departmentService.create(req);
+            departmentRepository.findByName(req.getName())
+                .ifPresentOrElse(
+                    d -> { /* Skip or update if exists, but here we just create if not exists or skip duplicates which should have been filtered in preview */ },
+                    () -> departmentService.create(req)
+                );
         }
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_CREATE, null));
     }
 
-    private final com.plywood.payroll.modules.excel.service.ExcelService excelService;
+    @PostMapping("/import")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Nhập danh sách phòng ban từ Excel (Trực tiếp)")
+    public ResponseEntity<ApiResponse<ImportResult<DepartmentRequest>>> importExcel(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        ImportResult<DepartmentRequest> result = excelService.importDepartments(file);
+        if (result.getErrorCount() == 0) {
+            for (DepartmentRequest req : result.getData()) {
+                departmentService.create(req);
+            }
+        }
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_CREATE, result));
+    }
+
+//    private final DepartmentRepository departmentRepository;
+//    private final ExcelService excelService;
 }

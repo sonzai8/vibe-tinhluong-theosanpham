@@ -8,7 +8,9 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDate;
 import java.util.List;
 
-public interface ProductionRecordRepository extends JpaRepository<ProductionRecord, Long> {
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+public interface ProductionRecordRepository extends JpaRepository<ProductionRecord, Long>, JpaSpecificationExecutor<ProductionRecord> {
     List<ProductionRecord> findTop5ByOrderByCreatedAtDesc();
 
     @Query("SELECT r FROM ProductionRecord r WHERE FUNCTION('MONTH', r.productionDate) = :month AND FUNCTION('YEAR', r.productionDate) = :year")

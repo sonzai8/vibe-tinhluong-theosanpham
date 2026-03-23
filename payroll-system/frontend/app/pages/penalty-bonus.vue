@@ -5,16 +5,29 @@
         <h2 class="text-3xl font-black text-slate-900 tracking-tight">{{ $t('penalty_bonus.title') }}</h2>
         <p class="text-slate-500 font-medium">{{ $t('penalty_bonus.subtitle') }}</p>
       </div>
-      <div class="flex gap-3">
-        <NuxtLink to="/penalty-bonus-types">
-          <UiButton variant="outline">
-            <Settings class="w-4 h-4" />
-            {{ $t('penalty_bonus.type_mgmt') }}
-          </UiButton>
-        </NuxtLink>
-        <UiButton @click="openModal()">
-          <PlusCircle class="w-4 h-4" />
-          {{ $t('penalty_bonus.add_new') }}
+      <UiButton @click="openModal()">
+        <PlusCircle class="w-4 h-4" />
+        Thêm bản ghi mới
+      </UiButton>
+    </div>
+
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
+
+    <div class="card p-4 bg-white/80 backdrop-blur-md border-none shadow-sm flex flex-col md:flex-row gap-4 items-end">
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+        <SelectDepartment v-model="filterDeptId" :label="$t('common.department')" />
+        <SelectTeam v-model="filterTeamId" :departmentId="filterDeptId" :label="$t('common.team')" />
+      </div>
+      <div class="w-full md:w-auto self-end">
+        <UiButton variant="outline" @click="resetFilters" class="w-full">
+          {{ $t('common.reset_filter') || 'Đặt lại' }}
         </UiButton>
       </div>
     </div>
@@ -170,16 +183,22 @@ const showModal = ref(false);
 const currentId = ref(null);
 const filterDeptId = ref('');
 const filterTeamId = ref('');
+
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 
-const form = reactive({
-  employeeId: null,
-  typeId: null,
-  amount: 0,
-  reason: '',
-  recordDate: new Date().toISOString().substr(0, 10)
-});
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
 
 const resetFilters = () => {
   filterDeptId.value = '';
@@ -196,7 +215,7 @@ const fetchData = async () => {
     items.value = penaltyRes.data || [];
     bonusTypes.value = typesRes.data || [];
   } catch (err) {
-    console.error(err);
+    triggerError('Lỗi tải dữ liệu', 'Không thể lấy danh sách khen thưởng & kỷ luật.', err.message);
   } finally {
     loading.value = false;
   }
@@ -261,7 +280,7 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message);
+    triggerError('Lỗi lưu bản ghi', 'Đã xảy ra lỗi khi lưu thông tin khen thưởng/kỷ luật.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
@@ -273,7 +292,7 @@ const handleDelete = async (id) => {
     await $api.delete(`/penalty-bonuses/${id}`);
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message);
+    triggerError('Lỗi xóa bản ghi', 'Hệ thống gặp sự cố khi xóa bản ghi này.', err.response?.data?.message || err.message);
   }
 };
 

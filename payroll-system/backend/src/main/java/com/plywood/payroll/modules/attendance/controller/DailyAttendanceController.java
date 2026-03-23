@@ -149,9 +149,22 @@ public class DailyAttendanceController {
     @PostMapping("/import")
     @PreAuthorize("hasAuthority('ATTENDANCE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Nhập file Excel chấm công")
-    public ResponseEntity<ApiResponse<List<DailyAttendanceResponse>>> importExcel(@RequestParam("file") MultipartFile file) throws IOException {
-        List<DailyAttendanceRequest> requests = excelService.importAttendances(file);
-        List<DailyAttendanceResponse> saved = attendanceService.saveBatch(requests);
-        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_CREATE, saved));
+    public ResponseEntity<ApiResponse<com.plywood.payroll.modules.excel.dto.response.ImportResult<DailyAttendanceResponse>>> importExcel(@RequestParam("file") MultipartFile file) throws IOException {
+        com.plywood.payroll.modules.excel.dto.response.ImportResult<DailyAttendanceRequest> result = excelService.importAttendances(file);
+        
+        List<DailyAttendanceResponse> saved = new java.util.ArrayList<>();
+        if (result.getData() != null && !result.getData().isEmpty()) {
+            saved = attendanceService.saveBatch(result.getData());
+        }
+        
+        com.plywood.payroll.modules.excel.dto.response.ImportResult<DailyAttendanceResponse> finalResult = 
+            com.plywood.payroll.modules.excel.dto.response.ImportResult.<DailyAttendanceResponse>builder()
+                .data(saved)
+                .errors(result.getErrors())
+                .successCount(saved.size())
+                .errorCount(result.getErrorCount())
+                .build();
+                
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_CREATE, finalResult));
     }
 }

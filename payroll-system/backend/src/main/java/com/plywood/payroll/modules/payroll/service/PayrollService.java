@@ -35,6 +35,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.*;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Service
@@ -97,7 +98,12 @@ public class PayrollService {
         LocalDate endDate = ym.atEndOfMonth();
 
         List<ProductionRecord> records = productionRecordRepository.findByFilters(startDate, endDate, null, null);
-        List<DailyAttendance> allAttendances = dailyAttendanceRepository.findByFilters(null, null, month, year, null, null, null);
+        List<DailyAttendance> allAttendances = dailyAttendanceRepository.findAll((root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(cb.function("MONTH", Integer.class, root.get("attendanceDate")), month));
+            predicates.add(cb.equal(cb.function("YEAR", Integer.class, root.get("attendanceDate")), year));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        });
 
         // Xét chuyên cần
         Map<Long, Long> attendanceCountMap = allAttendances.stream()
@@ -344,7 +350,12 @@ public class PayrollService {
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
         
         // Lấy tất cả chấm công để tính chuyên cần (giống calculatePayroll)
-        List<DailyAttendance> allAttendances = dailyAttendanceRepository.findByFilters(null, null, payroll.getMonth(), payroll.getYear(), null, null, null);
+        List<DailyAttendance> allAttendances = dailyAttendanceRepository.findAll((root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(cb.function("MONTH", Integer.class, root.get("attendanceDate")), payroll.getMonth()));
+            predicates.add(cb.equal(cb.function("YEAR", Integer.class, root.get("attendanceDate")), payroll.getYear()));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        });
         Map<Long, Long> attendanceCountMap = allAttendances.stream()
                 .collect(Collectors.groupingBy(a -> a.getEmployee().getId(), Collectors.counting()));
 
@@ -396,7 +407,7 @@ public class PayrollService {
                 boolean isDiligent = attendanceCountMap.getOrDefault(employee.getId(), 0L) >= minAttendanceDays;
 
                 for (ProductionRecord r : dayRecords) {
-                    BigDecimal surcharge = calculateSurcharge(r.getProduct(), r.getQuality(), BigDecimal.ZERO, BigDecimal.ZERO);
+                    BigDecimal surcharge = calculateSurcharge(r.getProduct(), r.getQuality(), filmSurcharge1, filmSurcharge2);
                     Optional<ProductStepRate> rateOpt = productStepRateRepository
                             .findEffectiveRate(r.getProduct().getId(), r.getTeam().getProductionStep().getId(), r.getQuality().getId(), finalDate);
                     

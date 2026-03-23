@@ -17,7 +17,7 @@
               {{ $t('attendance.export') }}
               <ChevronDown class="w-3 h-3 ml-1 opacity-50" />
             </UiButton>
-            <div class="absolute top-full right-0 mt-1 w-48 bg-white rounded-xl shadow-2xl border border-slate-100 p-1.5 z-[100] hidden group-hover/export:block animate-in fade-in slide-in-from-top-1 duration-200">
+            <div class="absolute top-full right-0 w-48 bg-white rounded-xl shadow-2xl border border-slate-100 p-1.5 z-[100] invisible group-hover/export:visible opacity-0 group-hover/export:opacity-100 translate-y-1 group-hover/export:translate-y-0 transition-all duration-200">
               <button @click="handleExport('list')" class="w-full text-left px-4 py-2 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-2">
                 <LayoutList class="w-3.5 h-3.5" /> {{ $t('common.list_view') }}
               </button>
@@ -31,6 +31,22 @@
           {{ $t('attendance.import') }}
         </UiButton>
         <input type="file" ref="fileInput" class="hidden" accept=".xlsx, .xls" @change="handleImport" />
+        
+        <!-- Import Error Dialog -->
+        <ImportErrorDialog 
+          :show="showImportError" 
+          :errors="importErrors" 
+          @close="showImportError = false" 
+        />
+        
+        <!-- Common Error Modal -->
+        <UiErrorModal
+          :show="showErrorModal"
+          :title="errorTitle"
+          :message="errorMessage"
+          :detail="errorDetail"
+          @close="showErrorModal = false"
+        />
         
         <UiButton @click="openBulkModal" variant="outline" >
           <Users class="w-4 h-4" />
@@ -491,20 +507,21 @@
         <div class="overflow-y-auto flex-1 pr-2 space-y-8">
           <!-- Filters for Bulk -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-slate-50 p-5 rounded-2xl border border-slate-100">
-            <UiSelect 
-              v-model="bulkForm.departmentId" 
-              :label="$t('common.filter_by_dept') || 'Lọc theo phòng ban'" 
-              :options="deptOptions" 
-              :placeholder="$t('common.all_departments') || 'Tất cả phòng ban'"
-              @update:modelValue="loadBulkEmployees"
-            />
-            <UiSelect 
-              v-model="bulkForm.teamId" 
-              :label="$t('attendance.original_team')" 
-              :options="teamFilterOptions" 
-              :placeholder="$t('common.select_team_to_load') || 'Chọn tổ để nạp danh sách'"
-              @update:modelValue="loadBulkEmployees"
-            />
+            <div class="w-full">
+               <SelectDepartment 
+                 v-model="bulkForm.departmentId" 
+                 :label="$t('common.filter_by_dept') || 'Lọc theo phòng ban'" 
+                 @update:modelValue="loadBulkEmployees"
+               />
+            </div>
+            <div class="w-full">
+               <SelectTeam 
+                 v-model="bulkForm.teamId" 
+                 :departmentId="bulkForm.departmentId"
+                 :label="$t('attendance.original_team')"
+                 @update:modelValue="loadBulkEmployees"
+               />
+            </div>
             <UiSelect 
               v-model="bulkForm.attendanceDefinitionId" 
               :label="$t('attendance.definition.name')" 
@@ -641,6 +658,22 @@ const showModal = ref(false);
 const showAbsentModal = ref(false);
 const showDuplicateModal = ref(false);
 const duplicateRecord = ref(null);
+
+const showImportError = ref(false);
+const importErrors = ref([]);
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
 
 const showBulkModal = ref(false);
 
@@ -811,19 +844,38 @@ const fetchData = async () => {
       ? `/attendances/date/${filterDate.value}` 
       : `/attendances`; // Assuming /attendances with month/year params works
 
-    const [attRes, empRes, teamRes, deptRes, defRes] = await Promise.all([
-      $api.get(endpoint, { params: Object.fromEntries(params) }),
-      $api.get('/employees'),
-      $api.get('/teams'),
-      $api.get('/departments'),
-      $api.get('/attendance-definitions')
+    const fetchWrapper = async (promise, fallback = []) => {
+      try {
+        const res = await promise;
+        return res.data || res || fallback;
+      } catch (err) {
+        // Handle 404 specifically as empty list for attendances
+        if (err.response?.status === 404) return [];
+        console.error('Fetch error:', err);
+        return fallback;
+      }
+    };
+
+    const [attData, empData, teamData, deptData, defData] = await Promise.all([
+      fetchWrapper($api.get(endpoint, { params: Object.fromEntries(params) })),
+      fetchWrapper($api.get('/employees')),
+      fetchWrapper($api.get('/teams')),
+      fetchWrapper($api.get('/departments')),
+      fetchWrapper($api.get('/attendance-definitions'))
     ]);
     
-    attendances.value = attRes.data;
-    employees.value = empRes.data;
-    teams.value = teamRes.data;
-    departments.value = deptRes.data;
-    attendanceDefs.value = defRes.data;
+    attendances.value = Array.isArray(attData) ? attData : [];
+    employees.value = Array.isArray(empData) ? empData : [];
+    teams.value = Array.isArray(teamData) ? teamData : [];
+    departments.value = Array.isArray(deptData) ? deptData : [];
+    attendanceDefs.value = Array.isArray(defData) ? defData : [];
+
+    console.log('Data fetch results:', {
+      attendances: attendances.value.length,
+      employees: employees.value.length,
+      teams: teams.value.length,
+      attendanceDefs: attendanceDefs.value.length
+    });
   } catch (err) {
     console.error(err);
     if (err.response?.status === 404) attendances.value = [];
@@ -1061,9 +1113,9 @@ const handleSubmit = async () => {
   } catch (err) {
     const msg = err.response?.data?.message || err.message || '';
     if (msg.includes('Duplicate entry') || msg.includes('constraint')) {
-      alert('Lỗi: Nhân viên này đã được chấm công trong ngày, dữ liệu bị trùng lặp ở Database!');
+      triggerError('Sửa lỗi trùng lặp', 'Nhân viên này đã được chấm công trong ngày, dữ liệu bị trùng lặp ở Database!', msg);
     } else {
-      alert('Lỗi xử lý: ' + msg);
+      triggerError('Lỗi xử lý', 'Đã xảy ra lỗi khi lưu thông tin chấm công.', msg);
     }
   } finally {
     saving.value = false;
@@ -1172,7 +1224,7 @@ const handleBulkSubmit = async () => {
     showBulkModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Lỗi xử lý');
+    triggerError('Lỗi lưu hàng loạt', 'Hệ thống gặp sự cố khi lưu danh sách chấm công hàng loạt.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
@@ -1209,7 +1261,7 @@ const handleExport = async (format = 'list') => {
     link.click();
     document.body.removeChild(link);
   } catch (err) {
-    alert('Lỗi xuất file: ' + err.message);
+    triggerError('Lỗi xuất file', 'Không thể tạo file báo cáo chấm công. Vui lòng thử lại.', err.message);
   } finally {
     exporting.value = false;
   }
@@ -1230,7 +1282,7 @@ const handleDownloadTemplate = async () => {
     link.click();
     document.body.removeChild(link);
   } catch (err) {
-    alert('Lỗi tải file mẫu: ' + err.message);
+    triggerError('Lỗi tải file mẫu', 'Không thể tải xuống tệp tin mẫu nhập chấm công.', err.message);
   }
 };
 
@@ -1243,13 +1295,28 @@ const handleImport = async (event) => {
   
   importing.value = true;
   try {
-    await $api.post('/attendances/import', formData, {
+    const res = await $api.post('/attendances/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    alert('Nhập dữ liệu thành công!');
+    
+    const result = res.data;
+    if (result.errorCount > 0) {
+      importErrors.value = result.errors;
+      showImportError.value = true;
+      if (result.successCount > 0) {
+        alert(`Đã nhập thành công ${result.successCount} dòng, nhưng có ${result.errorCount} dòng lỗi.`);
+      }
+    } else {
+      alert('Nhập dữ liệu thành công!');
+    }
     fetchData();
   } catch (err) {
-    alert('Lỗi nhập file: ' + err.response?.data?.message || err.message);
+    const msg = err.response?.data?.message || err.message;
+    if (msg.includes('Tiêu đề cột không khớp')) {
+      triggerError('Sai mẫu file', 'Cấu trúc file Excel không đúng với quy định của hệ thống.', msg);
+    } else {
+      triggerError('Lỗi nhập file', 'Đã xảy ra lỗi không mong muốn khi đọc file Excel.', msg);
+    }
   } finally {
     importing.value = false;
     event.target.value = ''; // Reset input

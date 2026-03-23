@@ -16,4 +16,7 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     long countByStatus(String status);
     
     long countByDepartment_IdAndStatus(Long departmentId, String status);
+
+    @org.springframework.data.jpa.repository.Query("SELECT e.code FROM Employee e WHERE e.code LIKE :prefix%")
+    java.util.List<String> findCodesByPrefix(@org.springframework.data.repository.query.Param("prefix") String prefix);
 }

@@ -132,18 +132,26 @@ const form = reactive({
 const fetchConfigs = async () => {
   loading.value = true;
   try {
-    const res = await $api.get('/payroll-configs');
+    const res = await $api.get('/payroll-configs', {
+      params: {
+        month: selectedMonth.value,
+        year: selectedYear.value
+      }
+    });
     configs.value = res.data;
     
     // Set form values from current configs if available
     const minD = configs.value.find(c => c.configKey === 'MIN_ATTENDANCE_DAYS');
     if (minD) form.minAttendanceDays = minD.configValue;
+    else form.minAttendanceDays = '0';
     
     const s1 = configs.value.find(c => c.configKey === 'FILM_SURCHARGE_1_SIDE');
     if (s1) form.filmSurcharge1 = s1.configValue;
+    else form.filmSurcharge1 = '0';
     
     const s2 = configs.value.find(c => c.configKey === 'FILM_SURCHARGE_2_SIDE');
     if (s2) form.filmSurcharge2 = s2.configValue;
+    else form.filmSurcharge2 = '0';
     
   } catch (err) {
     console.error(err);

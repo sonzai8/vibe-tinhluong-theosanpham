@@ -20,6 +20,18 @@ public class EmployeeResponse {
     private String phone;
     private String citizenId;
     private boolean canLogin;
+
+    private String gender;
+    private java.time.LocalDate dob;
+    private java.time.LocalDate joinDate;
+    private java.time.LocalDate insuranceStartDate;
+    private java.time.LocalDate citizenIdIssuedDate;
+    private String citizenIdIssuedPlace;
+    private String birthAddress;
+    private String permanentAddress;
+    private String notes;
+    private String avatarUrl;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

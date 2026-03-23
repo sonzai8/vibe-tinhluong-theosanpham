@@ -50,7 +50,13 @@ public class ProductionStepService {
         ProductionStep step = new ProductionStep();
         step.setName(request.getName());
         step.setDescription(request.getDescription());
-        return mapToResponse(productionStepRepository.save(step));
+        ProductionStep savedStep = productionStepRepository.save(step);
+        
+        if (request.getProductIds() != null && !request.getProductIds().isEmpty()) {
+            addProductsToStep(savedStep.getId(), request.getProductIds());
+        }
+        
+        return mapToResponse(savedStep);
     }
 
     @Transactional
@@ -59,7 +65,15 @@ public class ProductionStepService {
                 .orElseThrow(() -> new ResourceNotFoundException("Công đoạn sản xuất", id));
         step.setName(request.getName());
         step.setDescription(request.getDescription());
-        return mapToResponse(productionStepRepository.save(step));
+        ProductionStep savedStep = productionStepRepository.save(step);
+        
+        if (request.getProductIds() != null) {
+            // First clear existing and then add new or sync
+            mappingRepository.deleteByProductionStepId(id);
+            addProductsToStep(id, request.getProductIds());
+        }
+        
+        return mapToResponse(savedStep);
     }
 
     @Transactional
@@ -99,6 +113,12 @@ public class ProductionStepService {
         response.setDescription(entity.getDescription());
         response.setCreatedAt(entity.getCreatedAt());
         response.setUpdatedAt(entity.getUpdatedAt());
+        
+        // Load products
+        response.setProducts(mappingRepository.findProductsByStepId(entity.getId()).stream()
+                .map(productService::mapToResponse)
+                .collect(Collectors.toList()));
+                
         return response;
     }
 }

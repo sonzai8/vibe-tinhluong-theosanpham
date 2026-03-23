@@ -31,12 +31,14 @@ public class TeamController {
     private final TeamService teamService;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('PRODUCTION_VIEW')")
     @Operation(summary = "Lấy danh sách tổ sản xuất")
     public ResponseEntity<ApiResponse<List<TeamResponse>>> getAll() {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, teamService.getAll()));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('PRODUCTION_VIEW')")
     @Operation(summary = "Lấy thông tin tổ theo ID")
     public ResponseEntity<ApiResponse<TeamResponse>> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, teamService.getById(id)));
@@ -65,6 +67,7 @@ public class TeamController {
     // --- Member Management ---
 
     @GetMapping("/{id}/members")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('PRODUCTION_VIEW')")
     @Operation(summary = "Danh sách nhân viên trong tổ")
     public ResponseEntity<ApiResponse<List<TeamMemberResponse>>> getMembers(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, teamService.getMembers(id)));

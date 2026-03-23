@@ -17,5 +17,7 @@ public interface StageProductMappingRepository extends JpaRepository<StageProduc
 
     boolean existsByProductionStepIdAndProductId(Long stepId, Long productId);
 
+    void deleteByProductionStepId(Long stepId);
+
     void deleteByProductionStepIdAndProductId(Long stepId, Long productId);
 }

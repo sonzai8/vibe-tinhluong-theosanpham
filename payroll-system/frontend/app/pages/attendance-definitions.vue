@@ -11,6 +11,15 @@
       </UiButton>
     </div>
 
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
+
     <!-- Table -->
     <div class="card overflow-hidden">
       <table class="w-full text-left">
@@ -85,10 +94,23 @@ import { Plus, PencilLine, Trash2, X } from 'lucide-vue-next';
 const { $api } = useNuxtApp();
 
 const definitions = ref([]);
-const loading = ref(true);
-const showModal = ref(false);
-const saving = ref(false);
 const currentId = ref(null);
+const showModal = ref(false);
+const loading = ref(false);
+const saving = ref(false);
+
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
 
 const form = reactive({
   code: '',
@@ -102,7 +124,9 @@ const loadDefinitions = async () => {
   try {
     const res = await $api.get('/attendance-definitions');
     definitions.value = res.data;
-  } catch (e) {} finally {
+  } catch (e) {
+    triggerError('Lỗi tải dữ liệu', 'Không thể lấy danh sách định nghĩa loại công.', e.message);
+  } finally {
     loading.value = false;
   }
 };
@@ -134,7 +158,9 @@ const handleSubmit = async () => {
     }
     showModal.value = false;
     loadDefinitions();
-  } catch (e) {} finally {
+  } catch (e) {
+    triggerError('Lỗi lưu định nghĩa', 'Đã xảy ra lỗi khi lưu loại công.', e.response?.data?.message || e.message);
+  } finally {
     saving.value = false;
   }
 };
@@ -144,7 +170,9 @@ const handleDelete = async (id) => {
   try {
     await $api.delete(`/attendance-definitions/${id}`);
     loadDefinitions();
-  } catch (e) {}
+  } catch (e) {
+    triggerError('Lỗi xóa định nghĩa', 'Hệ thống gặp sự cố khi xóa loại công này.', e.response?.data?.message || e.message);
+  }
 };
 
 onMounted(loadDefinitions);

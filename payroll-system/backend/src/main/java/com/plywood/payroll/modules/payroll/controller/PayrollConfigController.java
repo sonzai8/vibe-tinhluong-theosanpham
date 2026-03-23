@@ -1,5 +1,5 @@
 package com.plywood.payroll.modules.payroll.controller;
-import com.plywood.payroll.modules.payroll.entity.Payroll;
+
 
 import com.plywood.payroll.shared.constant.MessageConstants;
 import com.plywood.payroll.shared.dto.ApiResponse;
@@ -24,8 +24,10 @@ public class PayrollConfigController {
 
     @GetMapping
     @Operation(summary = "Lấy danh sách cấu hình")
-    public ResponseEntity<ApiResponse<List<PayrollConfig>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, configService.getAll()));
+    public ResponseEntity<ApiResponse<List<PayrollConfig>>> getAll(
+            @RequestParam(value = "month", required = false) Integer month,
+            @RequestParam(value = "year", required = false) Integer year) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, configService.getAll(month, year)));
     }
 
     @GetMapping("/{key}")

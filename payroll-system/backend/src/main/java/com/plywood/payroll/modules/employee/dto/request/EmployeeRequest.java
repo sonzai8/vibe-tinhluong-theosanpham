@@ -5,7 +5,6 @@ import lombok.Data;
 
 @Data
 public class EmployeeRequest {
-    @NotBlank(message = "Mã nhân viên không hợp lệ")
     private String code;
 
     @NotBlank(message = "Họ tên không hợp lệ")
@@ -23,6 +22,16 @@ public class EmployeeRequest {
 
     private String phone;
     private String citizenId;
+
+    private String gender;
+    private java.time.LocalDate dob;
+    private java.time.LocalDate joinDate;
+    private java.time.LocalDate insuranceStartDate;
+    private java.time.LocalDate citizenIdIssuedDate;
+    private String citizenIdIssuedPlace;
+    private String birthAddress;
+    private String permanentAddress;
+    private String notes;
 
     private String username;
 

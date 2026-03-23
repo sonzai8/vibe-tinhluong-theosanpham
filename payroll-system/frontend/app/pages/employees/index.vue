@@ -33,6 +33,15 @@
           {{ $t('employee.add_new') }}
         </UiButton>
       </div>
+    
+    <!-- Common Error Modal -->
+    <UiErrorModal
+      :show="showErrorModal"
+      :title="errorTitle"
+      :message="errorMessage"
+      :detail="errorDetail"
+      @close="showErrorModal = false"
+    />
     </div>
 
     <!-- Filters & Search -->
@@ -84,11 +93,19 @@
           <tr v-for="emp in paginatedEmployees" :key="emp.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xs shadow-sm">
-                  {{ emp.fullName.substring(0, 1).toUpperCase() }}
+                <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm ring-1 ring-slate-100">
+                  <img v-if="emp.avatarUrl" :src="`http://localhost:8080${emp.avatarUrl}`" class="w-full h-full object-cover" />
+                  <span v-else class="text-slate-400 font-black text-xs">{{ emp.fullName.substring(0, 1).toUpperCase() }}</span>
                 </div>
                 <div>
-                  <p class="font-bold text-slate-900 tracking-tight leading-none mb-1">{{ emp.fullName }}</p>
+                  <NuxtLink 
+                    v-if="hasPermission('EMPLOYEE_VIEW') || hasPermission('EMPLOYEE_EDIT') || hasPermission('SYSTEM_ADMIN')" 
+                    :to="`/employees/${emp.id}`" 
+                    class="font-bold text-slate-900 tracking-tight leading-none mb-1 hover:text-primary-600 transition-colors block"
+                  >
+                    {{ emp.fullName }}
+                  </NuxtLink>
+                  <p v-else class="font-bold text-slate-900 tracking-tight leading-none mb-1">{{ emp.fullName }}</p>
                   <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ emp.code }}</p>
                 </div>
               </div>
@@ -129,10 +146,13 @@
               </div>
             </td>
             <td class="px-6 py-4 text-right pr-6">
-              <div v-if="hasPermission('EMPLOYEE_EDIT')" class="flex items-center justify-end gap-1.5 text-slate-400">
-                <button @click="openAuditLogs(emp)" class="p-2 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" :title="$t('employee.history_title')">
+              <div v-if="hasPermission('EMPLOYEE_VIEW') || hasPermission('EMPLOYEE_EDIT') || hasPermission('SYSTEM_ADMIN')" class="flex items-center justify-end gap-1.5 text-slate-400">
+                <button v-if="hasPermission('EMPLOYEE_EDIT') || hasPermission('SYSTEM_ADMIN')" @click="openAuditLogs(emp)" class="p-2 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all" :title="$t('employee.history_title')">
                   <History class="w-4 h-4" />
                 </button>
+                <NuxtLink :to="`/employees/${emp.id}`" class="p-2 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all inline-flex items-center justify-center" title="Xem chi tiết">
+                  <UserCircle class="w-4 h-4" />
+                </NuxtLink>
                 <button @click="openModal(emp)" class="p-2 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all" :title="$t('employee.edit_profile')">
                   <PencilLine class="w-4 h-4" />
                 </button>
@@ -224,7 +244,7 @@
           <form @submit.prevent="handleSubmit" class="space-y-8">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             <UiInput v-model="form.fullName" label="Họ và tên" placeholder="VD: Nguyễn Văn A" required />
-            <UiInput v-model="form.code" label="Mã nhân viên" placeholder="VD: NV001" required />
+            <UiInput v-if="currentEmp.id" v-model="form.code" label="Mã nhân viên" disabled />
             
             <UiInput v-model="form.phone" label="Số điện thoại" placeholder="0xxx xxx xxx" />
             <UiInput v-model="form.citizenId" label="Số CCCD" placeholder="Nhập 12 số CCCD" />
@@ -337,6 +357,18 @@
       </div>
     </div>
 
+    <!-- Import Preview Dialog -->
+    <ImportPreviewDialog
+      :show="showImportPreview"
+      :data="previewData"
+      :errors="importErrors"
+      :loading="importing"
+      :columns="importCols"
+      :title="$t('employee.preview_title')"
+      @close="showImportPreview = false"
+      @confirm="handleConfirmImport"
+    />
+
     <!-- Reset Password Modal -->
     <div v-if="showResetModal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
       <div class="card w-full max-w-sm p-8 shadow-2xl border-amber-100 animate-in zoom-in duration-200">
@@ -442,7 +474,7 @@
 import { 
   Plus, UserPlus, PencilLine, Trash2, X, Search, Briefcase, 
   ChevronLeft, ChevronRight, Download, Upload, FileDown, FileUp,
-  Phone, CreditCard, KeyRound, History, Clock, UserCog, CheckCircle2
+  Phone, CreditCard, KeyRound, History, Clock, UserCog, CheckCircle2, UserCircle
 } from 'lucide-vue-next';
 
 const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
@@ -454,7 +486,7 @@ const handleExport = async () => {
   try {
     await exportExcel('/employees/export', 'danh_sach_nhan_vien.xlsx');
   } catch (err) {
-    alert('Không thể xuất dữ liệu');
+    triggerError('Lỗi xuất file', 'Không thể xuất danh sách nhân viên ra Excel.', err.message);
   }
 };
 
@@ -469,12 +501,38 @@ const deptOptions = computed(() => departments.value.map(d => ({ value: d.id, la
 const roleOptions = computed(() => roles.value.map(r => ({ value: r.id, label: r.name })));
 const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t.name })));
 
+// Error Modal State
+const showErrorModal = ref(false);
+const errorTitle = ref('');
+const errorMessage = ref('');
+const errorDetail = ref('');
+
+const triggerError = (title, message, detail = '') => {
+  errorTitle.value = title;
+  errorMessage.value = message;
+  errorDetail.value = detail;
+  showErrorModal.value = true;
+};
+
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
 const activeModalTab = ref('form');
 const loadingStats = ref(false);
 const employeeStats = ref({});
+
+// Import Preview State
+const showImportPreview = ref(false);
+const previewData = ref([]);
+const importErrors = ref([]);
+const importing = ref(false);
+
+const importCols = [
+  { label: 'Mã NV', key: 'code' },
+  { label: 'Họ Tên', key: 'fullName' },
+  { label: 'SĐT', key: 'phone' },
+  { label: 'CCCD', key: 'citizenId' }
+];
 
 const searchQuery = ref('');
 const filterDept = ref('');
@@ -548,15 +606,16 @@ const openResetPassword = (emp) => {
 
 const handleResetPassword = async () => {
   if (resetForm.newPassword !== resetForm.confirmPassword) {
-    alert('Mật khẩu xác nhận không khớp');
+    triggerError('Lỗi xác thực', 'Mật khẩu xác nhận không khớp.');
     return;
   }
   try {
     await $api.put(`/employees/${resetForm.id}/reset-password`, { newPassword: resetForm.newPassword });
+    // Dùng alert cho thành công cũng được, hoặc triggerSuccess nếu có. Nhưng ở đây user yêu cầu Error Modal cho lỗi.
     alert('Đã đặt lại mật khẩu thành công');
-    showResetPassword.value = false;
+    showResetModal.value = false;
   } catch (err) {
-    alert(err.response?.data?.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi đặt lại mật khẩu', 'Hệ thống không thể cập nhật mật khẩu mới.', err.response?.data?.message || err.message);
   }
 };
 
@@ -656,19 +715,19 @@ const handleSubmit = async () => {
     showModal.value = false;
     fetchData();
   } catch (err) {
-    alert(err.response?.data?.message || err.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi lưu nhân viên', 'Đã xảy ra lỗi khi lưu thông tin nhân viên.', err.response?.data?.message || err.message);
   } finally {
     saving.value = false;
   }
 };
 
 const handleDelete = async (id) => {
-  if (!confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) return;
+  if (!confirm('Bạn có chắc chắn muốn chuyển nhân viên này sang trạng thái Không hoạt động?')) return;
   try {
     await $api.delete(`/employees/${id}`);
     fetchData();
   } catch (err) {
-    alert(err.message || 'Có lỗi xảy ra');
+    triggerError('Lỗi xóa nhân viên', 'Không thể xóa nhân viên này khỏi hệ thống.', err.message || 'Có lỗi xảy ra');
   }
 };
 
@@ -676,7 +735,7 @@ const handleDownloadTemplate = async () => {
   try {
     await dlTemplate('/employees/download-template', 'mau_nhap_nhan_vien.xlsx');
   } catch (err) {
-    alert('Không thể tải file mẫu');
+    triggerError('Lỗi tải mẫu', 'Không thể tải xuống tệp tin mẫu nhập liệu.', err.message);
   }
 };
 
@@ -684,16 +743,40 @@ const handleImport = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
+  const formData = new FormData();
+  formData.append('file', file);
+
   try {
     loading.value = true;
-    const res = await importExcel('/employees/import', file);
-    alert('Nhập dữ liệu thành công');
-    fetchData();
+    const res = await $api.post('/employees/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    previewData.value = res.data.data;
+    importErrors.value = res.data.errors;
+    showImportPreview.value = true;
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi nhập file Excel');
+    const msg = err.response?.data?.message || 'Hệ thống không thể đọc nội dung file Excel này. Vui lòng kiểm tra lại định dạng hoặc template.';
+    triggerError('Lỗi nhập dữ liệu', msg, err.response?.data?.errors?.join('\n') || err.message);
   } finally {
     loading.value = false;
     event.target.value = ''; // Reset input
+  }
+};
+
+const handleConfirmImport = async () => {
+  if (previewData.value.length === 0) return;
+  
+  importing.value = true;
+  try {
+    await $api.post('/employees/import/confirm', previewData.value);
+    alert('Nhập dữ liệu thành công');
+    showImportPreview.value = false;
+    fetchData();
+  } catch (err) {
+    triggerError('Lỗi lưu dữ liệu', 'Đã xảy ra lỗi khi lưu danh sách nhân viên mới vào hệ thống.', err.response?.data?.message || err.message);
+  } finally {
+    importing.value = false;
   }
 };
 

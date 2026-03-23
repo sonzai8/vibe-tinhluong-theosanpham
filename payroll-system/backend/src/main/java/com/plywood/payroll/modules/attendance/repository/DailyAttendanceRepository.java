@@ -16,8 +16,8 @@ public interface DailyAttendanceRepository extends JpaRepository<DailyAttendance
     @Query("SELECT a FROM DailyAttendance a WHERE " +
             "(:fromDate IS NULL OR a.attendanceDate >= :fromDate) AND " +
             "(:toDate IS NULL OR a.attendanceDate <= :toDate) AND " +
-            "(:month IS NULL OR FUNCTION('MONTH', a.attendanceDate) = :month) AND " +
-            "(:year IS NULL OR FUNCTION('YEAR', a.attendanceDate) = :year) AND " +
+            "(:month IS NULL OR EXTRACT(MONTH FROM a.attendanceDate) = :month) AND " +
+            "(:year IS NULL OR EXTRACT(YEAR FROM a.attendanceDate) = :year) AND " +
             "(:date IS NULL OR a.attendanceDate = :date) AND " +
             "(:deptIdsEmpty = true OR a.employee.department.id IN :departmentIds) AND " +
             "(:teamIdsEmpty = true OR a.actualTeam.id IN :teamIds)")

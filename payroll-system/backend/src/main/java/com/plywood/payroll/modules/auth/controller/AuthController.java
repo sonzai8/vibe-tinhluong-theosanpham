@@ -3,6 +3,7 @@ package com.plywood.payroll.modules.auth.controller;
 import com.plywood.payroll.shared.constant.MessageConstants;
 import com.plywood.payroll.modules.auth.dto.request.LoginRequest;
 import com.plywood.payroll.modules.auth.dto.request.RegisterRequest;
+import com.plywood.payroll.modules.auth.dto.request.TokenRefreshRequest;
 import com.plywood.payroll.shared.dto.ApiResponse;
 import com.plywood.payroll.modules.auth.dto.response.LoginResponse;
 import com.plywood.payroll.modules.employee.entity.Employee;
@@ -49,6 +50,8 @@ public class AuthController {
         );
 
         String token = jwtUtil.generateToken(username);
+        String refreshToken = jwtUtil.generateRefreshToken(username);
+        
         Employee emp = employeeRepository.findByUsername(username).orElseThrow();
 
         if (!emp.isCanLogin()) {
@@ -57,6 +60,7 @@ public class AuthController {
 
         LoginResponse response = new LoginResponse();
         response.setToken(token);
+        response.setRefreshToken(refreshToken);
         response.setEmployeeId(emp.getId());
         response.setFullName(emp.getFullName());
         if (emp.getRole() != null) {
@@ -65,6 +69,38 @@ public class AuthController {
         }
 
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_LOGIN, response));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh JWT Token", description = "Sử dụng refresh token để lấy access token mới")
+    public ResponseEntity<ApiResponse<LoginResponse>> refresh(@Valid @RequestBody TokenRefreshRequest request) {
+        String refreshToken = request.getRefreshToken();
+        
+        if (!jwtUtil.isTokenValid(refreshToken) || jwtUtil.isTokenExpired(refreshToken)) {
+            throw new BusinessException("Refresh token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+
+        String username = jwtUtil.extractUsername(refreshToken);
+        Employee emp = employeeRepository.findByUsername(username)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy người dùng"));
+
+        if (!emp.isCanLogin()) {
+            throw new BusinessException("Tài khoản này không có quyền đăng nhập hệ thống");
+        }
+
+        String newToken = jwtUtil.generateToken(username);
+        
+        LoginResponse response = new LoginResponse();
+        response.setToken(newToken);
+        response.setRefreshToken(refreshToken); // Trả lại refresh token cũ hoặc tạo mới tùy policy, ở đây trả lại cái cũ
+        response.setEmployeeId(emp.getId());
+        response.setFullName(emp.getFullName());
+        if (emp.getRole() != null) {
+            response.setRoleName(emp.getRole().getName());
+            response.setPermissions(emp.getRole().getPermissions());
+        }
+
+        return ResponseEntity.ok(ApiResponse.success("Làm mới token thành công", response));
     }
 
     @PostMapping("/register")

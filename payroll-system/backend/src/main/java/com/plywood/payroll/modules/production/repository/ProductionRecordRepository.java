@@ -13,7 +13,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 public interface ProductionRecordRepository extends JpaRepository<ProductionRecord, Long>, JpaSpecificationExecutor<ProductionRecord> {
     List<ProductionRecord> findTop5ByOrderByCreatedAtDesc();
 
-    @Query("SELECT r FROM ProductionRecord r WHERE FUNCTION('MONTH', r.productionDate) = :month AND FUNCTION('YEAR', r.productionDate) = :year")
+    @Query("SELECT r FROM ProductionRecord r WHERE EXTRACT(MONTH FROM r.productionDate) = :month AND EXTRACT(YEAR FROM r.productionDate) = :year")
     List<ProductionRecord> findByMonthAndYear(@Param("month") int month, @Param("year") int year);
 
     long countByProductionDate(LocalDate date);

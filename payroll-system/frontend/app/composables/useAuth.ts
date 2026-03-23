@@ -1,5 +1,6 @@
 export const useAuth = () => {
   const token = useCookie<string | null>('auth_token');
+  const refreshToken = useCookie<string | null>('auth_refresh_token');
   const user = useCookie<any | null>('user_data');
   const router = useRouter();
 
@@ -12,6 +13,7 @@ export const useAuth = () => {
       // Backend trả về map chứa token, employeeId, fullName trực tiếp
       if (response && response.data.token) {
         token.value = response.data.token;
+        refreshToken.value = response.data.refreshToken;
         user.value = {
           id: response.data.employeeId,
           fullName: response.data.fullName,
@@ -41,6 +43,7 @@ export const useAuth = () => {
 
   const logout = () => {
     token.value = null;
+    refreshToken.value = null;
     user.value = null;
     router.push('/login');
   };

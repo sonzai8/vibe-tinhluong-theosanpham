@@ -175,7 +175,9 @@ const router = useRouter();
 const { $api } = useNuxtApp();
 
 const employee = ref({});
+const notes = ref([]);
 const addingNote = ref(false);
+const saving = ref(false);
 
 // Error Modal State
 const showErrorModal = ref(false);

@@ -187,6 +187,14 @@ const filterTeamId = ref('');
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 
+const form = reactive({
+  employeeId: null,
+  typeId: null,
+  amount: 0,
+  reason: '',
+  recordDate: new Date().toISOString().substring(0, 10)
+});
+
 // Error Modal State
 const showErrorModal = ref(false);
 const errorTitle = ref('');

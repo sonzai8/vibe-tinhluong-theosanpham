@@ -74,6 +74,9 @@
     "department": "Phòng ban",
     "role": "Chức vụ",
     "collapse": "Thu gọn",
+    "monthly": "Theo tháng",
+    "quarterly": "Theo quý",
+    "yearly": "Theo năm",
     "month": "Tháng",
     "week": "Tuần",
     "daily": "Hàng ngày",
@@ -92,6 +95,42 @@
     "full_month": "Cả tháng",
     "total": "Tổng cộng",
     "update": "Cập nhật"
+  },
+  "penalty_bonus_types": {
+    "title": "Định nghĩa Loại Thưởng/Phạt",
+    "subtitle": "Cấu hình các loại thưởng và phạt có sẵn trong hệ thống",
+    "add_new": "Thêm loại mới",
+    "empty": "Chưa có loại thưởng/phạt nào được định nghĩa.",
+    "start_adding": "Bắt đầu thêm mới",
+    "name": "Tên loại",
+    "amount": "Số tiền mặc định",
+    "description": "Mô tả",
+    "modal_title": "loại thưởng/phạt",
+    "name_placeholder": "VD: Nghỉ không phép",
+    "amount_placeholder": "VD: -500000",
+    "description_placeholder": "Nhập mô tả thêm..."
+  },
+  "messages": {
+    "success": "Thành công",
+    "error": "Lỗi",
+    "save_success": "Lưu dữ liệu thành công!",
+    "delete_success": "Xóa dữ liệu thành công!",
+    "update_success": "Cập nhật thành công!",
+    "confirm_delete": "Bạn có chắc chắn muốn xóa bản ghi này?",
+    "not_found": "Không tìm thấy dữ liệu",
+    "system_error": "Lỗi hệ thống, vui lòng thử lại"
+  },
+  "import": {
+    "confirm_title": "Xác nhận nhập dữ liệu",
+    "valid_data": "Dữ liệu hợp lệ (Sẽ được nhập)",
+    "invalid_data": "Dữ liệu không hợp lệ (Sẽ bị bỏ qua)",
+    "stt": "STT",
+    "status": "Trạng thái",
+    "new_label": "Mới",
+    "column_data": "Cột/Dữ liệu",
+    "reason": "Lý do",
+    "row": "Dòng",
+    "cancel": "Hủy bỏ"
   },
   "employee": {
     "title": "Quản lý Nhân sự",
@@ -121,7 +160,35 @@
     "old_value": "Giá trị cũ",
     "new_value": "Giá trị mới",
     "close_window": "Đóng cửa sổ",
-    "preview_title": "Xác nhận danh sách nhân sự nhập từ Excel"
+    "preview_title": "Xác nhận danh sách nhân sự nhập từ Excel",
+    "detail_title": "Chi tiết Nhân viên",
+    "status_label": "Trạng thái",
+    "join_date": "Ngày tham gia",
+    "system_account": "Tài khoản hệ thống",
+    "username_label": "Tên đăng nhập",
+    "login_permission": "Quyền đăng nhập",
+    "allow": "CHO PHÉP",
+    "deny": "TỪ CHỐI",
+    "personal_info": "Thông tin cá nhân",
+    "full_name": "Họ và tên",
+    "gender": "Giới tính",
+    "male": "Nam",
+    "female": "Nữ",
+    "other": "Khác",
+    "dob": "Ngày sinh",
+    "phone": "Số điện thoại",
+    "citizen_id": "Số CCCD",
+    "citizen_id_issued_date": "Ngày cấp CCCD",
+    "citizen_id_issued_place": "Nơi cấp",
+    "birth_address": "Địa chỉ khai sinh",
+    "permanent_address": "Địa chỉ thường trú",
+    "work_insurance": "Công việc & BHXH",
+    "join_date_at_company": "Ngày vào công ty",
+    "insurance_start_date": "Ngày bắt đầu đóng BHXH",
+    "notes_history": "Lịch sử Ghi chú",
+    "no_notes": "Chưa có ghi chú nào",
+    "add_note": "Thêm ghi chú",
+    "note_placeholder": "Nhập ghi chú mới..."
   },
   "product": {
     "title": "Danh mục Sản phẩm",
@@ -185,7 +252,16 @@
     "status": "Trạng thái",
     "config": "Cấu hình chuyên cần",
     "bulk_add": "Chấm công hàng loạt",
-    "subtitle": "Ghi nhận sự hiện diện của nhân sự tại các tổ đội"
+    "subtitle": "Ghi nhận sự hiện diện của nhân sự tại các tổ đội",
+    "definition": {
+      "title": "Danh mục Loại công",
+      "code": "Mã ký hiệu",
+      "name": "Tên loại công",
+      "multiplier": "Hệ số công",
+      "description": "Mô tả",
+      "add_new": "Thêm loại công",
+      "multiplier_note": "Hệ số này dùng để tính tổng số công (VD: 1.0, 0.5, 1.5)"
+    }
   },
   "production": {
     "title": "Nhật ký Sản lượng",
@@ -251,27 +327,5 @@
     "penalty_count": "Số lần phạt",
     "bonus_count": "Số lần thưởng",
     "stats_title": "Thống kê thưởng phạt"
-  },
-  "messages": {
-    "success": "Thành công",
-    "error": "Lỗi",
-    "save_success": "Lưu dữ liệu thành công!",
-    "delete_success": "Xóa dữ liệu thành công!",
-    "update_success": "Cập nhật thành công!",
-    "confirm_delete": "Bạn có chắc chắn muốn xóa bản ghi này?",
-    "not_found": "Không tìm thấy dữ liệu",
-    "system_error": "Lỗi hệ thống, vui lòng thử lại"
-  },
-  "import": {
-    "confirm_title": "Xác nhận nhập dữ liệu",
-    "valid_data": "Dữ liệu hợp lệ (Sẽ được nhập)",
-    "invalid_data": "Dữ liệu không hợp lệ (Sẽ bị bỏ qua)",
-    "stt": "STT",
-    "status": "Trạng thái",
-    "new_label": "Mới",
-    "column_data": "Cột/Dữ liệu",
-    "reason": "Lý do",
-    "row": "Dòng",
-    "cancel": "Hủy bỏ"
   }
 }

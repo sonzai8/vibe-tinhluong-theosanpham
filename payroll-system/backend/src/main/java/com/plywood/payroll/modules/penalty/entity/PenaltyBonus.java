@@ -20,6 +20,10 @@ public class PenaltyBonus extends BaseEntity {
     @Column(nullable = false)
     private LocalDate recordDate;
 
+    @ManyToOne
+    @JoinColumn(name = "type_id")
+    private PenaltyBonusType type;
+
     @Column(nullable = false)
     private BigDecimal amount; // Dương = thưởng, Âm = phạt
 

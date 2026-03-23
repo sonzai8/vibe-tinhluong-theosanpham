@@ -4,6 +4,7 @@
     "dashboard": "Tổng quan CMS",
     "attendance": "Quản lý Chấm công",
     "attendance_definitions": "Danh mục Loại công",
+    "penalty_bonus_types": "Định nghĩa Loại Thưởng/Phạt",
     "production_operation": "Quản lý sản lượng",
     "team_production": "Sản lượng theo tổ",
     "individual_production": "Sản lượng cá nhân",
@@ -220,6 +221,25 @@
     "title": "Sản lượng Cá nhân",
     "subtitle": "Sản lượng chia bình quân đầu người theo tổ thực tế hàng ngày",
     "matrix_desc": "Sản lượng = (Tổng sản lượng tổ) / (Số người đi làm thực tế)"
+  },
+  "penalty_bonus": {
+    "title": "Khen thưởng & Kỷ luật",
+    "subtitle": "Quản lý các khoản thưởng, phạt và các khoản điều chỉnh khác",
+    "add_new": "Thêm khoản mới",
+    "type_mgmt": "Quản lý loại",
+    "summary": "Tổng hợp",
+    "list": "Danh sách",
+    "employee": "Nhân viên",
+    "type": "Loại thưởng/phạt",
+    "amount": "Số tiền",
+    "date": "Ngày ghi nhận",
+    "reason": "Lý do / Ghi chú",
+    "total_bonus": "Tổng thưởng",
+    "total_penalty": "Tổng phạt",
+    "net_amount": "Thực nhận/khấu trừ",
+    "penalty_count": "Số lần phạt",
+    "bonus_count": "Số lần thưởng",
+    "stats_title": "Thống kê thưởng phạt"
   },
   "messages": {
     "success": "Thành công",

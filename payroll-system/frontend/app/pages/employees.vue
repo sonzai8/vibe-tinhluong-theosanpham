@@ -195,14 +195,33 @@
     <!-- Employee Modal (Nâng cấp) -->
     <div v-if="showModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
       <div class="card w-full max-w-2xl p-8 animate-in zoom-in duration-200 h-auto max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-8 sticky top-0 bg-white z-10 pb-4">
-          <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ currentEmp.id ? $t('common.update') : $t('common.add_new') }}</h3>
+        <div class="flex items-center justify-between mb-8 sticky top-0 bg-white z-10 pb-4 border-b border-slate-100">
+          <div class="flex flex-col gap-1">
+            <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ currentEmp.id ? $t('common.update') : $t('common.add_new') }}</h3>
+            <div v-if="currentEmp.id" class="flex gap-2">
+              <button 
+                @click="activeModalTab = 'form'"
+                :class="['text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full transition-all', 
+                         activeModalTab === 'form' ? 'bg-primary-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200']"
+              >
+                Thông tin
+              </button>
+              <button 
+                @click="activeModalTab = 'stats'"
+                :class="['text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full transition-all', 
+                         activeModalTab === 'stats' ? 'bg-primary-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200']"
+              >
+                Thưởng/Phạt
+              </button>
+            </div>
+          </div>
           <button @click="showModal = false" class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-all">
             <X class="w-6 h-6" />
           </button>
         </div>
 
-        <form @submit.prevent="handleSubmit" class="space-y-8">
+        <div v-if="activeModalTab === 'form'" class="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <form @submit.prevent="handleSubmit" class="space-y-8">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             <UiInput v-model="form.fullName" label="Họ và tên" placeholder="VD: Nguyễn Văn A" required />
             <UiInput v-model="form.code" label="Mã nhân viên" placeholder="VD: NV001" required />
@@ -262,6 +281,59 @@
             <UiButton type="submit" class="flex-[2] py-3 text-lg font-black" :loading="saving">{{ $t('common.save') }}</UiButton>
           </div>
         </form>
+        </div>
+
+        <!-- Stats Tab -->
+        <div v-else-if="activeModalTab === 'stats'" class="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-8">
+          <div v-if="loadingStats" class="py-20 flex flex-col items-center justify-center gap-4">
+            <div class="w-10 h-10 border-4 border-slate-100 border-t-primary-600 rounded-full animate-spin"></div>
+            <p class="text-slate-400 text-xs font-bold animate-pulse">Đang tải thống kê...</p>
+          </div>
+          <div v-else class="space-y-8">
+            <!-- Stats Summary Cards -->
+            <div class="grid grid-cols-3 gap-4">
+              <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Tổng thưởng</p>
+                <p class="text-lg font-black text-emerald-700 leading-none">+{{ (employeeStats.totalBonusAmount || 0).toLocaleString() }}đ</p>
+                <p class="text-[10px] font-bold text-emerald-500 mt-1">{{ employeeStats.bonusCount || 0 }} lần</p>
+              </div>
+              <div class="p-4 bg-red-50 rounded-2xl border border-red-100">
+                <p class="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Tổng phạt</p>
+                <p class="text-lg font-black text-red-700 leading-none">{{ (employeeStats.totalPenaltyAmount || 0).toLocaleString() }}đ</p>
+                <p class="text-[10px] font-bold text-red-500 mt-1">{{ employeeStats.penaltyCount || 0 }} lần</p>
+              </div>
+              <div class="p-4 bg-slate-900 rounded-2xl shadow-xl shadow-slate-200">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Thực nhận</p>
+                <p class="text-lg font-black text-white leading-none">{{ (employeeStats.netAmount || 0).toLocaleString() }}đ</p>
+                <p class="text-[10px] font-bold text-slate-500 mt-1 italic">Khấu trừ lương</p>
+              </div>
+            </div>
+
+            <!-- History List -->
+            <div class="space-y-4">
+              <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] px-1">Lịch sử chi tiết</h4>
+              <div v-if="employeeStats.history?.length === 0" class="py-12 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <p class="text-xs font-medium italic">Chưa có bản ghi thưởng phạt nào</p>
+              </div>
+              <div v-else class="space-y-3">
+                <div v-for="h in employeeStats.history" :key="h.id" class="p-4 bg-white border border-slate-100 rounded-xl hover:shadow-sm transition-all flex items-center justify-between group">
+                  <div class="flex items-center gap-4">
+                    <div :class="['w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs shrink-0', h.amount > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700']">
+                      {{ h.amount > 0 ? '+' : '-' }}
+                    </div>
+                    <div>
+                      <p class="font-bold text-slate-900 text-sm leading-none mb-1">{{ h.reason }}</p>
+                      <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ h.recordDate }}</p>
+                    </div>
+                  </div>
+                  <span :class="['font-black text-sm', h.amount > 0 ? 'text-emerald-600' : 'text-red-600']">
+                    {{ h.amount > 0 ? '+' : '' }}{{ h.amount.toLocaleString() }}đ
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -400,6 +472,9 @@ const teamOptions = computed(() => teams.value.map(t => ({ value: t.id, label: t
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
+const activeModalTab = ref('form');
+const loadingStats = ref(false);
+const employeeStats = ref({});
 
 const searchQuery = ref('');
 const filterDept = ref('');
@@ -435,6 +510,24 @@ const form = reactive({
   roleId: null,
   canLogin: false
 });
+
+watch(activeModalTab, (newTab) => {
+  if (newTab === 'stats' && currentEmp.value.id) {
+    fetchEmployeeStats(currentEmp.value.id);
+  }
+});
+
+const fetchEmployeeStats = async (empId) => {
+  loadingStats.value = true;
+  try {
+    const res = await $api.get(`/penalty-bonuses/employee/${empId}/stats`);
+    employeeStats.value = res.data;
+  } catch (err) {
+    console.error(err);
+  } finally {
+    loadingStats.value = false;
+  }
+};
 
 // Logic Reset Password
 const showResetModal = ref(false);
@@ -530,6 +623,7 @@ const openModal = (emp = null) => {
     form.canLogin = emp.canLogin || false;
   } else {
     currentEmp.value = {};
+    activeModalTab.value = 'form';
     form.code = '';
     form.fullName = '';
     form.username = '';

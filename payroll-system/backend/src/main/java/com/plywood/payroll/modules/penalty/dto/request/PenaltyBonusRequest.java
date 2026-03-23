@@ -16,5 +16,7 @@ public class PenaltyBonusRequest {
     @NotNull(message = "Số tiền không được để trống")
     private BigDecimal amount; // Dương = thưởng, Âm = phạt
 
+    private Long typeId;
+
     private String reason;
 }

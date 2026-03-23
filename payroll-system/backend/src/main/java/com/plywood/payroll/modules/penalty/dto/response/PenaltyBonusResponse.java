@@ -1,5 +1,6 @@
 package com.plywood.payroll.modules.penalty.dto.response;
 import com.plywood.payroll.modules.employee.dto.response.EmployeeResponse;
+import com.plywood.payroll.modules.penalty.entity.PenaltyBonusType;
 
 import lombok.Data;
 import java.math.BigDecimal;
@@ -11,6 +12,7 @@ public class PenaltyBonusResponse {
     private Long id;
     private EmployeeResponse employee;
     private LocalDate recordDate;
+    private PenaltyBonusType type;
     private BigDecimal amount;
     private String reason;
     private LocalDateTime createdAt;

@@ -188,6 +188,7 @@ const menuGroups = [
       { to: '/', label: 'menu.dashboard', icon: LayoutDashboard },
       { to: '/attendances', label: 'menu.attendance', icon: ClipboardCheck },
       { to: '/attendance-definitions', label: 'menu.attendance_definitions', icon: Settings2 },
+      { to: '/penalty-bonus-types', label: 'menu.penalty_bonus_types', icon: Settings2 },
       { to: '/payrolls', label: 'menu.payroll', icon: Wallet },
     ]
   },

@@ -6,16 +6,20 @@ import com.plywood.payroll.shared.constant.MessageConstants;
 import com.plywood.payroll.modules.penalty.dto.request.PenaltyBonusRequest;
 import com.plywood.payroll.shared.dto.ApiResponse;
 import com.plywood.payroll.modules.penalty.dto.response.PenaltyBonusResponse;
+import com.plywood.payroll.modules.penalty.dto.response.PenaltyBonusSummaryResponse;
 import com.plywood.payroll.modules.penalty.service.PenaltyBonusService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/penalty-bonuses")
@@ -55,5 +59,23 @@ public class PenaltyBonusController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable("id") Long id) {
         penaltyBonusService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "Tổng hợp khen thưởng/kỷ luật theo thời gian và đơn vị")
+    public ResponseEntity<ApiResponse<List<PenaltyBonusSummaryResponse>>> getSummary(
+            @RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(value = "departmentId", required = false) Long departmentId,
+            @RequestParam(value = "teamId", required = false) Long teamId) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, 
+                penaltyBonusService.getSummary(startDate, endDate, departmentId, teamId)));
+    }
+
+    @GetMapping("/employee/{employeeId}/stats")
+    @Operation(summary = "Thống kê khen thưởng/kỷ luật của một nhân viên")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getEmployeeStats(@PathVariable("employeeId") Long employeeId) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_DETAIL, 
+                penaltyBonusService.getEmployeeStats(employeeId)));
     }
 }

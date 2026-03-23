@@ -174,6 +174,7 @@ public class PenaltyBonusService {
         return Map.of(
                 "totalPenalty", totalPenalty,
                 "totalBonus", totalBonus,
+                "netAmount", totalBonus.add(totalPenalty),
                 "penaltyCount", penaltyCount,
                 "bonusCount", bonusCount,
                 "history", records.stream().map(this::mapToResponse).collect(Collectors.toList())

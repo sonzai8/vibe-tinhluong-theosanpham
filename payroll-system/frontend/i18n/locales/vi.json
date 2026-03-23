@@ -62,7 +62,9 @@
     "status": "Trạng thái",
     "date": "Ngày",
     "loading": "Đang tải...",
+    "refresh": "Làm mới",
     "no_data": "Không có dữ liệu",
+    "not_found": "Không tìm thấy dữ liệu",
     "confirm_delete_title": "Xác nhận xóa",
     "logout": "Đăng xuất",
     "confirm_delete_msg": "Bạn có chắc chắn muốn xóa bản ghi này? Hành động này không thể hoàn tác.",
@@ -188,7 +190,15 @@
     "notes_history": "Lịch sử Ghi chú",
     "no_notes": "Chưa có ghi chú nào",
     "add_note": "Thêm ghi chú",
-    "note_placeholder": "Nhập ghi chú mới..."
+    "note_placeholder": "Nhập ghi chú mới...",
+    "stats_bonus": "Tổng thưởng",
+    "stats_penalty": "Tổng phạt",
+    "stats_net": "Thực nhận",
+    "stats_times": "lần",
+    "stats_loading": "Đang tải thống kê...",
+    "stats_history": "Lịch sử thưởng phạt",
+    "stats_no_history": "Chưa có bản ghi thưởng phạt nào",
+    "stats_calculation_note": "Khấu trừ vào lương thực nhận"
   },
   "product": {
     "title": "Danh mục Sản phẩm",
@@ -279,7 +289,7 @@
     "employee": "Nhân viên",
     "product": "Sản phẩm",
     "quality": "Chất lượng",
-    "quantity": "Số lượng (Tấm)",
+    "quantity": "Khối lượng",
     "product_quality": "Sản phẩm & Chất lượng",
     "participating_employees": "Nhân sự tham gia",
     "detail_title": "Chi tiết sản lượng ngày {date}",
@@ -327,5 +337,22 @@
     "penalty_count": "Số lần phạt",
     "bonus_count": "Số lần thưởng",
     "stats_title": "Thống kê thưởng phạt"
+  },
+  "quality": {
+    "title": "Cấu hình Chất lượng",
+    "subtitle": "Định nghĩa mã chất lượng và thứ tự ưu tiên hiển thị",
+    "add_new": "Thêm phân loại",
+    "code": "Mã chất lượng",
+    "description": "Mô tả / Ghi chú",
+    "priority": "Thứ tự ưu tiên",
+    "priority_help": "Số nhỏ hơn sẽ hiển thị trước (0, 1, 2...)",
+    "layers": "Thành phần lỗi",
+    "add_layer": "Thêm lớp lỗi mới",
+    "layer_placeholder": "Chọn lớp",
+    "quantity": "Số lượng",
+    "save": "Lưu cấu hình",
+    "no_layers_alert": "Vui lòng thêm ít nhất một lớp lỗi cho phân loại này.",
+    "delete_confirm": "Bạn có chắc chắn muốn xóa phân loại chất lượng này?",
+    "empty_list": "Chưa có phân loại chất lượng nào."
   }
 }

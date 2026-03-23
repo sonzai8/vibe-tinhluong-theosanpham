@@ -2,12 +2,12 @@
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-2xl font-black text-slate-900 uppercase tracking-tight">Cấu hình Chất lượng</h2>
-        <p class="text-slate-500 font-medium text-sm">Định nghĩa các mã chất lượng sản phẩm (VD: 2B3CA, 1BA...)</p>
+        <h2 class="text-2xl font-black text-slate-900 uppercase tracking-tight">{{ $t('quality.title') }}</h2>
+        <p class="text-slate-500 font-medium text-sm">{{ $t('quality.subtitle') }}</p>
       </div>
       <UiButton @click="openModal()">
         <PlusCircle class="w-4 h-4" />
-        Thêm phân loại
+        {{ $t('quality.add_new') }}
       </UiButton>
     </div>
 
@@ -29,14 +29,20 @@
       <table v-else class="w-full text-left">
         <thead>
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
-            <th class="px-6 py-4">Mã chất lượng</th>
-            <th class="px-6 py-4">Mô tả / Ghi chú</th>
-            <th class="px-6 py-4">Thành phần lỗi</th>
+            <th class="px-6 py-4">{{ $t('quality.priority') }}</th>
+            <th class="px-6 py-4">{{ $t('quality.code') }}</th>
+            <th class="px-6 py-4">{{ $t('quality.description') }}</th>
+            <th class="px-6 py-4">{{ $t('quality.layers') }}</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="q in paginatedQualities" :key="q.id" class="hover:bg-slate-50/50 transition-colors group">
+            <td class="px-6 py-4">
+              <span class="px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg text-[10px] font-black text-slate-400">
+                #{{ q.priority }}
+              </span>
+            </td>
             <td class="px-6 py-4 font-black text-slate-900">{{ q.code }}</td>
             <td class="px-6 py-4 text-sm text-slate-500">{{ q.description || '---' }}</td>
             <td class="px-6 py-4">
@@ -115,18 +121,19 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <UiInput v-model="form.code" label="Mã phân loại" placeholder="VD: 2B3CA, 1BA" required />
-            <UiInput v-model="form.description" label="Mô tả" placeholder="Ghi chú thêm nếu có" />
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <UiInput v-model="form.priority" :label="$t('quality.priority')" type="number" :placeholder="$t('quality.priority_help')" required />
+            <UiInput v-model="form.code" :label="$t('quality.code')" placeholder="VD: 2B3CA, 1BA" required />
+            <UiInput v-model="form.description" :label="$t('quality.description')" placeholder="Ghi chú thêm nếu có" />
           </div>
 
           <!-- Layers Configuration -->
           <div class="space-y-4">
             <div class="flex items-center justify-between">
-              <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">Thành phần lớp lỗi</h4>
+              <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">{{ $t('quality.layers') }}</h4>
               <button type="button" @click="addLayer" class="text-xs font-black text-primary-600 flex items-center gap-1 hover:underline">
                 <Plus class="w-3 h-3" />
-                Thêm lớp lỗi mới
+                {{ $t('quality.add_layer') }}
               </button>
             </div>
 
@@ -154,8 +161,8 @@
           </div>
           
           <div class="flex gap-4 pt-6 border-t border-slate-100 sticky bottom-0 bg-white pb-2 mt-4">
-            <button type="button" @click="showModal = false" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-extrabold hover:bg-slate-50 transition-all">Huỷ bỏ</button>
-            <UiButton type="submit" class="flex-[2] py-4 text-md font-black uppercase tracking-widest" :loading="saving">Lưu cấu hình</UiButton>
+            <button type="button" @click="showModal = false" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-extrabold hover:bg-slate-50 transition-all">{{ $t('common.cancel') }}</button>
+            <UiButton type="submit" class="flex-[2] py-4 text-md font-black uppercase tracking-widest" :loading="saving">{{ $t('quality.save') }}</UiButton>
           </div>
         </form>
       </div>
@@ -185,6 +192,7 @@ const currentQual = ref({});
 const form = reactive({
   code: '',
   description: '',
+  priority: 0,
   layers: []
 });
 
@@ -232,6 +240,7 @@ const openModal = (q = null) => {
     currentQual.value = { ...q };
     form.code = q.code;
     form.description = q.description;
+    form.priority = q.priority;
     form.layers = q.layers.map(l => ({
       layerId: l.layer?.id,
       quantity: l.quantity
@@ -240,6 +249,7 @@ const openModal = (q = null) => {
     currentQual.value = {};
     form.code = '';
     form.description = '';
+    form.priority = 0;
     form.layers = [];
   }
   showModal.value = true;
@@ -247,7 +257,7 @@ const openModal = (q = null) => {
 
 const handleSubmit = async () => {
   if (form.layers.length === 0) {
-    alert('Vui lòng thêm ít nhất một lớp lỗi cho phân loại này.');
+    alert($t('quality.no_layers_alert'));
     return;
   }
   
@@ -259,6 +269,7 @@ const handleSubmit = async () => {
       layerId: parseInt(l.layerId),
       quantity: parseInt(l.quantity)
     }));
+    payload.priority = parseInt(payload.priority) || 0;
 
     if (currentQual.value.id) {
       await $api.put(`/product-qualities/${currentQual.value.id}`, payload);
@@ -275,7 +286,7 @@ const handleSubmit = async () => {
 };
 
 const handleDelete = async (id) => {
-  if (!confirm('Bạn có chắc chắn muốn xóa phân loại chất lượng này?')) return;
+  if (!confirm($t('quality.delete_confirm'))) return;
   try {
     await $api.delete(`/product-qualities/${id}`);
     fetchData();

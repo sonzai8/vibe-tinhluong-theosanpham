@@ -7,17 +7,17 @@
           <ChevronLeft class="w-6 h-6 text-slate-600" />
         </button>
         <div>
-          <h2 class="text-2xl font-black text-slate-900 leading-none mb-1">Chi tiết Nhân viên</h2>
+          <h2 class="text-2xl font-black text-slate-900 leading-none mb-1">{{ $t('employee.detail_title') }}</h2>
           <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ employee.fullName }} ({{ employee.code }})</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
         <UiButton variant="outline" @click="handleBack">
-          Hủy
+          {{ $t('common.cancel') }}
         </UiButton>
         <UiButton @click="handleSave" :loading="saving">
           <Save class="w-4 h-4" />
-          Lưu thay đổi
+          {{ $t('common.save') }}
         </UiButton>
       </div>
     </div>
@@ -43,114 +43,192 @@
           
           <div class="w-full mt-8 space-y-4">
              <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest border-b border-slate-50 pb-2">
-                <span class="text-slate-400">Trạng thái</span>
-                <span :class="employee.status === 'ACTIVE' ? 'text-emerald-500' : 'text-slate-400'">{{ employee.status }}</span>
+                <span class="text-slate-400">{{ $t('employee.status_label') }}</span>
+                <span :class="employee.status === 'ACTIVE' ? 'text-emerald-500' : 'text-slate-400'">{{ employee.status === 'ACTIVE' ? $t('common.status_active') : $t('common.status_inactive') }}</span>
              </div>
              <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest border-b border-slate-50 pb-2">
-                <span class="text-slate-400">Bộ phận</span>
+                <span class="text-slate-400">{{ $t('common.department') }}</span>
                 <span class="text-slate-700">{{ employee.department?.name || '---' }}</span>
              </div>
              <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest border-b border-slate-50 pb-2">
-                <span class="text-slate-400">Ngày tham gia</span>
+                <span class="text-slate-400">{{ $t('employee.join_date') }}</span>
                 <span class="text-slate-700">{{ employee.joinDate || '---' }}</span>
              </div>
           </div>
         </div>
 
         <div class="card p-6 space-y-4">
-           <h3 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-50 pb-3">Tài khoản hệ thống</h3>
+           <h3 class="text-xs font-black text-slate-900 uppercase tracking-widest border-b border-slate-50 pb-3">{{ $t('employee.system_account') }}</h3>
            <div class="space-y-3">
               <div>
-                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Tên đăng nhập</p>
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ $t('employee.username_label') }}</p>
                 <p class="text-xs font-bold text-slate-700">{{ employee.username || '---' }}</p>
               </div>
-              <div class="flex items-center justify-between">
-                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Quyền đăng nhập</p>
-                <span :class="employee.canLogin ? 'text-emerald-500 font-black text-[10px]' : 'text-slate-400 font-bold text-[10px]'">
-                  {{ employee.canLogin ? 'CHO PHÉP' : 'TỪ CHỐI' }}
-                </span>
-              </div>
-           </div>
-        </div>
+               <div class="flex items-center justify-between">
+                 <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">{{ $t('employee.login_permission') }}</p>
+                 <span :class="employee.canLogin ? 'text-emerald-500 font-black text-[10px]' : 'text-slate-400 font-bold text-[10px]'">
+                   {{ employee.canLogin ? $t('employee.allow') : $t('employee.deny') }}
+                 </span>
+               </div>
+            </div>
+         </div>
+
+         <!-- Penalty/Bonus Stats (Collapsible) -->
+         <div class="card overflow-hidden transition-all duration-300 shadow-sm border border-slate-100">
+            <button 
+              @click="isStatsOpen = !isStatsOpen"
+              class="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-all border-b border-transparent"
+              :class="{ 'border-slate-100 bg-slate-50/30': isStatsOpen }"
+            >
+               <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center shadow-sm">
+                     <TrendingDown class="w-4 h-4 text-red-600" />
+                  </div>
+                  <h3 class="text-xs font-black text-slate-900 uppercase tracking-widest">{{ $t('employee.stats_history') }}</h3>
+               </div>
+               <ChevronDown v-if="!isStatsOpen" class="w-4 h-4 text-slate-400" />
+               <ChevronUp v-else class="w-4 h-4 text-slate-400" />
+            </button>
+
+            <div v-if="isStatsOpen" class="p-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+               <div v-if="loadingStats" class="py-12 flex flex-col items-center justify-center gap-4 bg-white/50 rounded-2xl border border-dashed border-slate-200">
+                 <div class="w-8 h-8 border-4 border-slate-100 border-t-primary-600 rounded-full animate-spin"></div>
+                 <p class="text-slate-400 text-[10px] font-black animate-pulse uppercase tracking-widest">{{ $t('employee.stats_loading') }}</p>
+               </div>
+               
+               <div v-else class="space-y-6">
+                 <!-- Simple Counter Cards for Sidebar -->
+                 <div class="grid grid-cols-1 gap-3">
+                   <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-between shadow-sm">
+                     <div>
+                       <p class="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{{ $t('employee.stats_bonus') }}</p>
+                       <p class="text-lg font-black text-emerald-700 leading-none mt-1">+{{ (employeeStats.totalBonus || 0).toLocaleString() }}đ</p>
+                     </div>
+                     <p class="text-[9px] font-bold text-emerald-500 uppercase tracking-tighter">{{ employeeStats.bonusCount || 0 }} {{ $t('employee.stats_times') }}</p>
+                   </div>
+
+                   <div class="p-4 bg-red-50 rounded-2xl border border-red-100 flex items-center justify-between shadow-sm">
+                     <div>
+                       <p class="text-[9px] font-black text-red-600 uppercase tracking-widest">{{ $t('employee.stats_penalty') }}</p>
+                       <p class="text-lg font-black text-red-700 leading-none mt-1">{{ (employeeStats.totalPenalty || 0).toLocaleString() }}đ</p>
+                     </div>
+                     <p class="text-[9px] font-bold text-red-500 uppercase tracking-tighter">{{ employeeStats.penaltyCount || 0 }} {{ $t('employee.stats_times') }}</p>
+                   </div>
+
+                   <div class="p-4 bg-slate-900 rounded-2xl flex items-center justify-between shadow-lg shadow-slate-200">
+                     <div>
+                       <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">{{ $t('employee.stats_net') }}</p>
+                       <p class="text-lg font-black text-white leading-none mt-1">{{ (employeeStats.netAmount || 0).toLocaleString() }}đ</p>
+                     </div>
+                     <DollarSign class="w-5 h-5 text-white/20" />
+                   </div>
+                 </div>
+
+                 <!-- compact history -->
+                 <div class="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                   <div v-if="!employeeStats.history || employeeStats.history.length === 0" class="py-6 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-100">
+                     <p class="text-[10px] font-medium italic opacity-70">{{ $t('employee.stats_no_history') }}</p>
+                   </div>
+                   <div v-else v-for="h in employeeStats.history" :key="h.id" class="p-3 bg-white border border-slate-100 rounded-xl flex items-center justify-between group shadow-sm hover:border-slate-200 transition-all">
+                     <div class="flex items-center gap-3">
+                        <p class="text-[10px] font-black text-slate-900 leading-none clamp-1">{{ h.reason }}</p>
+                     </div>
+                     <span :class="['font-black text-[11px] shrink-0', h.amount > 0 ? 'text-emerald-600' : 'text-red-600']">
+                       {{ h.amount > 0 ? '+' : '' }}{{ h.amount.toLocaleString() }}đ
+                     </span>
+                   </div>
+                 </div>
+               </div>
+            </div>
+         </div>
+
+         <!-- Notes History (Collapsible) -->
+         <div class="card overflow-hidden transition-all duration-300 shadow-sm border border-slate-100">
+            <button 
+              @click="isNotesOpen = !isNotesOpen"
+              class="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-all border-b border-transparent"
+              :class="{ 'border-slate-100 bg-slate-50/30': isNotesOpen }"
+            >
+               <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-xl bg-primary-100 flex items-center justify-center shadow-sm">
+                     <Plus class="w-4 h-4 text-primary-600" />
+                  </div>
+                  <h3 class="text-xs font-black text-slate-900 uppercase tracking-widest">{{ $t('employee.notes_history') }}</h3>
+               </div>
+               <ChevronDown v-if="!isNotesOpen" class="w-4 h-4 text-slate-400" />
+               <ChevronUp v-else class="w-4 h-4 text-slate-400" />
+            </button>
+
+            <div v-if="isNotesOpen" class="p-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+               <!-- Add Note Form (Inside Sidebar Accordion) -->
+               <div class="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3">
+                  <textarea v-model="noteForm.content" rows="2" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:ring-1 focus:ring-primary-500 transition-all resize-none shadow-sm" :placeholder="$t('employee.note_placeholder')"></textarea>
+                  <div class="flex justify-end pt-1">
+                     <UiButton size="xs" @click="handleAddNote" :loading="addingNote" :disabled="!noteForm.content">
+                       <Plus class="w-3 h-3" />
+                       {{ $t('employee.add_note') }}
+                     </UiButton>
+                  </div>
+               </div>
+
+               <!-- Compact Notes List -->
+               <div class="space-y-3 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+                  <div v-if="notes.length === 0" class="py-6 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-100">
+                     <p class="text-slate-400 text-[10px] font-medium italic opacity-70">{{ $t('employee.no_notes') }}</p>
+                  </div>
+                  <div v-else v-for="note in notes" :key="note.id" class="p-4 bg-white border border-slate-100 rounded-xl relative group shadow-sm hover:border-slate-200 transition-all">
+                     <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">{{ formatDate(note.createdAt) }}</span>
+                        <button @click="handleDeleteNote(note.id)" class="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded">
+                           <Trash2 class="w-3 h-3" />
+                        </button>
+                     </div>
+                     <p class="text-xs font-medium text-slate-700 leading-normal">{{ note.content }}</p>
+                     <div class="flex items-center gap-1.5 mt-2">
+                        <span v-if="note.month && note.year" class="px-1.5 py-0.5 bg-primary-50 text-primary-600 text-[8px] font-black rounded uppercase tracking-tighter">{{ note.month }}/{{ note.year }}</span>
+                        <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                           <User class="w-2.5 h-2.5" /> {{ note.createdBy }}
+                        </p>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
       </div>
 
       <!-- Right Column: Form -->
       <div class="lg:col-span-2 space-y-6">
         <div class="card p-8">
-          <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 pb-2 border-b border-slate-100">Thông tin cá nhân</h3>
+          <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 pb-2 border-b border-slate-100">{{ $t('employee.personal_info') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <UiInput v-model="form.fullName" label="Họ và tên" required />
+             <UiInput v-model="form.fullName" :label="$t('employee.full_name')" required />
              <div class="space-y-1.5">
-                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Giới tính</label>
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{{ $t('employee.gender') }}</label>
                 <select v-model="form.gender" class="w-full bg-slate-50 border border-transparent rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-slate-200 transition-all">
-                  <option value="MALE">Nam</option>
-                  <option value="FEMALE">Nữ</option>
-                  <option value="OTHER">Khác</option>
+                  <option value="MALE">{{ $t('employee.male') }}</option>
+                  <option value="FEMALE">{{ $t('employee.female') }}</option>
+                  <option value="OTHER">{{ $t('employee.other') }}</option>
                 </select>
              </div>
-             <UiInput v-model="form.dob" type="date" label="Ngày sinh" />
-             <UiInput v-model="form.phone" label="Số điện thoại" />
-             <UiInput v-model="form.citizenId" label="Số CCCD" />
-             <UiInput v-model="form.citizenIdIssuedDate" type="date" label="Ngày cấp CCCD" />
+             <UiInput v-model="form.dob" type="date" :label="$t('employee.dob')" />
+             <UiInput v-model="form.phone" :label="$t('employee.phone')" />
+             <UiInput v-model="form.citizenId" :label="$t('employee.citizen_id')" />
+             <UiInput v-model="form.citizenIdIssuedDate" type="date" :label="$t('employee.citizen_id_issued_date')" />
              <div class="col-span-2">
-                <UiInput v-model="form.citizenIdIssuedPlace" label="Nơi cấp" />
+                <UiInput v-model="form.citizenIdIssuedPlace" :label="$t('employee.citizen_id_issued_place')" />
              </div>
              <div class="col-span-2">
-                <UiInput v-model="form.birthAddress" label="Địa chỉ khai sinh" />
+                <UiInput v-model="form.birthAddress" :label="$t('employee.birth_address')" />
              </div>
              <div class="col-span-2">
-                <UiInput v-model="form.permanentAddress" label="Địa chỉ thường trú" />
+                <UiInput v-model="form.permanentAddress" :label="$t('employee.permanent_address')" />
              </div>
           </div>
 
-          <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mt-10 mb-6 pb-2 border-b border-slate-100">Công việc & BHXH</h3>
+          <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mt-10 mb-6 pb-2 border-b border-slate-100">{{ $t('employee.work_insurance') }}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <UiInput v-model="form.joinDate" type="date" label="Ngày vào công ty" />
-             <UiInput v-model="form.insuranceStartDate" type="date" label="Ngày bắt đầu đóng BHXH" />
-          </div>
-
-          <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mt-10 mb-6 pb-2 border-b border-slate-100">Lịch sử Ghi chú</h3>
-          
-          <!-- Add Note Form -->
-          <div class="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-             <div class="grid grid-cols-2 gap-4">
-                <UiInput v-model="noteForm.month" type="number" label="Tháng" placeholder="1-12" />
-                <UiInput v-model="noteForm.year" type="number" label="Năm" placeholder="202x" />
-             </div>
-             <textarea v-model="noteForm.content" rows="3" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-primary-500 transition-all resize-none" placeholder="Nhập ghi chú mới..."></textarea>
-             <div class="flex justify-end">
-                <UiButton size="sm" @click="handleAddNote" :loading="addingNote" :disabled="!noteForm.content">
-                  <Plus class="w-4 h-4" />
-                  Thêm ghi chú
-                </UiButton>
-             </div>
-          </div>
-
-          <!-- Notes Timeline -->
-          <div class="space-y-6">
-             <div v-if="notes.length === 0" class="py-8 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                <p class="text-slate-400 text-xs font-medium italic">Chưa có ghi chú nào</p>
-             </div>
-             <div v-else class="relative pl-6 space-y-6 before:content-[''] before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-                <div v-for="note in notes" :key="note.id" class="relative">
-                   <div class="absolute -left-[27px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-primary-500 z-10"></div>
-                   <div class="bg-white border border-slate-100 rounded-2xl p-5 hover:shadow-md transition-all group">
-                      <div class="flex items-center justify-between mb-2">
-                         <div class="flex items-center gap-2">
-                            <span v-if="note.month && note.year" class="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-black rounded-lg">Tháng {{ note.month }}/{{ note.year }}</span>
-                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ formatDate(note.createdAt) }}</span>
-                         </div>
-                         <button @click="handleDeleteNote(note.id)" class="p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-50">
-                            <Trash2 class="w-3.5 h-3.5" />
-                         </button>
-                      </div>
-                      <p class="text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-wrap">{{ note.content }}</p>
-                      <p class="mt-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                         <User class="w-3 h-3" /> {{ note.createdBy }}
-                      </p>
-                   </div>
-                </div>
-             </div>
+             <UiInput v-model="form.joinDate" type="date" :label="$t('employee.join_date_at_company')" />
+             <UiInput v-model="form.insuranceStartDate" type="date" :label="$t('employee.insurance_start_date')" />
           </div>
         </div>
       </div>
@@ -168,7 +246,11 @@
 </template>
 
 <script setup>
-import { ChevronLeft, Save, User, Camera, Trash2, Plus } from 'lucide-vue-next';
+import { 
+  ChevronLeft, Save, User, Camera, Trash2, Plus, 
+  TrendingUp, TrendingDown, DollarSign, Clock, AlertCircle,
+  ChevronDown, ChevronUp
+} from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
@@ -176,8 +258,12 @@ const { $api } = useNuxtApp();
 
 const employee = ref({});
 const notes = ref([]);
+const employeeStats = ref({});
 const addingNote = ref(false);
 const saving = ref(false);
+const loadingStats = ref(false);
+const isStatsOpen = ref(false);
+const isNotesOpen = ref(false);
 
 // Error Modal State
 const showErrorModal = ref(false);
@@ -230,9 +316,22 @@ const fetchData = async () => {
     
     if (!form.gender) form.gender = 'MALE';
     fetchNotes();
+    fetchEmployeeStats();
   } catch (err) {
     console.error(err);
     triggerError('Lỗi tải dữ liệu', 'Không thể tải thông tin nhân viên này.', err.message);
+  }
+};
+
+const fetchEmployeeStats = async () => {
+  loadingStats.value = true;
+  try {
+    const res = await $api.get(`/penalty-bonuses/employee/${route.params.id}/stats`);
+    employeeStats.value = res.data;
+  } catch (err) {
+    console.error(err);
+  } finally {
+    loadingStats.value = false;
   }
 };
 

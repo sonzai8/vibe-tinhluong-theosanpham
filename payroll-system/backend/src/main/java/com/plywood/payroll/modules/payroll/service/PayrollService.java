@@ -12,6 +12,7 @@ import com.plywood.payroll.modules.employee.service.EmployeeService;
 import com.plywood.payroll.modules.payroll.entity.PayrollItem;
 import com.plywood.payroll.modules.payroll.entity.Payroll;
 import com.plywood.payroll.modules.pricing.entity.ProductStepRate;
+import org.springframework.data.jpa.domain.Specification;
 import com.plywood.payroll.modules.production.entity.ProductionRecord;
 import com.plywood.payroll.modules.attendance.entity.DailyAttendance;
 import com.plywood.payroll.modules.quality.entity.ProductQuality;
@@ -97,7 +98,15 @@ public class PayrollService {
         LocalDate startDate = ym.atDay(1);
         LocalDate endDate = ym.atEndOfMonth();
 
-        List<ProductionRecord> records = productionRecordRepository.findByFilters(startDate, endDate, null, null);
+        List<ProductionRecord> records = productionRecordRepository.findAll((root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.greaterThanOrEqualTo(root.get("productionDate"), startDate));
+            predicates.add(cb.lessThanOrEqualTo(root.get("productionDate"), endDate));
+            if (query != null) {
+                query.orderBy(cb.desc(root.get("productionDate")), cb.desc(root.get("createdAt")));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        });
         List<DailyAttendance> allAttendances = dailyAttendanceRepository.findAll((root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(cb.function("MONTH", Integer.class, root.get("attendanceDate")), month));

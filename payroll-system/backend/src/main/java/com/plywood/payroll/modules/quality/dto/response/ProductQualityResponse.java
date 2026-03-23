@@ -10,6 +10,7 @@ public class ProductQualityResponse {
     private Long id;
     private String code;
     private String description;
+    private Integer priority;
     private List<QualityLayerResponse> layers;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

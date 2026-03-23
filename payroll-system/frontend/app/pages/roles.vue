@@ -181,7 +181,8 @@ const showErrorModal = ref(false);
 const errorTitle = ref('');
 const errorMessage = ref('');
 const errorDetail = ref('');
-
+const loading = ref(true);
+const saving = ref(false);
 const triggerError = (title, message, detail = '') => {
   errorTitle.value = title;
   errorMessage.value = message;

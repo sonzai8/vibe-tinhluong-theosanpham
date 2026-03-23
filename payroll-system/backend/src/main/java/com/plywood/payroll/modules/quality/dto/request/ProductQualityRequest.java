@@ -12,6 +12,8 @@ public class ProductQualityRequest {
 
     private String description;
     
+    private Integer priority;
+    
     private List<QualityLayerRequest> layers;
     
     @Data

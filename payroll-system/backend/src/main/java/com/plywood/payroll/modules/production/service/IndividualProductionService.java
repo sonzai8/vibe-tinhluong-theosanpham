@@ -27,7 +27,23 @@ public class IndividualProductionService {
             LocalDate from, LocalDate to, List<Long> departmentIds, List<Long> teamIds) {
         
         // 1. Lấy tất cả bản ghi sản lượng trong khoảng thời gian
-        List<ProductionRecord> records = recordRepository.findByFilters(from, to, departmentIds, teamIds);
+        Specification<ProductionRecord> recordSpec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("productionDate"), from));
+            if (to != null) predicates.add(cb.lessThanOrEqualTo(root.get("productionDate"), to));
+            if (departmentIds != null && !departmentIds.isEmpty()) {
+                predicates.add(root.get("team").get("department").get("id").in(departmentIds));
+            }
+            if (teamIds != null && !teamIds.isEmpty()) {
+                predicates.add(root.get("team").get("id").in(teamIds));
+            }
+            if (query != null) {
+                query.orderBy(cb.desc(root.get("productionDate")), cb.desc(root.get("createdAt")));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        
+        List<ProductionRecord> records = recordRepository.findAll(recordSpec);
         
         // 2. Nhóm sản lượng theo ngày và tổ: Map<Date, Map<TeamId, TotalQuantity>>
         Map<LocalDate, Map<Long, Integer>> teamQtyMap = records.stream()

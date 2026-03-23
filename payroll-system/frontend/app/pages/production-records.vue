@@ -254,7 +254,7 @@
         <!-- Floating Tooltip -->
         <div 
           v-if="hoverTooltip.show" 
-          class="fixed z-[200] w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 pointer-events-none p-5 animate-in fade-in zoom-in duration-200"
+          class="fixed z-[200] w-84 bg-white rounded-2xl shadow-2xl border border-slate-100 pointer-events-none p-5 animate-in fade-in zoom-in duration-200"
           :style="{ top: hoverTooltip.y + 'px', left: hoverTooltip.x + 'px' }"
         >
           <div class="flex flex-col gap-4">

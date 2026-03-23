@@ -17,6 +17,7 @@ import com.plywood.payroll.modules.product.entity.Product;
 import com.plywood.payroll.modules.production.entity.ProductionRecord;
 import com.plywood.payroll.modules.production.repository.ProductionRecordRepository;
 import com.plywood.payroll.modules.quality.entity.ProductQuality;
+import org.springframework.data.jpa.domain.Specification;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -104,7 +105,7 @@ class PayrollServiceTest {
         record.setQuality(quality);
         record.setProductionDate(date);
         record.setQuantity(100);
-        when(productionRecordRepository.findByFilters(any(), any(), any(), any())).thenReturn(Collections.singletonList(record));
+        when(productionRecordRepository.findAll(any(Specification.class))).thenReturn(Collections.singletonList(record));
 
         // Mock Attendance
         DailyAttendance att = new DailyAttendance();

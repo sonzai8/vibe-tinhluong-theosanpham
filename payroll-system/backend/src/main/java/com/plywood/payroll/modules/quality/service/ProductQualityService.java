@@ -25,7 +25,7 @@ public class ProductQualityService {
     private final QualityLayerSurchargeService surchargeService;
 
     public List<ProductQualityResponse> getAll() {
-        return productQualityRepository.findAll().stream()
+        return productQualityRepository.findAllByOrderByPriorityAsc().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -41,6 +41,7 @@ public class ProductQualityService {
         ProductQuality quality = new ProductQuality();
         quality.setCode(request.getCode());
         quality.setDescription(request.getDescription());
+        quality.setPriority(request.getPriority() != null ? request.getPriority() : 0);
         
         updateLayers(quality, request.getLayers());
         
@@ -54,6 +55,7 @@ public class ProductQualityService {
                 
         quality.setCode(request.getCode());
         quality.setDescription(request.getDescription());
+        quality.setPriority(request.getPriority() != null ? request.getPriority() : 0);
         
         updateLayers(quality, request.getLayers());
         
@@ -92,6 +94,7 @@ public class ProductQualityService {
         response.setId(entity.getId());
         response.setCode(entity.getCode());
         response.setDescription(entity.getDescription());
+        response.setPriority(entity.getPriority());
         response.setCreatedAt(entity.getCreatedAt());
         response.setUpdatedAt(entity.getUpdatedAt());
         

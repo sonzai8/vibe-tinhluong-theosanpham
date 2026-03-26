@@ -1,6 +1,5 @@
 package com.plywood.payroll.modules.organization.controller;
-import com.plywood.payroll.modules.excel.service.ExcelService;
-import com.plywood.payroll.modules.organization.entity.Team;
+
 
 import com.plywood.payroll.shared.constant.MessageConstants;
 
@@ -19,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -101,7 +101,7 @@ public class TeamController {
         List<List<String>> data = list.stream().map(t -> java.util.Arrays.asList(
                 t.getId().toString(),
                 t.getName(),
-                t.getDepartment() != null ? t.getDepartment().getName() : "",
+                t.getDepartmentName() != null ? t.getDepartmentName() : "",
                 String.valueOf(t.getMemberCount()),
                 t.getCreatedAt() != null ? t.getCreatedAt().toString() : ""
         )).collect(java.util.stream.Collectors.toList());
@@ -117,19 +117,24 @@ public class TeamController {
     @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Tải file mẫu nhập tổ đội")
     public ResponseEntity<byte[]> downloadTemplate() throws java.io.IOException {
-        String[] headers = {"Tên tổ đội", "Tên phòng ban"};
-        byte[] bytes = excelService.getGenericTemplate("MauNhap", headers);
+        byte[] bytes = excelService.getTeamTemplate();
         return ResponseEntity.ok()
-                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=mau_nhap_to_doi.xlsx")
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=team_template.xlsx")
                 .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
                 .body(bytes);
     }
 
-    @PostMapping("/import")
+    @PostMapping("/import/preview")
     @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
-    @Operation(summary = "Nhập danh sách tổ đội từ Excel")
-    public ResponseEntity<ApiResponse<Void>> importExcel(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
-        List<TeamRequest> requests = excelService.importTeams(file);
+    @Operation(summary = "Xem trước dữ liệu import tổ đội")
+    public ResponseEntity<ApiResponse<com.plywood.payroll.modules.excel.dto.response.ImportResult<TeamRequest>>> importPreview(@RequestParam("file") MultipartFile file) throws java.io.IOException {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, excelService.importTeamsPreview(file)));
+    }
+
+    @PostMapping("/import/confirm")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Xác nhận import tổ đội")
+    public ResponseEntity<ApiResponse<Void>> importConfirm(@Valid @RequestBody List<TeamRequest> requests) {
         for (TeamRequest req : requests) {
             teamService.create(req);
         }

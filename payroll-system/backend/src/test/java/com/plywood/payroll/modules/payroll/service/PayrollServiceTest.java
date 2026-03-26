@@ -6,6 +6,10 @@ import com.plywood.payroll.modules.employee.entity.Employee;
 import com.plywood.payroll.modules.employee.repository.EmployeeRepository;
 import com.plywood.payroll.modules.production.entity.ProductionStep;
 import com.plywood.payroll.modules.organization.entity.Team;
+import com.plywood.payroll.modules.employee.entity.SalaryProcess;
+import com.plywood.payroll.modules.employee.entity.TeamProcess;
+import com.plywood.payroll.modules.employee.repository.SalaryProcessRepository;
+import com.plywood.payroll.modules.employee.repository.TeamProcessRepository;
 import com.plywood.payroll.modules.payroll.entity.Payroll;
 import com.plywood.payroll.modules.payroll.repository.PayrollConfigRepository;
 import com.plywood.payroll.modules.payroll.repository.PayrollItemRepository;
@@ -45,6 +49,8 @@ class PayrollServiceTest {
     @Mock private PayrollConfigRepository payrollConfigRepository;
     @Mock private EmployeeRepository employeeRepository;
     @Mock private PenaltyBonusRepository penaltyBonusRepository;
+    @Mock private SalaryProcessRepository salaryProcessRepository;
+    @Mock private TeamProcessRepository teamProcessRepository;
 
     @InjectMocks
     private PayrollService payrollService;
@@ -70,7 +76,6 @@ class PayrollServiceTest {
         employee.setId(1L);
         employee.setFullName("Nguyen Van A");
         employee.setCode("NV001");
-        employee.setTeam(team);
 
         product = new Product();
         product.setId(1L);
@@ -112,7 +117,7 @@ class PayrollServiceTest {
         att.setEmployee(employee);
         att.setActualTeam(team);
         att.setAttendanceDate(date);
-        when(dailyAttendanceRepository.findByFilters(any(), any(), anyInt(), anyInt(), any(), any(), anyBoolean(), any(), anyBoolean())).thenReturn(Collections.singletonList(att));
+//        when(dailyAttendanceRepository.findByFilters(any(), any(), anyInt(), anyInt(), any(), any(), anyBoolean(), any(), anyBoolean())).thenReturn(Collections.singletonList(att));
 
         // Mock Rates
         ProductStepRate rate = new ProductStepRate();
@@ -123,6 +128,19 @@ class PayrollServiceTest {
         // Mock Employee check
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(employee));
         when(payrollItemRepository.findByPayrollIdAndEmployeeId(anyLong(), anyLong())).thenReturn(Optional.empty());
+
+        // Mock History
+        SalaryProcess sp = new SalaryProcess();
+        sp.setSalaryType(com.plywood.payroll.modules.employee.entity.SalaryType.PRODUCT_BASED);
+        sp.setBaseSalary(BigDecimal.ZERO);
+        sp.setInsuranceSalary(BigDecimal.ZERO);
+        sp.setStartDate(LocalDate.of(2023, 1, 1));
+        when(salaryProcessRepository.findOverlapping(anyLong(), any(), any())).thenReturn(java.util.List.of(sp));
+        
+        TeamProcess tp = new TeamProcess();
+        tp.setTeam(team);
+        tp.setStartDate(LocalDate.of(2023, 1, 1));
+        when(teamProcessRepository.findEffectiveByDate(anyLong(), any())).thenReturn(Optional.of(tp));
 
         // Execute
         payrollService.calculatePayroll(month, year);

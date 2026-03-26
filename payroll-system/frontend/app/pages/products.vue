@@ -205,7 +205,8 @@ const products = ref([]);
 const units = ref([]);
 const loading = ref(true);
 const isCodeCustomized = ref(false);
-
+const showModal = ref(false);
+const saving = ref(false);
 // Error Modal State
 const showErrorModal = ref(false);
 const errorTitle = ref('');

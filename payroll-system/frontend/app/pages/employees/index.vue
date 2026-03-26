@@ -81,6 +81,7 @@
         <thead>
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
             <th class="px-6 py-4">{{ $t('production.employee') }}</th>
+            <th class="px-6 py-4">ID Chấm công</th>
             <th class="px-6 py-4">{{ $t('employee.contact_cccd') }}</th>
             <th class="px-6 py-4">{{ $t('common.department') }}</th>
             <th class="px-6 py-4">{{ $t('common.role') }}</th>
@@ -111,6 +112,19 @@
               </div>
             </td>
             <td class="px-6 py-4">
+              <div class="flex items-center gap-2 group/zk">
+                <input 
+                  v-model="emp.zkDeviceId" 
+                  type="text" 
+                  class="w-20 bg-transparent border-none focus:ring-1 focus:ring-primary-500 rounded px-1 py-0.5 text-xs font-black text-slate-700 transition-all"
+                  placeholder="Chưa có"
+                  @blur="handleQuickUpdateZkId(emp)"
+                  @keyup.enter="$event.target.blur()"
+                />
+                <div v-if="savingZkId === emp.id" class="w-3 h-3 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+              </div>
+            </td>
+            <td class="px-6 py-4">
               <div v-if="emp.phone || emp.citizenId" class="space-y-1">
                 <p v-if="emp.phone" class="text-xs font-bold text-slate-600 flex items-center gap-1.5">
                   <Phone class="w-3 h-3 text-slate-400" /> {{ emp.phone }}
@@ -123,12 +137,12 @@
             </td>
             <td class="px-6 py-4">
               <div class="space-y-1">
-                <p class="text-xs font-bold text-slate-600 leading-none">{{ emp.department?.name || emp.team?.department?.name || '---' }}</p>
-                <p v-if="emp.team" class="text-[10px] font-black text-emerald-600 uppercase tracking-widest italic">{{ emp.team.name }}</p>
+                <p class="text-xs font-bold text-slate-600 leading-none">{{ emp.departmentName || '---' }}</p>
+                <p v-if="emp.teamName" class="text-[10px] font-black text-emerald-600 uppercase tracking-widest italic">{{ emp.teamName }}</p>
               </div>
             </td>
             <td class="px-6 py-4">
-              <span class="text-xs font-bold text-slate-500 uppercase tracking-tighter">{{ emp.role?.name || '---' }}</span>
+              <span class="text-xs font-bold text-slate-500 uppercase tracking-tighter">{{ emp.roleName || '---' }}</span>
             </td>
             <td class="px-6 py-4 text-center">
               <span 
@@ -248,6 +262,7 @@
             
             <UiInput v-model="form.phone" label="Số điện thoại" placeholder="0xxx xxx xxx" />
             <UiInput v-model="form.citizenId" label="Số CCCD" placeholder="Nhập 12 số CCCD" />
+            <UiInput v-model="form.zkDeviceId" label="ID Máy chấm công (ZKTeco)" placeholder="VD: 101" />
 
             <div v-if="!currentEmp.id" class="col-span-1 md:col-span-2">
               <UiInput v-model="form.password" type="password" label="Mật khẩu khởi tạo" placeholder="Nhập mật khẩu" required />
@@ -282,6 +297,39 @@
               :options="roleOptions" 
               placeholder="Chọn chức vụ"
             />
+
+            <!-- Configuration Lương -->
+            <div class="col-span-1 md:col-span-2 mt-4 space-y-6">
+              <h4 class="text-xs font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">
+                {{ $t('employee.salary_config') }}
+              </h4>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{{ $t('employee.salary_type') }}</label>
+                  <select v-model="form.salaryType" class="w-full bg-slate-50 border border-transparent rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-slate-200 transition-all">
+                    <option value="PRODUCT_BASED">{{ $t('employee.salary_type_product') }}</option>
+                    <option value="FIXED_MONTHLY">{{ $t('employee.salary_type_monthly') }}</option>
+                    <option value="FIXED_DAILY">{{ $t('employee.salary_type_daily') }}</option>
+                  </select>
+                </div>
+
+                <UiInput 
+                  v-if="form.salaryType !== 'PRODUCT_BASED'"
+                  v-model="form.baseSalaryConfig" 
+                  type="number"
+                  :label="$t('employee.base_salary')" 
+                  placeholder="0"
+                />
+
+                <UiInput 
+                  v-model="form.insuranceSalaryConfig" 
+                  type="number"
+                  :label="$t('employee.insurance_salary')" 
+                  placeholder="0"
+                />
+              </div>
+            </div>
 
             <!-- Quyền đăng nhập -->
             <div class="col-span-1 md:col-span-2 p-5 bg-primary-50/30 rounded-2xl border border-primary-50 flex items-center justify-between">
@@ -550,6 +598,20 @@ const paginatedEmployees = computed(() => {
   return filteredEmployees.value.slice(start, end);
 });
 
+const savingZkId = ref(null);
+const handleQuickUpdateZkId = async (emp) => {
+  if (savingZkId.value === emp.id) return;
+  savingZkId.value = emp.id;
+  try {
+    await $api.patch(`/employees/${emp.id}/zk-device-id`, emp.zkDeviceId || '');
+    // alert('Đã cập nhật ID chấm công');
+  } catch (err) {
+    triggerError('Lỗi cập nhật', 'Không thể cập nhật ID chấm công.', err.message);
+  } finally {
+    savingZkId.value = null;
+  }
+};
+
 watch([searchQuery, filterDept, filterStatus, filterTeamId, itemsPerPage], () => {
   currentPage.value = 1;
 });
@@ -566,7 +628,11 @@ const form = reactive({
   departmentId: null,
   teamId: null,
   roleId: null,
-  canLogin: false
+  canLogin: false,
+  salaryType: 'PRODUCT_BASED',
+  baseSalaryConfig: 0,
+  insuranceSalaryConfig: 0,
+  zkDeviceId: ''
 });
 
 watch(activeModalTab, (newTab) => {
@@ -659,9 +725,9 @@ const filteredEmployees = computed(() => {
   return employees.value.filter(e => {
     const matchSearch = e.fullName.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
                       e.code.toLowerCase().includes(searchQuery.value.toLowerCase());
-    const matchDept = !filterDept.value || e.department?.id == filterDept.value;
+    const matchDept = !filterDept.value || e.departmentId == filterDept.value;
     const matchStatus = !filterStatus.value || e.status === filterStatus.value;
-    const matchTeam = !filterTeamId.value || e.team?.id == filterTeamId.value;
+    const matchTeam = !filterTeamId.value || e.teamId == filterTeamId.value;
     return matchSearch && matchDept && matchStatus && matchTeam;
   });
 });
@@ -676,10 +742,14 @@ const openModal = (emp = null) => {
     form.phone = emp.phone || '';
     form.citizenId = emp.citizenId || '';
     form.status = emp.status;
-    form.departmentId = emp.department?.id || null;
-    form.teamId = emp.team?.id || null;
-    form.roleId = emp.role?.id || null;
+    form.departmentId = emp.departmentId || null;
+    form.teamId = emp.teamId || null;
+    form.roleId = emp.roleId || null;
     form.canLogin = emp.canLogin || false;
+    form.salaryType = emp.salaryType || 'PRODUCT_BASED';
+    form.baseSalaryConfig = emp.baseSalaryConfig || 0;
+    form.insuranceSalaryConfig = emp.insuranceSalaryConfig || 0;
+    form.zkDeviceId = emp.zkDeviceId || '';
   } else {
     currentEmp.value = {};
     activeModalTab.value = 'form';
@@ -694,6 +764,10 @@ const openModal = (emp = null) => {
     form.teamId = null;
     form.roleId = null;
     form.canLogin = false;
+    form.salaryType = 'PRODUCT_BASED';
+    form.baseSalaryConfig = 0;
+    form.insuranceSalaryConfig = 0;
+    form.zkDeviceId = '';
   }
   showModal.value = true;
 };

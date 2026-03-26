@@ -10,9 +10,12 @@ import com.plywood.payroll.modules.attendance.repository.DailyAttendanceReposito
 import com.plywood.payroll.modules.employee.repository.EmployeeRepository;
 import com.plywood.payroll.modules.employee.service.EmployeeService;
 import com.plywood.payroll.modules.payroll.entity.PayrollItem;
+import com.plywood.payroll.modules.employee.entity.SalaryProcess;
+import com.plywood.payroll.modules.employee.entity.TeamProcess;
+import com.plywood.payroll.modules.employee.repository.SalaryProcessRepository;
+import com.plywood.payroll.modules.employee.repository.TeamProcessRepository;
 import com.plywood.payroll.modules.payroll.entity.Payroll;
 import com.plywood.payroll.modules.pricing.entity.ProductStepRate;
-import org.springframework.data.jpa.domain.Specification;
 import com.plywood.payroll.modules.production.entity.ProductionRecord;
 import com.plywood.payroll.modules.attendance.entity.DailyAttendance;
 import com.plywood.payroll.modules.quality.entity.ProductQuality;
@@ -54,6 +57,8 @@ public class PayrollService {
     private final PenaltyBonusRepository penaltyBonusRepository;
     private final PayrollConfigRepository payrollConfigRepository;
     private final EmployeeService employeeService;
+    private final SalaryProcessRepository salaryProcessRepository;
+    private final TeamProcessRepository teamProcessRepository;
 
     private static record RecordCalculation(long quantity, BigDecimal priceHigh, BigDecimal priceLow, BigDecimal surcharge) {}
 
@@ -109,14 +114,17 @@ public class PayrollService {
         });
         List<DailyAttendance> allAttendances = dailyAttendanceRepository.findAll((root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(cb.function("MONTH", Integer.class, root.get("attendanceDate")), month));
-            predicates.add(cb.equal(cb.function("YEAR", Integer.class, root.get("attendanceDate")), year));
+            predicates.add(cb.greaterThanOrEqualTo(root.get("attendanceDate"), startDate));
+            predicates.add(cb.lessThanOrEqualTo(root.get("attendanceDate"), endDate));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         });
 
         // Xét chuyên cần
-        Map<Long, Long> attendanceCountMap = allAttendances.stream()
-                .collect(Collectors.groupingBy(a -> a.getEmployee().getId(), Collectors.counting()));
+        Map<Long, BigDecimal> attendanceCountMap = allAttendances.stream()
+                .collect(Collectors.groupingBy(a -> a.getEmployee().getId(),
+                        Collectors.reducing(BigDecimal.ZERO,
+                                a -> BigDecimal.valueOf(a.getAttendanceDefinition() != null ? a.getAttendanceDefinition().getMultiplier() : 1.0),
+                                BigDecimal::add)));
 
         // BƯỚC 2: Tổ chức sản lượng theo Team và Ngày
         Map<Long, Map<LocalDate, List<RecordCalculation>>> teamDateCalcMap = new HashMap<>();
@@ -165,19 +173,25 @@ public class PayrollService {
                         .getOrDefault(actualTeamId, Collections.emptyMap())
                         .getOrDefault(date, Collections.emptyList());
 
-                int headcount = workersOnSite.size();
-                if (headcount == 0) continue;
+                BigDecimal totalTeamMultiplier = workersOnSite.stream()
+                        .map(a -> BigDecimal.valueOf(a.getAttendanceDefinition() != null ? a.getAttendanceDefinition().getMultiplier() : 1.0))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                if (totalTeamMultiplier.compareTo(BigDecimal.ZERO) <= 0) continue;
 
                 for (DailyAttendance att : workersOnSite) {
                     Long empId = att.getEmployee().getId();
-                    boolean isDiligent = attendanceCountMap.getOrDefault(empId, 0L) >= minAttendanceDays;
+                    BigDecimal userMultiplier = BigDecimal.valueOf(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getMultiplier() : 1.0);
+                    BigDecimal weightedDays = attendanceCountMap.getOrDefault(empId, BigDecimal.ZERO);
+                    boolean isDiligent = weightedDays.compareTo(BigDecimal.valueOf(minAttendanceDays)) >= 0;
 
                     BigDecimal dailyEarnings = BigDecimal.ZERO;
                     for (RecordCalculation c : calcs) {
                         BigDecimal rate = isDiligent ? c.priceHigh : c.priceLow;
                         BigDecimal share = rate.add(c.surcharge)
                                 .multiply(BigDecimal.valueOf(c.quantity))
-                                .divide(BigDecimal.valueOf(headcount), 2, RoundingMode.HALF_UP);
+                                .multiply(userMultiplier)
+                                .divide(totalTeamMultiplier, 2, RoundingMode.HALF_UP);
                         dailyEarnings = dailyEarnings.add(share);
                     }
 
@@ -203,7 +217,9 @@ public class PayrollService {
             BigDecimal dailyBenefit = att.getEmployee().getRole() != null
                     ? att.getEmployee().getRole().getDailyBenefit()
                     : BigDecimal.ZERO;
-            benefitMap.merge(empId, dailyBenefit, BigDecimal::add);
+            BigDecimal dayMultiplier = BigDecimal.valueOf(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getMultiplier() : 1.0);
+            BigDecimal weightedBenefit = dailyBenefit.multiply(dayMultiplier);
+            benefitMap.merge(empId, weightedBenefit, BigDecimal::add);
         }
 
         // BƯỚC 6: Lấy khen thưởng/kỷ luật trong tháng
@@ -226,17 +242,83 @@ public class PayrollService {
         Set<Long> involvedEmployees = new HashSet<>();
         involvedEmployees.addAll(employeeSalaryMap.keySet());
         involvedEmployees.addAll(benefitMap.keySet());
+        involvedEmployees.addAll(allAttendances.stream().map(a -> a.getEmployee().getId()).collect(Collectors.toList()));
+
+        // Lấy số ngày làm việc tiêu chuẩn (cho lương tháng)
+        int standardWorkingDays = Integer.parseInt(
+            payrollConfigRepository.findEffectiveConfig("STANDARD_WORKING_DAYS", month, year)
+                .map(PayrollConfig::getConfigValue)
+                .orElse("26")
+        );
 
         for (Long empId : involvedEmployees) {
             Employee emp = employeeRepository.findById(empId).orElse(null);
             if (emp == null) continue;
 
-            BigDecimal stepSalary = employeeSalaryMap.getOrDefault(empId, BigDecimal.ZERO);
+            // Fetch effective salary and team processes for this employee in this month
+            List<SalaryProcess> salaries = salaryProcessRepository.findOverlapping(empId, startDate, endDate);
+
+            BigDecimal stepSalary = BigDecimal.ZERO;
+
+            // TÍNH LƯƠNG CƠ BẢN DỰA TRÊN LOẠI LƯƠNG
+            // Với lương tháng cố định, chúng ta cần tính theo từng giai đoạn (nếu có đổi lương mid-month)
+            if (salaries.isEmpty()) {
+                // Fallback nếu không có history (ví dụ data cũ chưa migrate)
+                stepSalary = employeeSalaryMap.getOrDefault(empId, BigDecimal.ZERO);
+            } else {
+                for (SalaryProcess s : salaries) {
+                    LocalDate sStart = s.getStartDate().isBefore(startDate) ? startDate : s.getStartDate();
+                    LocalDate sEnd = (s.getEndDate() == null || s.getEndDate().isAfter(endDate)) ? endDate : s.getEndDate();
+                    
+                    // Tính số công trong giai đoạn này
+                    BigDecimal weightedDaysInPeriod = allAttendances.stream()
+                        .filter(a -> a.getEmployee().getId().equals(empId))
+                        .filter(a -> !a.getAttendanceDate().isBefore(sStart) && !a.getAttendanceDate().isAfter(sEnd))
+                        .map(a -> BigDecimal.valueOf(a.getAttendanceDefinition() != null ? a.getAttendanceDefinition().getMultiplier() : 1.0))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    if (s.getSalaryType() == com.plywood.payroll.modules.employee.entity.SalaryType.FIXED_MONTHLY) {
+                        if (standardWorkingDays > 0) {
+                            BigDecimal periodSalary = s.getBaseSalary()
+                                .multiply(weightedDaysInPeriod)
+                                .divide(BigDecimal.valueOf(standardWorkingDays), 2, RoundingMode.HALF_UP);
+                            stepSalary = stepSalary.add(periodSalary);
+                        }
+                    } else if (s.getSalaryType() == com.plywood.payroll.modules.employee.entity.SalaryType.FIXED_DAILY) {
+                        stepSalary = stepSalary.add(s.getBaseSalary().multiply(weightedDaysInPeriod));
+                    } else {
+                        // PRODUCT_BASED - lương sản phẩm đã được tính theo ngày ở BƯỚC 3-4
+                        // Ở đây chúng ta chỉ lấy phần lương sản phẩm thuộc giai đoạn này (nếu SalaryType của giai đoạn đó là PRODUCT_BASED)
+                        BigDecimal productInPeriod = employeeDailySalaryMap.getOrDefault(empId, Collections.emptyMap()).entrySet().stream()
+                            .filter(e -> !e.getKey().isBefore(sStart) && !e.getKey().isAfter(sEnd))
+                            .map(Map.Entry::getValue)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                        stepSalary = stepSalary.add(productInPeriod);
+                    }
+                }
+            }
+
             BigDecimal benefit = benefitMap.getOrDefault(empId, BigDecimal.ZERO);
             BigDecimal bonus = bonusMap.getOrDefault(empId, BigDecimal.ZERO);
             BigDecimal penalty = penaltyMap.getOrDefault(empId, BigDecimal.ZERO);
             
             BigDecimal netSalary = stepSalary.add(benefit).add(bonus).subtract(penalty);
+
+            // CHIA TÁCH BẢO HIỂM VÀ TIỀN MẶT (Lấy mức đóng của bản ghi SalaryProcess mới nhất trong tháng)
+            BigDecimal insuranceSalaryConfig = salaries.stream()
+                .sorted(Comparator.comparing(SalaryProcess::getStartDate).reversed())
+                .map(SalaryProcess::getInsuranceSalary)
+                .findFirst()
+                .orElse(BigDecimal.ZERO);
+
+            BigDecimal insuranceSalary = insuranceSalaryConfig;
+            if (insuranceSalary.compareTo(netSalary) > 0) {
+                insuranceSalary = netSalary;
+            }
+            if (insuranceSalary.compareTo(BigDecimal.ZERO) < 0) {
+                insuranceSalary = BigDecimal.ZERO;
+            }
+            BigDecimal cashSalary = netSalary.subtract(insuranceSalary);
 
             // Chỉ tạo/cập nhật nếu chưa CONFIRMED
             PayrollItem item = payrollItemRepository.findByPayrollIdAndEmployeeId(payroll.getId(), empId)
@@ -251,6 +333,8 @@ public class PayrollService {
             item.setTotalBonus(bonus);
             item.setTotalPenalty(penalty);
             item.setNetSalary(netSalary);
+            item.setInsuranceSalary(insuranceSalary);
+            item.setCashSalary(cashSalary);
             item.setStatus("DRAFT");
             payrollItemRepository.save(item);
         }
@@ -328,10 +412,13 @@ public class PayrollService {
                 response.setDepartmentId(entity.getEmployee().getDepartment().getId());
                 response.setDepartmentName(entity.getEmployee().getDepartment().getName());
             }
-            if (entity.getEmployee().getTeam() != null) {
-                response.setTeamId(entity.getEmployee().getTeam().getId());
-                response.setTeamName(entity.getEmployee().getTeam().getName());
-            }
+            // Lấy tổ hiện tại (hoặc tổ mới nhất trong tháng lương đó)
+            LocalDate lastDay = LocalDate.of(entity.getPayroll().getYear(), entity.getPayroll().getMonth(), 1).plusMonths(1).minusDays(1);
+            teamProcessRepository.findEffectiveByDate(entity.getEmployee().getId(), lastDay)
+                .ifPresent(tp -> {
+                    response.setTeamId(tp.getTeam().getId());
+                    response.setTeamName(tp.getTeam().getName());
+                });
         }
         
         response.setProductSalary(entity.getTotalStepSalary());
@@ -343,6 +430,8 @@ public class PayrollService {
         response.setTotalPenaltyBonus(bonus.subtract(penalty));
         
         response.setTotalSalary(entity.getNetSalary());
+        response.setInsuranceSalary(entity.getInsuranceSalary());
+        response.setCashSalary(entity.getCashSalary());
         response.setStatus(entity.getStatus());
         return response;
     }
@@ -361,12 +450,15 @@ public class PayrollService {
         // Lấy tất cả chấm công để tính chuyên cần (giống calculatePayroll)
         List<DailyAttendance> allAttendances = dailyAttendanceRepository.findAll((root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(cb.function("MONTH", Integer.class, root.get("attendanceDate")), payroll.getMonth()));
-            predicates.add(cb.equal(cb.function("YEAR", Integer.class, root.get("attendanceDate")), payroll.getYear()));
+            predicates.add(cb.greaterThanOrEqualTo(root.get("attendanceDate"), startDate));
+            predicates.add(cb.lessThanOrEqualTo(root.get("attendanceDate"), endDate));
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         });
-        Map<Long, Long> attendanceCountMap = allAttendances.stream()
-                .collect(Collectors.groupingBy(a -> a.getEmployee().getId(), Collectors.counting()));
+        Map<Long, BigDecimal> attendanceCountMap = allAttendances.stream()
+                .collect(Collectors.groupingBy(a -> a.getEmployee().getId(),
+                        Collectors.reducing(BigDecimal.ZERO,
+                                a -> BigDecimal.valueOf(a.getAttendanceDefinition() != null ? a.getAttendanceDefinition().getMultiplier() : 1.0),
+                                BigDecimal::add)));
 
         // Chấm công riêng của nhân viên này
         List<DailyAttendance> attendances = dailyAttendanceRepository.findByEmployeeIdAndAttendanceDateBetween(
@@ -407,13 +499,14 @@ public class PayrollService {
             
             BigDecimal productSalary = BigDecimal.ZERO;
             if (att != null && att.getActualTeam() != null) {
-                Long teamId = att.getActualTeam().getId();
+                Long actualTeamId = att.getActualTeam().getId();
                 LocalDate finalDate = date;
                 List<ProductionRecord> dayRecords = records.stream()
-                        .filter(r -> r.getProductionDate().equals(finalDate) && r.getTeam().getId().equals(teamId))
+                        .filter(r -> r.getProductionDate().equals(finalDate) && r.getTeam().getId().equals(actualTeamId))
                         .collect(Collectors.toList());
                 
-                boolean isDiligent = attendanceCountMap.getOrDefault(employee.getId(), 0L) >= minAttendanceDays;
+                boolean isDiligent = attendanceCountMap.getOrDefault(employee.getId(), BigDecimal.ZERO)
+                        .compareTo(BigDecimal.valueOf(minAttendanceDays)) >= 0;
 
                 for (ProductionRecord r : dayRecords) {
                     BigDecimal surcharge = calculateSurcharge(r.getProduct(), r.getQuality(), filmSurcharge1, filmSurcharge2);
@@ -424,9 +517,14 @@ public class PayrollService {
                         BigDecimal rate = isDiligent ? rateOpt.get().getPriceHigh() : rateOpt.get().getPriceLow();
                         BigDecimal totalMoney = rate.add(surcharge).multiply(BigDecimal.valueOf(r.getQuantity()));
                         
-                        long headcount = dailyAttendanceRepository.findByActualTeamIdAndAttendanceDate(teamId, finalDate).size();
-                        if (headcount > 0) {
-                            productSalary = productSalary.add(totalMoney.divide(BigDecimal.valueOf(headcount), 2, RoundingMode.HALF_UP));
+                        List<DailyAttendance> workersInTeam = dailyAttendanceRepository.findByActualTeamIdAndAttendanceDate(actualTeamId, finalDate);
+                        BigDecimal totalTeamMultiplier = workersInTeam.stream()
+                                .map(a -> BigDecimal.valueOf(a.getAttendanceDefinition() != null ? a.getAttendanceDefinition().getMultiplier() : 1.0))
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                        if (totalTeamMultiplier.compareTo(BigDecimal.ZERO) > 0) {
+                            BigDecimal userMultiplier = BigDecimal.valueOf(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getMultiplier() : 1.0);
+                            productSalary = productSalary.add(totalMoney.multiply(userMultiplier).divide(totalTeamMultiplier, 2, RoundingMode.HALF_UP));
                         }
                     }
                 }
@@ -440,7 +538,9 @@ public class PayrollService {
                     .attendanceSymbol(att != null && att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "-")
                     .teamName(att != null && att.getActualTeam() != null ? att.getActualTeam().getName() : "N/A")
                     .productSalary(productSalary)
-                    .benefitSalary(att != null ? (employee.getRole() != null ? employee.getRole().getDailyBenefit() : BigDecimal.ZERO) : BigDecimal.ZERO)
+                    .benefitSalary(att != null ? (employee.getRole() != null 
+                        ? employee.getRole().getDailyBenefit().multiply(BigDecimal.valueOf(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getMultiplier() : 1.0)) 
+                        : BigDecimal.ZERO) : BigDecimal.ZERO)
                     .bonus(bonus)
                     .penalty(penalty)
                     .note(att != null ? "" : "Nghỉ")
@@ -456,8 +556,12 @@ public class PayrollService {
                 .orElseThrow(() -> new ResourceNotFoundException("Bảng lương", 0L));
         
         List<PayrollItem> items = payrollItemRepository.findByPayrollId(payroll.getId());
+        LocalDate checkDate = LocalDate.of(year, month, 1).plusMonths(1).minusDays(1);
+
         for (PayrollItem item : items) {
-            if (item.getEmployee().getTeam() != null && item.getEmployee().getTeam().getId().equals(teamId)) {
+            final Long empId = item.getEmployee().getId();
+            Optional<TeamProcess> tp = teamProcessRepository.findEffectiveByDate(empId, checkDate);
+            if (tp.isPresent() && tp.get().getTeam().getId().equals(teamId)) {
                 item.setStatus("CONFIRMED");
                 payrollItemRepository.save(item);
             }

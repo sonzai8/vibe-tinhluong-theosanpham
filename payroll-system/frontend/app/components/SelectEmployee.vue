@@ -21,17 +21,27 @@
           ref="searchInput"
           v-model="search"
           type="text"
-          class="w-full pl-10 pr-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary-500 outline-none"
+          class="w-full pl-10 pr-10 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary-500 outline-none"
           :placeholder="$t('common.search') || 'Tìm tên hoặc mã nhân viên...'"
           @click.stop
         />
+        <button 
+          v-if="search" 
+          @click="search = ''" 
+          class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-slate-500 transition-colors"
+        >
+          <X class="w-3 h-3" />
+        </button>
       </div>
 
       <div class="max-h-60 overflow-y-auto custom-scrollbar space-y-1 px-1">
+        <div v-if="searching" class="p-4 text-center text-slate-400 text-[10px] font-bold animate-pulse uppercase tracking-widest">
+           {{ $t('common.loading') || 'Đang tìm...' }}
+        </div>
         <div 
           v-for="e in filteredEmployees" 
           :key="e.id"
-          @click="selectOption(e.id)"
+          @click="selectOption(e)"
           class="px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-between group"
           :class="modelValue == e.id ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50'"
         >
@@ -51,7 +61,7 @@
 </template>
 
 <script setup>
-import { ChevronDown, Search, Check } from 'lucide-vue-next';
+import { ChevronDown, Search, Check, X } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 
@@ -68,44 +78,80 @@ const emit = defineEmits(['update:modelValue']);
 const isOpen = ref(false);
 const search = ref('');
 const employees = ref([]);
+const selectedEmployee = ref(null);
 const searchInput = ref(null);
+const searching = ref(false);
 
-const fetchData = async () => {
+const fetchData = async (query = '') => {
+  // Chỉ search khi từ 3 ký tự trở lên (hoặc chuỗi rỗng để reset)
+  if (query.trim().length > 0 && query.trim().length < 3) return;
+  
+  searching.value = true;
   try {
-    const res = await $api.get('/employees');
-    employees.value = res.data || [];
+    const res = await $api.get('/employees/search', { params: { search: query } });
+    if (res.success) {
+      employees.value = res.data || [];
+    }
   } catch (err) {
     console.error('Lỗi tải nhân viên:', err);
+  } finally {
+    searching.value = false;
   }
 };
 
+const fetchSelected = async (id) => {
+  if (!id) return;
+  try {
+    const res = await $api.get(`/employees/${id}`);
+    if (res.success) {
+      selectedEmployee.value = res.data;
+      // Thêm vào danh sách nếu chưa có để hiển thị tên khi load trang
+      if (!employees.value.find(e => e.id == id)) {
+        employees.value.push(res.data);
+      }
+    }
+  } catch (err) {
+    console.error('Lỗi tải thông tin nhân viên chọn:', err);
+  }
+};
+
+// Debounce search
+let timeout = null;
+watch(search, (val) => {
+  if (timeout) clearTimeout(timeout);
+  if (val.trim().length >= 3) {
+    timeout = setTimeout(() => {
+      fetchData(val);
+    }, 500);
+  } else {
+    // Nếu < 3 ký tự thì hiện lại bản ghi đang chọn hoặc để trống
+    employees.value = selectedEmployee.value ? [selectedEmployee.value] : [];
+  }
+});
+
 const filteredEmployees = computed(() => {
   let result = employees.value;
-  
   if (props.departmentId) {
     result = result.filter(e => e.department?.id == props.departmentId);
   }
   if (props.teamId) {
     result = result.filter(e => e.team?.id == props.teamId);
   }
-  
-  if (!search.value) return result;
-  
-  const q = search.value.toLowerCase();
-  return result.filter(e => 
-    e.fullName.toLowerCase().includes(q) || 
-    e.code.toLowerCase().includes(q)
-  );
+  return result;
 });
 
 const selectedName = computed(() => {
+  if (selectedEmployee.value && selectedEmployee.value.id == props.modelValue) {
+    return `${selectedEmployee.value.fullName} (${selectedEmployee.value.code})`;
+  }
   if (!props.modelValue) return '';
   const emp = employees.value.find(e => e.id == props.modelValue);
   return emp ? `${emp.fullName} (${emp.code})` : '';
 });
 
-const selectOption = (id) => {
-  emit('update:modelValue', id);
+const selectOption = (emp) => {
+  selectedEmployee.value = emp;
+  emit('update:modelValue', emp.id);
   isOpen.value = false;
   search.value = '';
 };
@@ -123,7 +169,21 @@ watch(isOpen, (val) => {
   }
 });
 
-onMounted(fetchData);
+const init = () => {
+  if (props.modelValue) {
+    fetchSelected(props.modelValue);
+  }
+};
+
+watch(() => props.modelValue, (newVal) => {
+  if (newVal && (!selectedEmployee.value || selectedEmployee.value.id != newVal)) {
+    fetchSelected(newVal);
+  } else if (!newVal) {
+    selectedEmployee.value = null;
+  }
+});
+
+onMounted(init);
 
 const vClickOutside = {
   mounted(el, binding) {

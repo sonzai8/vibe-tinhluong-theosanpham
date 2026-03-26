@@ -23,11 +23,20 @@
 
       <!-- Navigation Menu -->
       <nav class="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto overflow-x-hidden custom-scrollbar">
-        <div v-for="group in menuGroups" :key="group.title" class="pb-6">
-          <p v-if="!isSidebarCollapsed" class="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 animate-in fade-in duration-300">{{ $t(group.title) }}</p>
+        <div v-for="group in menuGroups" :key="group.title" class="pb-4">
+          <div 
+            v-if="!isSidebarCollapsed" 
+            class="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-slate-50 rounded-xl transition-all group/header"
+            @click="toggleGroup(group.title)"
+          >
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-in fade-in duration-300">{{ $t(group.title) }}</p>
+            <ChevronDown 
+              :class="['w-3.5 h-3.5 text-slate-300 transition-transform duration-300', isGroupCollapsed(group.title) ? '-rotate-90' : '']"
+            />
+          </div>
           <div v-else class="h-px bg-slate-100 my-4 mx-2"></div>
           
-          <div class="space-y-1">
+          <div v-show="!isGroupCollapsed(group.title) || isSidebarCollapsed" class="space-y-1 mt-1 animate-in slide-in-from-top-2 duration-300">
             <template v-for="item in group.items" :key="item.to">
               <NuxtLink
                 v-if="item.to"
@@ -153,7 +162,7 @@
 import { 
   LayoutGrid, LayoutDashboard, Users, Briefcase, Users2, Package, Layers, 
   ClipboardCheck, History, Gavel, Wallet, LogOut, Bell, ChevronRight, Menu, Search, Settings2,
-  ShieldCheck, Tags, ShieldAlert, ChevronLeft, Languages, Check, CalendarCheck2
+  ShieldCheck, Tags, ShieldAlert, ChevronLeft, Languages, Check, CalendarCheck2, ChevronDown
 } from 'lucide-vue-next';
 
 const { locale, locales, setLocale } = useI18n();
@@ -180,36 +189,75 @@ const handleLangClickOutside = (event) => {
 const { user, logout } = useAuth();
 const route = useRoute();
 const isSidebarCollapsed = ref(false);
+const collapsedGroups = ref(new Set());
+
+const toggleGroup = (title) => {
+  if (collapsedGroups.value.has(title)) {
+    collapsedGroups.value.delete(title);
+  } else {
+    collapsedGroups.value.add(title);
+  }
+  saveCollapsedState();
+};
+
+const isGroupCollapsed = (title) => collapsedGroups.value.has(title);
+
+const saveCollapsedState = () => {
+  if (process.client) {
+    localStorage.setItem('sidebar_collapsed_groups', JSON.stringify(Array.from(collapsedGroups.value)));
+  }
+};
+
+const loadCollapsedState = () => {
+  if (process.client) {
+    const saved = localStorage.getItem('sidebar_collapsed_groups');
+    if (saved) {
+      try {
+        const arr = JSON.parse(saved);
+        collapsedGroups.value = new Set(arr);
+      } catch (e) {
+        console.error('Error loading collapsed state:', e);
+      }
+    }
+  }
+};
 
 const menuGroups = [
   {
-    title: 'menu.system',
+    title: 'menu.overview_reports',
     items: [
       { to: '/', label: 'menu.dashboard', icon: LayoutDashboard },
-      { to: '/attendances', label: 'menu.attendance', icon: ClipboardCheck },
-      { to: '/attendance-definitions', label: 'menu.attendance_definitions', icon: Settings2 },
-      { to: '/penalty-bonus-types', label: 'menu.penalty_bonus_types', icon: Settings2 },
       { to: '/payrolls', label: 'menu.payroll', icon: Wallet },
     ]
   },
   {
-    title: 'menu.production_operation',
+    title: 'menu.hr_mgmt',
     items: [
-      { to: '/production-records', label: 'menu.team_production', icon: History },
+      { to: '/employees', label: 'menu.employees', icon: Users },
+      { to: '/salary-processes', label: 'menu.salary_config_process', icon: History },
+      { to: '/teams', label: 'menu.teams', icon: Users2 },
+      { to: '/departments', label: 'menu.departments', icon: Briefcase },
+      { to: '/roles', label: 'menu.positions', icon: ShieldCheck },
+    ]
+  },
+  {
+    title: 'menu.attendance_rewards',
+    items: [
+      { to: '/attendances', label: 'menu.attendance', icon: ClipboardCheck },
+      { to: '/penalty-bonus', label: 'menu.penalty_bonus', icon: Gavel },
+      { to: '/attendance-definitions', label: 'menu.attendance_definitions', icon: Settings2 },
+      { to: '/penalty-bonus-types', label: 'menu.penalty_bonus_types', icon: Settings2 },
+    ]
+  },
+  {
+    title: 'menu.production_ops',
+    items: [
+      { to: '/production-records', label: 'menu.production_records', icon: Layers },
       { to: '/individual-productions', label: 'menu.individual_production', icon: Users },
     ]
   },
   {
-    title: 'menu.human_resources',
-    items: [
-      { to: '/employees', label: 'menu.employees', icon: Users },
-      { to: '/departments', label: 'menu.departments', icon: Briefcase },
-      { to: '/roles', label: 'menu.positions', icon: Users2 },
-      { to: '/teams', label: 'menu.teams', icon: Users2 },
-    ]
-  },
-  {
-    title: 'menu.production_mgmt',
+    title: 'menu.system_catalog',
     items: [
       { to: '/products', label: 'menu.products', icon: Package },
       { to: '/product-units', label: 'menu.product_units', icon: LayoutGrid },
@@ -217,12 +265,6 @@ const menuGroups = [
       { to: '/quality-layers', label: 'menu.quality_layers', icon: Tags },
       { to: '/product-qualities', label: 'menu.product_qualities', icon: ShieldAlert },
       { to: '/production-steps', label: 'menu.production_steps', icon: Layers },
-      { to: '/penalty-bonus', label: 'menu.penalty_bonus', icon: Gavel },
-    ]
-  },
-  {
-    title: 'menu.config_pricing',
-    items: [
       { to: '/unit-prices', label: 'menu.unit_prices', icon: Tags },
       { to: '/payroll-config', label: 'menu.payroll_config', icon: Settings2 },
     ]
@@ -246,6 +288,7 @@ const userInitials = computed(() => {
 
 onMounted(() => {
   if (!useCookie('auth_token').value) navigateTo('/login');
+  loadCollapsedState();
   document.addEventListener('click', handleLangClickOutside);
 });
 

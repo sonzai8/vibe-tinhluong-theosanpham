@@ -167,6 +167,18 @@
         </form>
       </div>
     </div>
+
+    <!-- Import Preview Dialog -->
+    <ImportPreviewDialog
+      :show="showImportPreview"
+      :data="previewData"
+      :errors="importErrors"
+      :loading="importing"
+      :columns="importCols"
+      title="Xem trước nhập công đoạn"
+      @close="showImportPreview = false"
+      @confirm="handleConfirmImport"
+    />
   </div>
 </template>
 
@@ -180,6 +192,16 @@ const products = ref([]);
 const loading = ref(true);
 const saving = ref(false);
 const showModal = ref(false);
+
+// Import Preview State
+const showImportPreview = ref(false);
+const previewData = ref([]);
+const importErrors = ref([]);
+const importing = ref(false);
+
+const importCols = [
+  { label: 'Tên công đoạn', key: 'name' },
+];
 
 const modalStepProducts = ref([]);
 const selectedProductId = ref(null);
@@ -210,16 +232,40 @@ const handleImport = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
   
+  const formData = new FormData();
+  formData.append('file', file);
+
   try {
     loading.value = true;
-    await importExcel('/production-steps/import', file);
-    alert('Nhập dữ liệu thành công');
-    fetchSteps();
+    const res = await $api.post('/production-steps/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    previewData.value = res.data.data;
+    importErrors.value = res.data.errors;
+    showImportPreview.value = true;
   } catch (err) {
-    alert(err.response?.data?.message || 'Lỗi khi nhập dữ liệu');
+    const msg = err.response?.data?.message || 'Hệ thống không thể đọc nội dung file Excel này. Vui lòng kiểm tra lại định dạng hoặc template.';
+    alert(msg);
   } finally {
     loading.value = false;
     event.target.value = ''; // Reset input
+  }
+};
+
+const handleConfirmImport = async () => {
+  if (previewData.value.length === 0) return;
+  
+  importing.value = true;
+  try {
+    await $api.post('/production-steps/import/confirm', previewData.value);
+    alert('Nhập dữ liệu thành công');
+    showImportPreview.value = false;
+    fetchSteps();
+  } catch (err) {
+    alert(err.response?.data?.message || 'Lỗi khi lưu dữ liệu');
+  } finally {
+    importing.value = false;
   }
 };
 const currentStep = ref({});

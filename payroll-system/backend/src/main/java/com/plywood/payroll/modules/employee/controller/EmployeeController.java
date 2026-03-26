@@ -9,7 +9,7 @@ import com.plywood.payroll.modules.employee.dto.request.EmployeeRequest;
 import com.plywood.payroll.shared.dto.ApiResponse;
 import com.plywood.payroll.modules.employee.dto.response.EmployeeResponse;
 import com.plywood.payroll.modules.employee.dto.request.EmployeeNoteRequest;
-import com.plywood.payroll.modules.employee.dto.response.EmployeeNoteResponse;
+import com.plywood.payroll.modules.employee.dto.response.*;
 import com.plywood.payroll.modules.employee.service.EmployeeService;
 import com.plywood.payroll.modules.excel.service.ExcelService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,9 +38,16 @@ public class EmployeeController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('PRODUCTION_VIEW') or hasAuthority('PAYROLL_VIEW')")
-    @Operation(summary = "Lấy danh sách nhân viên")
-    public ResponseEntity<ApiResponse<List<EmployeeResponse>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, employeeService.getAll()));
+    @Operation(summary = "Lấy danh sách nhân viên (rút gọn/phẳng)")
+    public ResponseEntity<ApiResponse<List<EmployeeListResponse>>> getAll(@RequestParam(value = "search", required = false) String search) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, employeeService.getAll(search)));
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('PRODUCTION_VIEW') or hasAuthority('PAYROLL_VIEW')")
+    @Operation(summary = "Tìm kiếm nhân viên (rút gọn)")
+    public ResponseEntity<ApiResponse<List<EmployeeBasicResponse>>> searchBasic(@RequestParam("search") String search) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, employeeService.searchBasic(search)));
     }
 
     @GetMapping("/{id}")
@@ -131,6 +138,14 @@ public class EmployeeController {
         return ResponseEntity.ok(ApiResponse.success("Nhập dữ liệu thành công " + responses.size() + " nhân viên", responses));
     }
 
+    @PatchMapping("/{id}/zk-device-id")
+    @PreAuthorize("hasAuthority('EMPLOYEE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Cập nhật nhanh ID chấm công")
+    public ResponseEntity<ApiResponse<Void>> updateZkDeviceId(@PathVariable("id") Long id, @RequestBody String zkDeviceId) {
+        employeeService.updateZkDeviceId(id, zkDeviceId);
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_UPDATE, null));
+    }
+
     @PostMapping("/{id}/avatar")
     @PreAuthorize("hasAuthority('EMPLOYEE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Tải lên ảnh đại diện nhân viên")
@@ -159,5 +174,19 @@ public class EmployeeController {
     public ResponseEntity<ApiResponse<Void>> deleteNote(@PathVariable("noteId") Long noteId) {
         employeeService.deleteNote(noteId);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
+    }
+
+    @GetMapping("/{id}/salary-history")
+    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Lấy lịch sử lương của nhân viên")
+    public ResponseEntity<ApiResponse<List<SalaryProcessResponse>>> getSalaryHistory(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, employeeService.getSalaryHistory(id)));
+    }
+
+    @GetMapping("/{id}/team-history")
+    @PreAuthorize("hasAuthority('EMPLOYEE_VIEW') or hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Lấy lịch sử tổ đội của nhân viên")
+    public ResponseEntity<ApiResponse<List<TeamProcessResponse>>> getTeamHistory(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, employeeService.getTeamHistory(id)));
     }
 }

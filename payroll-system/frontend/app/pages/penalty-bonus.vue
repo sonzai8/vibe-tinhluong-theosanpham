@@ -84,10 +84,10 @@
           <tbody class="divide-y divide-slate-100">
             <tr v-for="item in paginatedItems" :key="item.id" class="hover:bg-slate-50/50 transition-all group">
               <td class="px-8 py-5 text-sm font-bold text-slate-500">{{ item.recordDate }}</td>
-              <td class="px-8 py-5 font-black text-slate-900">{{ item.employee?.fullName }}</td>
+              <td class="px-8 py-5 font-black text-slate-900">{{ item.employeeFullName }}</td>
               <td class="px-8 py-5">
-                <span v-if="item.type" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-600">
-                  {{ item.type?.name }}
+                <span v-if="item.typeId" class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-600">
+                  {{ item.typeName }}
                 </span>
                 <span v-else class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-50 text-slate-400">
                   Khác
@@ -240,8 +240,8 @@ const onTypeChange = (typeId) => {
 
 const filteredItems = computed(() => {
   return items.value.filter(item => {
-    const matchDept = !filterDeptId.value || item.employee?.department?.id == filterDeptId.value;
-    const matchTeam = !filterTeamId.value || item.employee?.team?.id == filterTeamId.value;
+    const matchDept = !filterDeptId.value || item.departmentId == filterDeptId.value;
+    const matchTeam = !filterTeamId.value || item.teamId == filterTeamId.value;
     return matchDept && matchTeam;
   });
 });
@@ -261,8 +261,8 @@ watch([filterDeptId, filterTeamId], () => {
 const openModal = (item = null) => {
   if (item) {
     currentId.value = item.id;
-    form.employeeId = item.employee?.id;
-    form.typeId = item.type?.id || null;
+    form.employeeId = item.employeeId;
+    form.typeId = item.typeId || null;
     form.amount = item.amount;
     form.reason = item.reason;
     form.recordDate = item.recordDate;

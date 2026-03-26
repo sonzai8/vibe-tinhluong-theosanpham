@@ -230,6 +230,74 @@
              <UiInput v-model="form.joinDate" type="date" :label="$t('employee.join_date_at_company')" />
              <UiInput v-model="form.insuranceStartDate" type="date" :label="$t('employee.insurance_start_date')" />
           </div>
+
+          <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest mt-10 mb-6 pb-2 border-b border-slate-100">{{ $t('employee.salary_config') }} & {{ $t('common.team') }}</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div class="space-y-1.5">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{{ $t('employee.salary_type') }}</label>
+                <select v-model="form.salaryType" class="w-full bg-slate-50 border border-transparent rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:border-slate-200 transition-all">
+                  <option value="PRODUCT_BASED">{{ $t('employee.salary_type_product') }}</option>
+                  <option value="FIXED_MONTHLY">{{ $t('employee.salary_type_monthly') }}</option>
+                  <option value="FIXED_DAILY">{{ $t('employee.salary_type_daily') }}</option>
+                </select>
+             </div>
+             <div class="space-y-1.5">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{{ $t('common.team') }}</label>
+                <SelectTeam v-model="form.teamId" />
+             </div>
+             <UiInput v-model="form.baseSalaryConfig" type="number" :label="$t('employee.base_salary')" />
+             <UiInput v-model="form.insuranceSalaryConfig" type="number" :label="$t('employee.insurance_salary')" />
+          </div>
+
+          <!-- History Sections -->
+          <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Salary History -->
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xs font-black text-slate-900 uppercase tracking-widest">{{ $t('employee.salary_history') }}</h3>
+                <TrendingUp class="w-4 h-4 text-emerald-500" />
+              </div>
+              <div class="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                <div v-for="item in salaryHistory" :key="item.id" class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm relative overflow-hidden group">
+                  <div v-if="item.current" class="absolute top-0 right-0 px-2 py-0.5 bg-emerald-500 text-[8px] font-black text-white rounded-bl-lg uppercase">
+                    {{ $t('employee.current') }}
+                  </div>
+                  <p class="text-[10px] font-black text-slate-900 uppercase tracking-tight mb-1">
+                    {{ $t(`employee.salary_type_${item.salaryType.toLowerCase().replace('_based', '').replace('_fixed', '')}`) }}
+                  </p>
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-xs font-black text-slate-700">{{ item.baseSalary.toLocaleString() }}đ</span>
+                    <span class="text-[9px] text-slate-400 font-bold">/ BH: {{ item.insuranceSalary.toLocaleString() }}đ</span>
+                  </div>
+                  <p class="text-[9px] font-bold text-slate-400 mt-2">
+                    {{ formatDateShort(item.startDate) }} - {{ item.endDate ? formatDateShort(item.endDate) : $t('employee.current') }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Team History -->
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xs font-black text-slate-900 uppercase tracking-widest">{{ $t('employee.team_history') }}</h3>
+                <Clock class="w-4 h-4 text-primary-500" />
+              </div>
+              <div class="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                <div v-for="item in teamHistory" :key="item.id" class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm relative overflow-hidden">
+                  <div v-if="item.isCurrent" class="absolute top-0 right-0 px-2 py-0.5 bg-primary-500 text-[8px] font-black text-white rounded-bl-lg uppercase">
+                    {{ $t('employee.current') }}
+                  </div>
+                  <p class="text-xs font-black text-slate-700 mb-1">{{ item.team?.name || '---' }}</p>
+                  <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                    {{ item.team?.department?.name }}
+                  </p>
+                  <p class="text-[9px] font-bold text-slate-400 mt-2">
+                    {{ formatDateShort(item.startDate) }} - {{ item.endDate ? formatDateShort(item.endDate) : $t('employee.current') }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -258,6 +326,8 @@ const { $api } = useNuxtApp();
 
 const employee = ref({});
 const notes = ref([]);
+const salaryHistory = ref([]);
+const teamHistory = ref([]);
 const employeeStats = ref({});
 const addingNote = ref(false);
 const saving = ref(false);
@@ -291,6 +361,12 @@ const form = reactive({
   joinDate: '',
   insuranceStartDate: '',
   notes: '',
+  salaryType: 'PRODUCT_BASED',
+  baseSalaryConfig: 0,
+  insuranceSalaryConfig: 0,
+  teamId: null,
+  roleId: null,
+  departmentId: null
 });
 
 const noteForm = reactive({
@@ -315,11 +391,34 @@ const fetchData = async () => {
     });
     
     if (!form.gender) form.gender = 'MALE';
+    
+    // Set Team/Role IDs
+    form.teamId = res.data.team?.id;
+    form.departmentId = res.data.department?.id;
+    form.roleId = res.data.role?.id;
+    form.salaryType = res.data.salaryType || 'PRODUCT_BASED';
+    form.baseSalaryConfig = res.data.baseSalaryConfig || 0;
+    form.insuranceSalaryConfig = res.data.insuranceSalaryConfig || 0;
+
     fetchNotes();
     fetchEmployeeStats();
+    fetchHistory();
   } catch (err) {
     console.error(err);
     triggerError('Lỗi tải dữ liệu', 'Không thể tải thông tin nhân viên này.', err.message);
+  }
+};
+
+const fetchHistory = async () => {
+  try {
+    const [salaryRes, teamRes] = await Promise.all([
+      $api.get(`/employees/${route.params.id}/salary-history`),
+      $api.get(`/employees/${route.params.id}/team-history`)
+    ]);
+    salaryHistory.value = salaryRes.data;
+    teamHistory.value = teamRes.data;
+  } catch (err) {
+    console.error('History fetch error:', err);
   }
 };
 
@@ -372,10 +471,7 @@ const handleSave = async () => {
   try {
     const payload = { 
       ...employee.value, 
-      ...form,
-      departmentId: employee.value.department?.id,
-      teamId: employee.value.team?.id,
-      roleId: employee.value.role?.id
+      ...form
     };
     await $api.put(`/employees/${employee.value.id}`, payload);
     fetchData();
@@ -419,6 +515,15 @@ const formatDate = (dateStr) => {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
+  });
+};
+
+const formatDateShort = (dateStr) => {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
   });
 };
 

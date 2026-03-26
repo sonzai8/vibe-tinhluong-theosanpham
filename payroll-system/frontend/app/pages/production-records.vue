@@ -163,21 +163,21 @@
               <td class="px-8 py-5 text-sm font-bold text-slate-500">{{ r.productionDate }}</td>
               <td class="px-8 py-5 font-black text-slate-900">
                 <div class="flex flex-col">
-                  <span>{{ r.team?.name }}</span>
-                  <span class="text-[10px] text-slate-400 font-black uppercase tracking-tighter">{{ r.team?.productionStep?.name }}</span>
+                  <span>{{ r.teamName }}</span>
+                  <span class="text-[10px] text-slate-400 font-black uppercase tracking-tighter">{{ r.teamStepName }}</span>
                 </div>
               </td>
               <td class="px-8 py-5">
                 <div class="flex flex-col">
-                  <span class="font-bold text-primary-700">{{ r.product?.code }}</span>
+                  <span class="font-bold text-primary-700">{{ r.productCode }}</span>
                   <span class="text-[10px] text-slate-400 font-medium">
-                    {{ r.product?.thickness }}mm x {{ r.product?.length }}m x {{ r.product?.width }}m
+                    {{ r.productThickness }}mm x {{ r.productLength }}m x {{ r.productWidth }}m
                   </span>
                 </div>
               </td>
               <td class="px-8 py-5">
                 <span class="px-2.5 py-1 bg-primary-100 rounded-lg text-[10px] font-black text-primary-700 uppercase tracking-widest">
-                  {{ r.quality?.code }}
+                  {{ r.qualityCode }}
                 </span>
               </td>
               <td class="px-8 py-5 font-black text-slate-900 text-lg">{{ r.quantity?.toLocaleString() }}</td>
@@ -239,7 +239,7 @@
                   <div class="flex flex-col gap-0.5 items-center w-full grow overflow-y-auto no-scrollbar">
                     <div v-for="r in getMatrixCell(team.id, day)" :key="r.id" class="w-full">
                       <div class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md flex justify-between items-center whitespace-nowrap overflow-hidden">
-                        <span class="font-black truncate mr-1">{{ r.product?.code }}</span>
+                        <span class="font-black truncate mr-1">{{ r.productCode }}</span>
                         <span class="text-[8px] font-bold text-slate-400 shrink-0">{{ r.quantity }}</span>
                       </div>
                     </div>
@@ -273,8 +273,8 @@
               <div class="space-y-1.5 rotate-0">
                 <div v-for="r in hoverTooltip.records" :key="r.id" class="flex items-center justify-between text-xs transition-transform transform-gpu">
                   <div class="flex items-center gap-2">
-                    <span class="font-black text-slate-700">{{ r.product?.code }}</span>
-                    <span class="text-[8px] bg-amber-50 text-amber-600 px-1 rounded uppercase font-bold">{{ r.quality?.code }}</span>
+                    <span class="font-black text-slate-700">{{ r.productCode }}</span>
+                    <span class="text-[8px] bg-amber-50 text-amber-600 px-1 rounded uppercase font-bold">{{ r.qualityCode }}</span>
                   </div>
                   <span class="font-bold text-slate-500">{{ r.quantity }}</span>
                 </div>
@@ -499,11 +499,11 @@
             <tbody class="divide-y divide-slate-100">
               <tr v-for="rec in detailContext.items" :key="rec.id" class="hover:bg-slate-50/50">
                 <td class="px-6 py-4">
-                  <div class="font-bold text-sm text-slate-900">{{ rec.product?.code }}</div>
-                  <div class="text-[10px] text-slate-400">{{ rec.product?.thickness }}mm x {{ rec.product?.length }}m x {{ rec.product?.width }}m</div>
+                  <div class="font-bold text-sm text-slate-900">{{ rec.productCode }}</div>
+                  <div class="text-[10px] text-slate-400">{{ rec.productThickness }}mm x {{ rec.productLength }}m x {{ rec.productWidth }}m</div>
                 </td>
                 <td class="px-6 py-4">
-                  <span class="px-2 py-0.5 bg-primary-100 rounded text-[10px] font-black text-primary-700 uppercase">{{ rec.quality?.code }}</span>
+                  <span class="px-2 py-0.5 bg-primary-100 rounded text-[10px] font-black text-primary-700 uppercase">{{ rec.qualityCode }}</span>
                 </td>
                 <td class="px-6 py-4 font-black text-slate-900">{{ rec.quantity?.toLocaleString() }}</td>
                 <td class="px-6 py-4 text-right" v-if="!isPastMonth">
@@ -779,7 +779,7 @@ const getTeamTotalQuantity = (teamId) => {
 const getMatrixCell = (teamId, day) => {
   const dayStr = day < 10 ? `0${day}` : `${day}`;
   const targetDate = `${viewMonth.value}-${dayStr}`;
-  return records.value.filter(r => r.team?.id === teamId && r.productionDate === targetDate);
+  return records.value.filter(r => r.teamId === teamId && r.productionDate === targetDate);
 };
 
 const getMatrixCellQuantity = (teamId, day) => {
@@ -788,7 +788,7 @@ const getMatrixCellQuantity = (teamId, day) => {
 
 const getMatrixCellProducts = (teamId, day) => {
   const items = getMatrixCell(teamId, day);
-  const codes = [...new Set(items.map(i => i.product?.code))];
+  const codes = [...new Set(items.map(i => i.productCode))];
   return codes;
 };
 
@@ -918,15 +918,15 @@ const fetchRecords = () => fetchData();
 const openModal = async (r = null) => {
   if (r) {
     currentId.value = r.id;
-    form.teamId = r.team?.id;
-    form.productId = r.product?.id;
-    form.qualityId = r.quality?.id;
+    form.teamId = r.teamId;
+    form.productId = r.productId;
+    form.qualityId = r.qualityId;
     form.productionDate = r.productionDate;
     form.quantity = r.quantity;
     
     // Load products for this team's step
-    if (r.team?.productionStep?.id) {
-       await fetchStepProducts(r.team.productionStep.id);
+    if (r.teamProductionStepId) {
+       await fetchStepProducts(r.teamProductionStepId);
     }
   } else {
     currentId.value = null;
@@ -1185,9 +1185,9 @@ const validateBulkRecords = () => {
     const row = lines[i];
     const existing = records.value.find(r => 
       r.productionDate === bulkDate.value &&
-      r.team?.id === row.teamId &&
-      r.product?.id === row.productId &&
-      r.quality?.id === row.qualityId
+      r.teamId === row.teamId &&
+      r.productId === row.productId &&
+      r.qualityId === row.qualityId
     );
     if (existing) {
       const teamName = teamOptions.value.find(t => t.value === row.teamId)?.label || 'Tổ';

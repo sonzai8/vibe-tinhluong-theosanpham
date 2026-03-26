@@ -36,10 +36,6 @@ public class ProductionRecordService {
     private final ProductRepository productRepository;
     private final ProductQualityRepository qualityRepository;
     private final StageProductMappingRepository mappingRepository;
-    
-    private final TeamService teamService;
-    private final ProductService productService;
-    private final ProductQualityService qualityService;
 
     public List<ProductionRecordResponse> getByFilters(LocalDate from, LocalDate to, List<Long> departmentIds, List<Long> teamIds) {
         Specification<ProductionRecord> spec = (root, query, cb) -> {
@@ -137,15 +133,30 @@ public class ProductionRecordService {
 
     public ProductionRecordResponse mapToResponse(ProductionRecord entity) {
         if (entity == null) return null;
-        ProductionRecordResponse response = new ProductionRecordResponse();
-        response.setId(entity.getId());
-        response.setProductionDate(entity.getProductionDate());
-        response.setTeam(teamService.mapToResponse(entity.getTeam()));
-        response.setProduct(productService.mapToResponse(entity.getProduct()));
-        response.setQuality(qualityService.mapToResponse(entity.getQuality()));
-        response.setQuantity(entity.getQuantity());
-        response.setCreatedAt(entity.getCreatedAt());
-        response.setUpdatedAt(entity.getUpdatedAt());
-        return response;
+        
+        Team team = entity.getTeam();
+        Product product = entity.getProduct();
+        ProductQuality quality = entity.getQuality();
+        
+        return ProductionRecordResponse.builder()
+                .id(entity.getId())
+                .productionDate(entity.getProductionDate())
+                .teamId(team != null ? team.getId() : null)
+                .teamName(team != null ? team.getName() : null)
+                .teamProductionStepId(team != null && team.getProductionStep() != null ? team.getProductionStep().getId() : null)
+                .teamStepName(team != null && team.getProductionStep() != null ? team.getProductionStep().getName() : null)
+                .productId(product != null ? product.getId() : null)
+                .productCode(product != null ? product.getCode() : null)
+                .productName(product != null ? product.getName() : null)
+                .productThickness(product != null ? product.getThickness() : null)
+                .productLength(product != null ? product.getLength() : null)
+                .productWidth(product != null ? product.getWidth() : null)
+                .qualityId(quality != null ? quality.getId() : null)
+                .qualityCode(quality != null ? quality.getCode() : null)
+                .quantity(entity.getQuantity())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
     }
+
 }

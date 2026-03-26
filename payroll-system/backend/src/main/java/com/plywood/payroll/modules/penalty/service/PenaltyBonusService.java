@@ -1,5 +1,4 @@
 package com.plywood.payroll.modules.penalty.service;
-import com.plywood.payroll.modules.employee.service.EmployeeService;
 
 import com.plywood.payroll.modules.penalty.dto.request.PenaltyBonusRequest;
 import com.plywood.payroll.modules.penalty.dto.response.PenaltyBonusResponse;
@@ -7,6 +6,7 @@ import com.plywood.payroll.modules.penalty.dto.response.PenaltyBonusSummaryRespo
 import com.plywood.payroll.modules.employee.entity.Employee;
 import com.plywood.payroll.modules.penalty.entity.PenaltyBonus;
 import com.plywood.payroll.modules.penalty.entity.PenaltyBonusType;
+import com.plywood.payroll.modules.employee.repository.TeamProcessRepository;
 import com.plywood.payroll.shared.exception.ResourceNotFoundException;
 import com.plywood.payroll.modules.employee.repository.EmployeeRepository;
 import com.plywood.payroll.modules.penalty.repository.PenaltyBonusRepository;
@@ -29,7 +29,7 @@ public class PenaltyBonusService {
     private final PenaltyBonusRepository penaltyBonusRepository;
     private final PenaltyBonusTypeRepository penaltyBonusTypeRepository;
     private final EmployeeRepository employeeRepository;
-    private final EmployeeService employeeService;
+    private final TeamProcessRepository teamProcessRepository;
 
     public List<PenaltyBonusResponse> getAll() {
         return penaltyBonusRepository.findAll().stream()
@@ -93,16 +93,22 @@ public class PenaltyBonusService {
 
     public PenaltyBonusResponse mapToResponse(PenaltyBonus entity) {
         if (entity == null) return null;
-        PenaltyBonusResponse response = new PenaltyBonusResponse();
-        response.setId(entity.getId());
-        response.setEmployee(employeeService.mapToResponse(entity.getEmployee()));
-        response.setRecordDate(entity.getRecordDate());
-        response.setType(entity.getType());
-        response.setAmount(entity.getAmount());
-        response.setReason(entity.getReason());
-        response.setCreatedAt(entity.getCreatedAt());
-        response.setUpdatedAt(entity.getUpdatedAt());
-        return response;
+        
+        Employee emp = entity.getEmployee();
+        
+        return PenaltyBonusResponse.builder()
+                .id(entity.getId())
+                .employeeId(emp != null ? emp.getId() : null)
+                .employeeFullName(emp != null ? emp.getFullName() : null)
+                .employeeCode(emp != null ? emp.getCode() : null)
+                .employeeDepartmentId(emp != null && emp.getDepartment() != null ? emp.getDepartment().getId() : null)
+                .recordDate(entity.getRecordDate())
+                .type(entity.getType())
+                .amount(entity.getAmount())
+                .reason(entity.getReason())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
     }
 
     public List<PenaltyBonusSummaryResponse> getSummary(LocalDate startDate, LocalDate endDate, Long departmentId, Long teamId) {
@@ -138,8 +144,9 @@ public class PenaltyBonusService {
                     .employeeId(emp.getId())
                     .employeeCode(emp.getCode())
                     .employeeName(emp.getFullName())
-                    .departmentName(emp.getDepartment() != null ? emp.getDepartment().getName() : (emp.getTeam() != null && emp.getTeam().getDepartment() != null ? emp.getTeam().getDepartment().getName() : "N/A"))
-                    .teamName(emp.getTeam() != null ? emp.getTeam().getName() : "N/A")
+                    .departmentName(emp.getDepartment() != null ? emp.getDepartment().getName() : "N/A")
+                    .teamName(teamProcessRepository.findEffectiveByDate(emp.getId(), endDate)
+                        .map(tp -> tp.getTeam().getName()).orElse("N/A"))
                     .totalPenalty(totalPenalty)
                     .totalBonus(totalBonus)
                     .netAmount(totalBonus.add(totalPenalty))

@@ -1,30 +1,32 @@
 {
   "menu": {
-    "system": "Hệ thống",
+    "overview_reports": "Tổng quan & Báo cáo",
     "dashboard": "Tổng quan CMS",
-    "attendance": "Quản lý Chấm công",
-    "attendance_definitions": "Danh mục Loại công",
-    "penalty_bonus_types": "Định nghĩa Loại Thưởng/Phạt",
-    "production_operation": "Quản lý sản lượng",
-    "team_production": "Sản lượng theo tổ",
-    "individual_production": "Sản lượng cá nhân",
     "payroll": "Bảng lương Tổng",
-    "human_resources": "Nhân sự",
+    "hr_mgmt": "Quản lý Nhân sự",
     "employees": "Danh sách Nhân viên",
     "departments": "Phòng ban công ty",
     "positions": "Xây dựng Chức vụ",
     "teams": "Tổ đội sản xuất",
-    "production_mgmt": "Sản xuất",
-    "products": "Danh mục Sản phẩm",
-    "product_units": "Đơn vị sản phẩm",
-    "coating_options": "Tùy chọn phủ phim",
-    "quality_layers": "Định Nghĩa Lớp Gỗ",
-    "product_qualities": "Cấu Hình Chất lượng",
-    "production_steps": "Công đoạn vận hành",
+    "salary_config_process": "Quản lý Lịch sử Lương",
+    "attendance_rewards": "Chấm công & Thưởng phạt",
+    "attendance": "Quản lý Chấm công",
     "penalty_bonus": "Khen thưởng / Kỷ luật",
-    "config_pricing": "Cấu hình & Giá",
-    "unit_prices": "Thiết lập Đơn giá",
-    "payroll_config": "Cấu hình Chuyên cần"
+    "attendance_definitions": "Danh mục Loại công",
+    "penalty_bonus_types": "Loại Thưởng/Phạt",
+    "production_ops": "Vận hành Sản xuất",
+    "team_production": "Sản lượng theo tổ",
+    "individual_production": "Sản lượng cá nhân",
+    "production_records": "Nhật ký sản xuất",
+    "system_catalog": "Danh mục Hệ thống",
+    "products": "Sản phẩm",
+    "product_units": "Đơn vị tính",
+    "coating_options": "Phủ phim",
+    "quality_layers": "Lớp gỗ",
+    "product_qualities": "Chất lượng",
+    "production_steps": "Công đoạn",
+    "unit_prices": "Đơn giá sản phẩm",
+    "payroll_config": "Cấu hình chung"
   },
   "dashboard": {
     "title": "Tổng quan CMS",
@@ -96,7 +98,8 @@
     "confirm": "Xác nhận",
     "full_month": "Cả tháng",
     "total": "Tổng cộng",
-    "update": "Cập nhật"
+    "update": "Cập nhật",
+    "no_team_assigned": "Cô đơn"
   },
   "penalty_bonus_types": {
     "title": "Định nghĩa Loại Thưởng/Phạt",
@@ -198,7 +201,21 @@
     "stats_loading": "Đang tải thống kê...",
     "stats_history": "Lịch sử thưởng phạt",
     "stats_no_history": "Chưa có bản ghi thưởng phạt nào",
-    "stats_calculation_note": "Khấu trừ vào lương thực nhận"
+    "stats_calculation_note": "Khấu trừ vào lương thực nhận",
+    "salary_config": "Cấu hình lương",
+    "salary_type": "Loại lương",
+    "salary_type_product": "Theo sản phẩm",
+    "salary_type_monthly": "Lương tháng cố định",
+    "salary_type_daily": "Lương ngày cố định",
+    "base_salary": "Mức lương cơ bản",
+    "insurance_salary": "Mức đóng bảo hiểm",
+    "insurance_salary_actual": "Lương bảo hiểm",
+    "cash_salary": "Lương tiền mặt",
+    "salary_history": "Lịch sử lương",
+    "team_history": "Lịch sử tổ đội",
+    "effective_date": "Ngày hiệu lực",
+    "end_date": "Ngày kết thúc",
+    "current": "Hiện tại"
   },
   "product": {
     "title": "Danh mục Sản phẩm",
@@ -354,5 +371,36 @@
     "no_layers_alert": "Vui lòng thêm ít nhất một lớp lỗi cho phân loại này.",
     "delete_confirm": "Bạn có chắc chắn muốn xóa phân loại chất lượng này?",
     "empty_list": "Chưa có phân loại chất lượng nào."
+  },
+  "salary_processes": {
+    "title": "Quản lý Lịch sử Lương",
+    "subtitle": "Theo dõi và điều chỉnh cấu hình lương của nhân viên theo thời gian",
+    "add_new": "Thêm cấu hình mới",
+    "table": {
+      "employee": "Nhân viên",
+      "team": "Tổ đội",
+      "type": "Loại lương",
+      "base": "Lương cơ bản",
+      "insurance": "Lương bảo hiểm",
+      "start": "Ngày bắt đầu",
+      "end": "Ngày kết thúc",
+      "active": "Đang áp dụng",
+      "actions": "Thao tác"
+    },
+    "filters": {
+      "search": "Tìm kiếm nhân viên...",
+      "team": "Tất cả tổ đội",
+      "employee": "Tất cả nhân viên"
+    },
+    "validation": {
+      "active_conflict": "Bản ghi đang áp dụng phải có ngày bắt đầu và kết thúc hợp lệ, không chồng chéo.",
+      "date_required": "Vui lòng chọn ngày hiệu lực."
+    },
+    "warning": {
+      "active_exists": "Nhân viên này đã có một bản ghi lương đang áp dụng. Nếu bạn lưu bản ghi mới này, bản ghi cũ sẽ tự động được đóng vào ngày đầu tiên của tháng sau.",
+      "confirm_save": "Xác nhận lưu thay đổi?",
+      "delete_confirm": "Bạn có chắc chắn muốn xóa bản ghi lịch sử lương này không? Hành động này không thể hoàn tác.",
+      "deactivate_confirm": "Xác nhận dừng áp dụng bản ghi lương này? Ngày kết thúc sẽ được đặt thành hôm nay."
+    }
   }
 }

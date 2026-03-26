@@ -21,4 +21,7 @@ public class PayrollItemResponse {
     private BigDecimal benefitSalary;
     private BigDecimal totalPenaltyBonus;
     private BigDecimal totalSalary;
+
+    private BigDecimal insuranceSalary;
+    private BigDecimal cashSalary;
 }

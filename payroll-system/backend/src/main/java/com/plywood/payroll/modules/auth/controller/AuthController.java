@@ -12,6 +12,10 @@ import com.plywood.payroll.modules.employee.repository.EmployeeRepository;
 import com.plywood.payroll.modules.organization.repository.DepartmentRepository;
 import com.plywood.payroll.modules.organization.repository.TeamRepository;
 import com.plywood.payroll.modules.organization.repository.RoleRepository;
+import com.plywood.payroll.modules.employee.entity.SalaryProcess;
+import com.plywood.payroll.modules.employee.entity.TeamProcess;
+import com.plywood.payroll.modules.employee.repository.SalaryProcessRepository;
+import com.plywood.payroll.modules.employee.repository.TeamProcessRepository;
 import com.plywood.payroll.shared.security.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,6 +41,8 @@ public class AuthController {
     private final DepartmentRepository departmentRepository;
     private final TeamRepository teamRepository;
     private final RoleRepository roleRepository;
+    private final SalaryProcessRepository salaryProcessRepository;
+    private final TeamProcessRepository teamProcessRepository;
 
     @PostMapping("/login")
     @Operation(summary = "Đăng nhập hệ thống", description = "Đăng nhập với username và password để nhận JWT Token")
@@ -122,17 +128,33 @@ public class AuthController {
                 .filter(d -> d.getName().equals("Mặc định"))
                 .findFirst().ifPresent(emp::setDepartment);
 
-        teamRepository.findAll().stream()
-                .filter(t -> t.getName().equals("Mặc định"))
-                .findFirst().ifPresent(emp::setTeam);
-
         roleRepository.findAll().stream()
                 .filter(r -> r.getName().equals("Nhân viên"))
                 .findFirst().ifPresent(emp::setRole);
 
-        employeeRepository.save(emp);
+        Employee saved = employeeRepository.save(emp);
+
+        // Tạo Initial Salary History
+        SalaryProcess sp = new SalaryProcess();
+        sp.setEmployee(saved);
+        sp.setSalaryType(com.plywood.payroll.modules.employee.entity.SalaryType.PRODUCT_BASED);
+        sp.setBaseSalary(java.math.BigDecimal.ZERO);
+        sp.setInsuranceSalary(java.math.BigDecimal.ZERO);
+        sp.setStartDate(java.time.LocalDate.now());
+        salaryProcessRepository.save(sp);
+
+        // Tạo Initial Team History
+        teamRepository.findAll().stream()
+                .filter(t -> t.getName().equals("Mặc định"))
+                .findFirst().ifPresent(t -> {
+                    TeamProcess tp = new TeamProcess();
+                    tp.setEmployee(saved);
+                    tp.setTeam(t);
+                    tp.setStartDate(java.time.LocalDate.now());
+                    teamProcessRepository.save(tp);
+                });
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(MessageConstants.SUCCESS_REGISTER, emp));
+                .body(ApiResponse.success(MessageConstants.SUCCESS_REGISTER, saved));
     }
 }

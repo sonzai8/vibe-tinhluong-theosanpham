@@ -6,6 +6,10 @@ import com.plywood.payroll.modules.organization.repository.DepartmentRepository;
 import com.plywood.payroll.modules.employee.repository.EmployeeRepository;
 import com.plywood.payroll.modules.production.entity.ProductionStep;
 import com.plywood.payroll.modules.organization.entity.Role;
+import com.plywood.payroll.modules.employee.entity.SalaryProcess;
+import com.plywood.payroll.modules.employee.entity.TeamProcess;
+import com.plywood.payroll.modules.employee.repository.SalaryProcessRepository;
+import com.plywood.payroll.modules.employee.repository.TeamProcessRepository;
 import com.plywood.payroll.modules.organization.entity.Department;
 import com.plywood.payroll.modules.organization.entity.Team;
 import com.plywood.payroll.modules.employee.entity.Employee;
@@ -20,6 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -33,6 +38,8 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final TeamRepository teamRepository;
     private final RoleRepository roleRepository;
     private final EmployeeRepository employeeRepository;
+    private final SalaryProcessRepository salaryProcessRepository;
+    private final TeamProcessRepository teamProcessRepository;
     private final PasswordEncoder passwordEncoder;
 
     public static final String DEFAULT_DEPT = "Phòng Chờ";
@@ -127,12 +134,27 @@ public class DatabaseSeeder implements CommandLineRunner {
             admin.setDepartment(defDept);
             admin.setRole(adminRole);
             
-            // Tìm team mặc định để gán
+            Employee savedAdmin = employeeRepository.save(admin);
+
+            // Seeding Initial History for Admin
+            SalaryProcess sp = new SalaryProcess();
+            sp.setEmployee(savedAdmin);
+            sp.setSalaryType(com.plywood.payroll.modules.employee.entity.SalaryType.FIXED_MONTHLY);
+            sp.setBaseSalary(new BigDecimal("20000000"));
+            sp.setInsuranceSalary(new BigDecimal("5000000"));
+            sp.setStartDate(LocalDate.now());
+            salaryProcessRepository.save(sp);
+
             teamRepository.findAll().stream()
                 .filter(t -> t.getName().equals(DEFAULT_TEAM))
-                .findFirst().ifPresent(admin::setTeam);
+                .findFirst().ifPresent(t -> {
+                    TeamProcess tp = new TeamProcess();
+                    tp.setEmployee(savedAdmin);
+                    tp.setTeam(t);
+                    tp.setStartDate(LocalDate.now());
+                    teamProcessRepository.save(tp);
+                });
 
-            employeeRepository.save(admin);
             log.info("Supper Admin account created: {}/{}", ADMIN_USER, ADMIN_PASS);
         }
 

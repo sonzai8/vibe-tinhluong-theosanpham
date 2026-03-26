@@ -201,27 +201,27 @@
                     <td class="px-8 py-5">
                       <div class="flex items-center gap-4">
                         <div class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-black text-slate-400 group-hover:bg-primary-600 group-hover:text-white transition-all shadow-sm">
-                          {{ att.employee?.fullName[0] }}
+                          {{ att.employeeFullName[0] }}
                         </div>
                         <div>
-                          <p class="font-black text-slate-900">{{ att.employee?.fullName }}</p>
-                          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{{ att.employee?.code }}</p>
+                          <p class="font-black text-slate-900">{{ att.employeeFullName }}</p>
+                          <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{{ att.employeeCode }}</p>
                         </div>
                       </div>
                     </td>
                     <td class="px-8 py-5">
-                      <span v-if="att.originalTeam" class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase">{{ att.originalTeam?.name }}</span>
+                      <span v-if="att.originalTeamName" class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase">{{ att.originalTeamName }}</span>
                       <span v-else class="text-slate-300 text-xs italic">{{ $t('attendance.no_team_assigned') || 'Chưa gán tổ' }}</span>
                     </td>
                     <td class="px-8 py-5">
-                      <span v-if="att.actualTeam" :class="`px-3 py-1 rounded-full text-[10px] font-black uppercase ${att.actualTeam?.id !== att.originalTeam?.id ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`">
-                        {{ att.actualTeam?.name }}
-                        <span v-if="att.actualTeam?.id !== att.originalTeam?.id" class="ml-1 text-[8px] opacity-70">({{ $t('attendance.borrowed') }})</span>
+                      <span v-if="att.actualTeamName" :class="`px-3 py-1 rounded-full text-[10px] font-black uppercase ${att.actualTeamId !== att.originalTeamId ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`">
+                        {{ att.actualTeamName }}
+                        <span v-if="att.actualTeamId !== att.originalTeamId" class="ml-1 text-[8px] opacity-70">({{ $t('attendance.borrowed') }})</span>
                       </span>
                     </td>
                     <td class="px-8 py-5">
-                       <span v-if="att.attendanceDefinition" class="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-[10px] font-black uppercase">
-                         {{ att.attendanceDefinition?.code }} - {{ att.attendanceDefinition?.name }}
+                       <span v-if="att.attendanceDefinitionCode" class="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-[10px] font-black uppercase">
+                         {{ att.attendanceDefinitionCode }} - {{ att.attendanceDefinitionName }}
                        </span>
                     </td>
                     <!-- <td class="px-8 py-5">
@@ -288,7 +288,7 @@
                           <p class="text-xs font-black text-slate-900 line-clamp-1">{{ emp.fullName }}</p>
                           <div class="flex items-center gap-2">
                              <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ emp.code }}</p>
-                             <span v-if="emp.team" class="text-[8px] font-black text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded uppercase">{{ emp.team.name }}</span>
+                             <span v-if="emp.teamName" class="text-[8px] font-black text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded uppercase">{{ emp.teamName }}</span>
                           </div>
                         </div>
                       </div>
@@ -444,7 +444,7 @@
                    <div class="font-bold text-slate-900 text-sm">{{ emp.fullName }}</div>
                    <div class="text-[10px] font-black text-slate-400">{{ emp.code }}</div>
                  </td>
-                 <td class="px-6 py-3 text-xs text-slate-600">{{ emp.team ? emp.team.name : $t('attendance.no_team_assigned') }}</td>
+                 <td class="px-6 py-3 text-xs text-slate-600">{{ emp.teamName ? emp.teamName : $t('attendance.no_team_assigned') }}</td>
                 <td class="px-6 py-3 text-xs text-slate-500">{{ emp.phone || 'N/A' }}</td>
               </tr>
             </tbody>
@@ -472,7 +472,7 @@
         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6 space-y-2">
           <div class="flex justify-between text-sm">
             <span class="text-slate-500">{{ $t('attendance.employee') }}:</span>
-            <span class="font-bold text-slate-900">{{ duplicateRecord?.employee?.fullName }}</span>
+            <span class="font-bold text-slate-900">{{ duplicateRecord?.employeeFullName }}</span>
           </div>
           <div class="flex justify-between text-sm">
             <span class="text-slate-500">{{ $t('production.date') }}:</span>
@@ -480,7 +480,7 @@
           </div>
           <div class="flex justify-between text-sm">
             <span class="text-slate-500">{{ $t('attendance.actual_team') }}:</span>
-            <span class="font-bold text-slate-900">{{ duplicateRecord?.actualTeam?.name || $t('common.unknown') }}</span>
+            <span class="font-bold text-slate-900">{{ duplicateRecord?.actualTeamName || $t('common.unknown') }}</span>
           </div>
         </div>
 
@@ -553,16 +553,16 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                  <tr v-for="emp in bulkEmployees" :key="emp.employee.id" :class="{'bg-primary-50/10': emp.selected, 'hover:bg-slate-50': true}">
+                  <tr v-for="emp in bulkEmployees" :key="emp.id" :class="{'bg-primary-50/10': emp.selected, 'hover:bg-slate-50': true}">
                     <td class="px-4 py-3 text-center">
                       <input type="checkbox" v-model="emp.selected" class="rounded text-primary-600 focus:ring-primary-500" />
                     </td>
                     <td class="px-4 py-3">
-                      <div class="font-bold text-sm text-slate-900">{{ emp.employee.fullName }}</div>
-                      <div class="text-[10px] text-slate-500 font-bold uppercase">{{ emp.employee.code }}</div>
+                      <div class="font-bold text-sm text-slate-900">{{ emp.fullName }}</div>
+                      <div class="text-[10px] text-slate-500 font-bold uppercase">{{ emp.code }}</div>
                     </td>
                     <td class="px-4 py-3">
-                      <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">{{ emp.originalTeam?.name || $t('attendance.no_team_assigned') }}</span>
+                      <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">{{ emp.originalTeamName || $t('attendance.no_team_assigned') }}</span>
                     </td>
                     <td class="px-4 py-3">
                       <select v-model="emp.actualTeamId" class="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
@@ -818,7 +818,7 @@ const fetchData = async () => {
     } else if (matrixScope.value === 'month') {
       const [year, month] = viewMonth.value.split('-').map(Number);
       const firstDay = new Date(year, month - 1, 1);
-      const lastDay = new Date(year, month, 0);
+      const lastDay = new Date(year, month, 1);
       
       params.append('fromDate', firstDay.toISOString().split('T')[0]);
       params.append('toDate', lastDay.toISOString().split('T')[0]);
@@ -891,19 +891,17 @@ const isFilterActive = (val) => val && val !== 'null' && val !== '';
 const filteredAttendances = computed(() => {
   return attendances.value.filter(a => {
     const matchSearch = !search.value || 
-                       a.employee?.fullName.toLowerCase().includes(search.value.toLowerCase()) ||
-                       a.employee?.code.toLowerCase().includes(search.value.toLowerCase());
+                       a.employeeFullName.toLowerCase().includes(search.value.toLowerCase()) ||
+                       a.employeeCode.toLowerCase().includes(search.value.toLowerCase());
                        
-    const deptId = a.employee?.department?.id || a.employee?.team?.department?.id;
-    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(deptId);
+    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(a.employeeDepartmentId);
     
-    const teamId = a.employee?.team?.id || a.originalTeam?.id;
-    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
+    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(a.employeeTeamId);
     
     return matchSearch && matchDept && matchTeam;
   }).sort((a, b) => {
-    const teamA = a.actualTeam?.name || a.originalTeam?.name || '';
-    const teamB = b.actualTeam?.name || b.originalTeam?.name || '';
+    const teamA = a.actualTeamName || a.originalTeamName || '';
+    const teamB = b.actualTeamName || b.originalTeamName || '';
     return teamA.localeCompare(teamB, 'vi');
   });
 });
@@ -916,28 +914,26 @@ const filteredEmployees = computed(() => {
                        e.fullName.toLowerCase().includes(search.value.toLowerCase()) ||
                        e.code.toLowerCase().includes(search.value.toLowerCase());
 
-    const deptId = e.department?.id || e.team?.department?.id;
-    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(deptId);
+    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(e.departmentId);
     
-    const teamId = e.team?.id;
-    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
+    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(e.teamId);
     
     return matchSearch && matchDept && matchTeam;
   }).sort((a, b) => {
-    const teamA = a.team?.name || '';
-    const teamB = b.team?.name || '';
+    const teamA = a.teamName || '';
+    const teamB = b.teamName || '';
     return teamA.localeCompare(teamB, 'vi');
   });
 });
 
 const getAttendanceMatrixValue = (empId, targetDate) => {
-  const record = attendances.value.find(a => a.employee?.id === empId && a.attendanceDate === targetDate);
+  const record = attendances.value.find(a => a.employeeId === empId && a.attendanceDate === targetDate);
   if (record) {
     return { 
       status: 'PRESENT', 
       id: record.id, 
-      defCode: record.attendanceDefinition?.code,
-      defName: record.attendanceDefinition?.name
+      defCode: record.attendanceDefinitionCode,
+      defName: record.attendanceDefinitionName
     };
   }
   
@@ -967,16 +963,16 @@ const performAttendanceAction = async (empId, targetDate, defId) => {
         await $api.put(`/attendances/${id}`, {
           employeeId: empId,
           attendanceDate: targetDate,
-          originalTeamId: emp?.team?.id || null,
-          actualTeamId: record?.actualTeam?.id || emp?.team?.id || null,
+          originalTeamId: emp?.teamId || null,
+          actualTeamId: record?.actualTeamId || emp?.teamId || null,
           attendanceDefinitionId: defId
         });
       } else {
         await $api.post('/attendances', {
           employeeId: empId,
           attendanceDate: targetDate,
-          originalTeamId: emp?.team?.id || null,
-          actualTeamId: emp?.team?.id || null,
+          originalTeamId: emp?.teamId || null,
+          actualTeamId: emp?.teamId || null,
           attendanceDefinitionId: defId
         });
       }
@@ -991,13 +987,14 @@ const performAttendanceAction = async (empId, targetDate, defId) => {
 };
 
 const getEmployeeTotalAttendance = (empId) => {
-  return attendances.value
-    .filter(a => a.employee?.id === empId)
-    .reduce((sum, a) => sum + (a.attendanceDefinition?.multiplier || 1.0), 0);
+  const total = attendances.value
+    .filter(a => a.employeeId === empId)
+    .reduce((sum, a) => sum + (a.attendanceDefinitionMultiplier || 0), 0);
+  return Math.round(total * 10) / 10;
 };
 
 const absentEmployees = computed(() => {
-  const attendedIds = new Set(attendances.value.map(a => a.employee?.id));
+  const attendedIds = new Set(attendances.value.map(a => a.employeeId));
   return employees.value.filter(e => {
     // Chỉ lấy nhân viên Đang làm việc (ACTIVE)
     if (e.status !== 'ACTIVE') return false;
@@ -1005,11 +1002,9 @@ const absentEmployees = computed(() => {
     if (attendedIds.has(e.id)) return false;
     
     // Áp dụng bộ lọc phòng ban/tổ đội nếu đang chọn
-    const deptId = e.department?.id || e.team?.department?.id;
-    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(deptId);
+    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(e.departmentId);
     
-    const teamId = e.team?.id;
-    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
+    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(e.teamId);
     
     return matchDept && matchTeam;
   });
@@ -1018,10 +1013,8 @@ const absentEmployees = computed(() => {
 const statistics = computed(() => {
   const activeEmployees = employees.value.filter(e => {
     if (e.status !== 'ACTIVE') return false;
-    const deptId = e.department?.id || e.team?.department?.id;
-    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(deptId);
-    const teamId = e.team?.id;
-    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(teamId);
+    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(e.departmentId);
+    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(e.teamId);
     return matchDept && matchTeam;
   });
 
@@ -1035,7 +1028,12 @@ const statistics = computed(() => {
   } else {
     // Trong chế độ ma trận (tuần hoặc tháng)
     // Tính tổng số công thực tế dựa trên multiplier
-    const presentCount = filteredAttendances.value.reduce((sum, a) => sum + (a.attendanceDefinition?.multiplier || 1.0), 0);
+    const presentCount = attendances.value
+      .filter(a => {
+         const emp = activeEmployees.find(e => e.id === a.employeeId);
+         return !!emp;
+      })
+      .reduce((sum, a) => sum + (a.attendanceDefinitionMultiplier || 0), 0);
     
     // Tính tổng số công tiềm năng (Số nhân viên * Số ngày làm việc không phải Chủ Nhật)
     const workingDaysCount = displayDays.value.filter(d => !d.isSunday).length;
@@ -1054,11 +1052,11 @@ const openModal = (att = null) => {
   // Nếu att có chứa id thực sự từ database, thì là chế độ SỬA
   if (att && typeof att === 'object' && att.id) {
     currentId.value = att.id;
-    form.employeeId = att.employee?.id;
-    form.originalTeamId = att.originalTeam?.id || null;
-    form.actualTeamId = att.actualTeam?.id || null;
+    form.employeeId = att.employeeId;
+    form.originalTeamId = att.originalTeamId || null;
+    form.actualTeamId = att.actualTeamId || null;
     form.attendanceDate = att.attendanceDate;
-    form.attendanceDefinitionId = att.attendanceDefinition?.id || null;
+    form.attendanceDefinitionId = att.attendanceDefinitionId || null;
   } else {
     currentId.value = null;
     form.employeeId = null;
@@ -1077,9 +1075,9 @@ const onEmployeeSelect = (empId) => {
     return;
   }
   const emp = employees.value.find(e => e.id == empId);
-  if (emp && emp.team) {
-    form.originalTeamId = emp.team.id;
-    form.actualTeamId = emp.team.id;
+  if (emp && emp.teamId) {
+    form.originalTeamId = emp.teamId;
+    form.actualTeamId = emp.teamId;
   }
 };
 
@@ -1092,7 +1090,7 @@ const handleSubmit = async () => {
   // Validate duplicate on frontend (if same date)
   if (!currentId.value) {
     const existing = attendances.value.find(
-      a => a.employee?.id == form.employeeId && a.attendanceDate === form.attendanceDate
+      a => a.employeeId == form.employeeId && a.attendanceDate === form.attendanceDate
     );
     if (existing) {
       duplicateRecord.value = existing;
@@ -1134,7 +1132,7 @@ const openBulkModal = () => {
 const loadBulkEmployees = () => {
   const attendedIds = new Set(attendances.value
     .filter(a => a.attendanceDate === filterDate.value)
-    .map(a => a.employee?.id)
+    .map(a => a.employeeId)
   );
   
   bulkEmployees.value = employees.value
@@ -1142,16 +1140,19 @@ const loadBulkEmployees = () => {
       if (e.status !== 'ACTIVE') return false;
       if (attendedIds.has(e.id)) return false;
       
-      const matchDept = !isFilterActive(bulkForm.departmentId) || (e.department?.id || e.team?.department?.id) == bulkForm.departmentId;
-      const matchTeam = !isFilterActive(bulkForm.teamId) || e.team?.id == bulkForm.teamId;
+      const matchDept = !isFilterActive(bulkForm.departmentId) || e.departmentId == bulkForm.departmentId;
+      const matchTeam = !isFilterActive(bulkForm.teamId) || e.teamId == bulkForm.teamId;
       
       return matchDept && matchTeam;
     })
     .map(e => ({
       selected: true,
-      employee: e,
-      originalTeam: e.team,
-      actualTeamId: e.team?.id || null
+      id: e.id,
+      fullName: e.fullName,
+      code: e.code,
+      originalTeamId: e.teamId,
+      originalTeamName: e.teamName,
+      actualTeamId: e.teamId || null
     }));
 };
 
@@ -1183,13 +1184,13 @@ const onBorrowedEmployeeSelect = (empId, index) => {
 };
 
 const availableBorrowedEmployees = (index) => {
-  const attendedIds = new Set(attendances.value.map(a => a.employee?.id));
-  const primaryIds = new Set(bulkEmployees.value.map(e => e.employee.id));
+  const attendedIds = new Set(attendances.value.map(a => a.employeeId));
+  const primaryIds = new Set(bulkEmployees.value.map(e => e.id));
   const otherBorrowedIds = new Set(borrowedEmployees.value.filter((b, i) => i !== index && b.employeeId).map(b => b.employeeId));
   
   return employees.value
     .filter(e => e.status === 'ACTIVE' && !attendedIds.has(e.id) && !primaryIds.has(e.id) && !otherBorrowedIds.has(e.id))
-    .map(e => ({ value: e.id, label: `${e.fullName} (${e.code}) - Tổ: ${e.team?.name || 'N/A'}` }));
+    .map(e => ({ value: e.id, label: `${e.fullName} (${e.code}) - Tổ: ${e.teamName || 'N/A'}` }));
 };
 
 const handleBulkSubmit = async () => {
@@ -1197,8 +1198,8 @@ const handleBulkSubmit = async () => {
   
   bulkEmployees.value.filter(e => e.selected).forEach(e => {
     payload.push({
-      employeeId: e.employee.id,
-      originalTeamId: e.originalTeam?.id || null,
+      employeeId: e.id,
+      originalTeamId: e.originalTeamId || null,
       actualTeamId: e.actualTeamId,
       attendanceDate: filterDate.value,
       attendanceDefinitionId: bulkForm.attendanceDefinitionId
@@ -1209,7 +1210,7 @@ const handleBulkSubmit = async () => {
     const emp = employees.value.find(e => e.id == b.employeeId);
     payload.push({
       employeeId: b.employeeId,
-      originalTeamId: emp?.team?.id || null,
+      originalTeamId: emp?.teamId || null,
       actualTeamId: b.actualTeamId,
       attendanceDate: filterDate.value,
       attendanceDefinitionId: bulkForm.attendanceDefinitionId

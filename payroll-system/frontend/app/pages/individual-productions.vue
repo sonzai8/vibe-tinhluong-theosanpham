@@ -130,7 +130,7 @@
                     <p class="font-black text-slate-900 line-clamp-1">{{ emp.fullName }}</p>
                     <div class="flex items-center gap-2">
                       <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ emp.code }}</p>
-                      <span v-if="emp.team" class="text-[8px] font-black text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded uppercase">{{ emp.team.name }}</span>
+                      <span v-if="emp.teamName" class="text-[8px] font-black text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded uppercase">{{ emp.teamName }}</span>
                     </div>
                   </div>
                 </div>
@@ -144,7 +144,7 @@
                 <td v-for="d in days" :key="d" :class="['p-2 text-center border-r border-slate-50 relative group/cell', isSunday(d) ? 'bg-red-50/20' : '']">
                   <div v-if="getProduction(emp.id, d)" class="space-y-0.5">
                     <div class="font-black text-slate-700">{{ formatNumber(getProduction(emp.id, d).quantity) }}</div>
-                    <div v-if="getProduction(emp.id, d).actualTeamName !== emp.team?.name" class="text-[7px] text-amber-600 font-black uppercase tracking-tighter bg-amber-50 px-1 rounded inline-block">
+                    <div v-if="getProduction(emp.id, d).actualTeamName !== emp.teamName" class="text-[7px] text-amber-600 font-black uppercase tracking-tighter bg-amber-50 px-1 rounded inline-block">
                       {{ getProduction(emp.id, d).actualTeamName }}
                     </div>
                   </div>
@@ -258,8 +258,8 @@ const filteredEmployees = computed(() => {
   if (!Array.isArray(employees.value)) return [];
   return employees.value.filter(e => {
     if (!e || e.status !== 'ACTIVE') return false;
-    const matchDept = !filter.departmentId || (e.department?.id || e.team?.department?.id) == filter.departmentId;
-    const matchTeam = !filter.teamId || e.team?.id == filter.teamId;
+    const matchDept = !filter.departmentId || e.departmentId == filter.departmentId;
+    const matchTeam = !filter.teamId || e.teamId == filter.teamId;
     return matchDept && matchTeam;
   });
 });

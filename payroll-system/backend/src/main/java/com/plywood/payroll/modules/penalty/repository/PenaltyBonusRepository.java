@@ -13,6 +13,7 @@ public interface PenaltyBonusRepository extends JpaRepository<PenaltyBonus, Long
 
     @org.springframework.data.jpa.repository.Query("SELECT pb FROM PenaltyBonus pb WHERE pb.recordDate BETWEEN :startDate AND :endDate " +
             "AND (:departmentId IS NULL OR pb.employee.department.id = :departmentId) " +
-            "AND (:teamId IS NULL OR pb.employee.team.id = :teamId)")
+            "AND (:teamId IS NULL OR EXISTS (SELECT tp FROM TeamProcess tp WHERE tp.employee = pb.employee AND tp.team.id = :teamId " +
+            "AND tp.startDate <= pb.recordDate AND (tp.endDate IS NULL OR tp.endDate >= pb.recordDate)))")
     List<PenaltyBonus> findByFilters(java.time.LocalDate startDate, java.time.LocalDate endDate, Long departmentId, Long teamId);
 }

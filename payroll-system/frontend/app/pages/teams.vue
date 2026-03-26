@@ -33,7 +33,6 @@
           Thêm tổ mới
         </UiButton>
       </div>
-    
     <!-- Common Error Modal -->
     <UiErrorModal
       :show="showErrorModal"
@@ -41,6 +40,18 @@
       :message="errorMessage"
       :detail="errorDetail"
       @close="showErrorModal = false"
+    />
+
+    <!-- Import Preview Dialog -->
+    <ImportPreviewDialog
+      :show="showImportPreview"
+      :data="previewData"
+      :errors="importErrors"
+      :loading="importing"
+      :columns="importCols"
+      title="Xem trước nhập tổ đội"
+      @close="showImportPreview = false"
+      @confirm="handleConfirmImport"
     />
     </div>
 
@@ -92,11 +103,11 @@
               </NuxtLink>
             </td>
             <td class="px-6 py-4">
-              <span class="text-sm font-bold text-slate-600">{{ team.department?.name || '---' }}</span>
+              <span class="text-sm font-bold text-slate-600">{{ team.departmentName || '---' }}</span>
             </td>
             <td class="px-6 py-4">
               <span class="px-2.5 py-1 rounded-full bg-primary-50 text-primary-600 text-[10px] font-black uppercase tracking-wider">
-                {{ team.productionStep?.name || '---' }}
+                {{ team.productionStepName || '---' }}
               </span>
             </td>
             <td class="px-6 py-4 text-center">
@@ -223,11 +234,22 @@ const teams = ref([]);
 const productionSteps = ref([]);
 const showModal = ref(false);
 const loading = ref(true);
+const saving = ref(false);
 // Error Modal State
 const showErrorModal = ref(false);
 const errorTitle = ref('');
 const errorMessage = ref('');
 const errorDetail = ref('');
+
+// Import Preview State
+const showImportPreview = ref(false);
+const previewData = ref([]);
+const importErrors = ref([]);
+const importing = ref(false);
+
+const importCols = [
+  { label: 'Tên tổ đội', key: 'name' },
+];
 
 const triggerError = (title, message, detail = '') => {
   errorTitle.value = title;
@@ -256,16 +278,40 @@ const handleImport = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
   
+  const formData = new FormData();
+  formData.append('file', file);
+
   try {
     loading.value = true;
-    await importExcel('/teams/import', file);
-    alert('Nhập dữ liệu thành công');
-    fetchData();
+    const res = await $api.post('/teams/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    previewData.value = res.data.data;
+    importErrors.value = res.data.errors;
+    showImportPreview.value = true;
   } catch (err) {
-    triggerError('Lỗi nhập file', 'Đã xảy ra lỗi khi xử lý tệp tin Excel nhập tổ đội.', err.response?.data?.message || err.message);
+    const msg = err.response?.data?.message || 'Hệ thống không thể đọc nội dung file Excel này. Vui lòng kiểm tra lại định dạng hoặc template.';
+    triggerError('Lỗi nhập dữ liệu', msg, err.response?.data?.errors?.join('\n') || err.message);
   } finally {
     loading.value = false;
     event.target.value = ''; // Reset input
+  }
+};
+
+const handleConfirmImport = async () => {
+  if (previewData.value.length === 0) return;
+  
+  importing.value = true;
+  try {
+    await $api.post('/teams/import/confirm', previewData.value);
+    alert('Nhập dữ liệu thành công');
+    showImportPreview.value = false;
+    fetchData();
+  } catch (err) {
+    triggerError('Lỗi lưu dữ liệu', 'Đã xảy ra lỗi khi lưu danh sách tổ đội mới vào hệ thống.', err.response?.data?.message || err.message);
+  } finally {
+    importing.value = false;
   }
 };
 
@@ -273,7 +319,7 @@ const filterDeptId = ref(route.query.departmentId ? parseInt(route.query.departm
 
 const filteredTeams = computed(() => {
   if (!filterDeptId.value) return teams.value;
-  return teams.value.filter(t => t.department?.id === parseInt(filterDeptId.value));
+  return teams.value.filter(t => t.departmentId === parseInt(filterDeptId.value));
 });
 
 // Pagination
@@ -325,8 +371,8 @@ const openModal = (team = null) => {
   if (team) {
     currentTeam.value = { ...team };
     form.name = team.name;
-    form.productionStepId = team.productionStep?.id || '';
-    form.departmentId = team.department?.id || '';
+    form.productionStepId = team.productionStepId || '';
+    form.departmentId = team.departmentId || '';
   } else {
     currentTeam.value = {};
     form.name = '';

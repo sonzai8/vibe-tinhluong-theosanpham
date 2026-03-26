@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class EmployeeRequest {
     private String code;
+    private String zkDeviceId;
 
     @NotBlank(message = "Họ tên không hợp lệ")
     private String fullName;
@@ -38,4 +39,8 @@ public class EmployeeRequest {
     private String password;
 
     private boolean canLogin = false;
+
+    private com.plywood.payroll.modules.employee.entity.SalaryType salaryType;
+    private java.math.BigDecimal baseSalaryConfig;
+    private java.math.BigDecimal insuranceSalaryConfig;
 }

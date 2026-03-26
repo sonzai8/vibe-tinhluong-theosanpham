@@ -128,8 +128,10 @@
               <th class="px-8 py-5">Kỳ lương</th>
               <th class="px-8 py-5">Nhân viên</th>
               <th class="px-8 py-5">Phòng ban / Tổ</th>
-              <th class="px-8 py-5">Lương SP</th>
+              <th class="px-8 py-5">Lương SP/Cố định</th>
               <th class="px-8 py-5">Thưởng/Phạt</th>
+              <th class="px-8 py-5">{{ $t('employee.insurance_salary_actual') }}</th>
+              <th class="px-8 py-5">{{ $t('employee.cash_salary') }}</th>
               <th class="px-8 py-5">Thực lĩnh</th>
               <th class="px-8 py-5">Trạng thái</th>
               <th class="px-8 py-5 text-right">Thao tác</th>
@@ -154,6 +156,8 @@
               <td class="px-8 py-5 text-sm font-bold" :class="(p.totalPenaltyBonus || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'">
                 {{ (p.totalPenaltyBonus || 0) >= 0 ? '+' : '' }}{{ (p.totalPenaltyBonus || 0).toLocaleString() }}đ
               </td>
+              <td class="px-8 py-5 text-sm font-bold text-blue-600">{{ (p.insuranceSalary || 0).toLocaleString() }}đ</td>
+              <td class="px-8 py-5 text-sm font-bold text-amber-600">{{ (p.cashSalary || 0).toLocaleString() }}đ</td>
               <td class="px-8 py-5 font-black text-primary-700 text-lg">{{ (p.totalSalary || 0).toLocaleString() }}đ</td>
               <td class="px-8 py-5">
                 <span :class="`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${p.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`">
@@ -255,10 +259,18 @@
                 <p class="text-xl font-black text-slate-700">{{ (selectedPayroll?.benefitSalary || 0).toLocaleString() }}đ</p>
               </div>
               <div class="card p-4 bg-white">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Thưởng/Phạt</p>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Thưởng/Phạt/Khác</p>
                 <p class="text-xl font-black" :class="(selectedPayroll?.totalPenaltyBonus || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'">
                   {{ (selectedPayroll?.totalPenaltyBonus || 0).toLocaleString() }}đ
                 </p>
+              </div>
+              <div class="card p-4 bg-white border-l-4 border-blue-500">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ $t('employee.insurance_salary_actual') }}</p>
+                <p class="text-xl font-black text-blue-600">{{ (selectedPayroll?.insuranceSalary || 0).toLocaleString() }}đ</p>
+              </div>
+              <div class="card p-4 bg-white border-l-4 border-amber-500">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{{ $t('employee.cash_salary') }}</p>
+                <p class="text-xl font-black text-amber-600">{{ (selectedPayroll?.cashSalary || 0).toLocaleString() }}đ</p>
               </div>
               <div class="card p-4 bg-primary-600 text-white">
                 <p class="text-[10px] font-black text-primary-200 uppercase tracking-widest mb-1">Thực lĩnh</p>

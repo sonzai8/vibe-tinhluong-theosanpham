@@ -5,10 +5,33 @@
         <h2 class="text-3xl font-black text-slate-900 tracking-tight">{{ $t('attendance.definition.title') }}</h2>
         <p class="text-slate-500 font-medium">{{ $t('attendance.definition.multiplier_note') }}</p>
       </div>
-      <UiButton @click="openModal()" class="shadow-lg shadow-emerald-100">
-        <Plus class="w-4 h-4 mr-2" />
-        {{ $t('attendance.definition.add_new') }}
-      </UiButton>
+      <div class="flex items-center gap-2">
+        <UiButton variant="outline" @click="handleExport">
+          <Download class="w-4 h-4 mr-2" />
+          {{ $t('common.export') }}
+        </UiButton>
+        <div class="relative group">
+          <UiButton variant="outline">
+            <Upload class="w-4 h-4 mr-2" />
+            {{ $t('common.import') }}
+          </UiButton>
+          <div class="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-2">
+            <button @click="handleDownloadTemplate" class="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2">
+              <FileDown class="w-4 h-4" />
+              {{ $t('common.download_template') }}
+            </button>
+            <label class="w-full text-left px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg flex items-center gap-2 cursor-pointer">
+              <FileUp class="w-4 h-4" />
+              {{ $t('common.import') }}
+              <input type="file" class="hidden" accept=".xlsx, .xls" @change="handleImport" />
+            </label>
+          </div>
+        </div>
+        <UiButton @click="openModal()" class="shadow-lg shadow-emerald-100">
+          <Plus class="w-4 h-4 mr-2" />
+          {{ $t('attendance.definition.add_new') }}
+        </UiButton>
+      </div>
     </div>
 
     <!-- Common Error Modal -->
@@ -18,6 +41,18 @@
       :message="errorMessage"
       :detail="errorDetail"
       @close="showErrorModal = false"
+    />
+
+    <!-- Import Preview Dialog -->
+    <ImportPreviewDialog
+      :show="showImportPreview"
+      :data="previewData"
+      :errors="importErrors"
+      :loading="importing"
+      :columns="importCols"
+      title="Xem trước nhập loại công"
+      @close="showImportPreview = false"
+      @confirm="handleConfirmImport"
     />
 
     <!-- Table -->
@@ -90,14 +125,27 @@
 </template>
 
 <script setup>
-import { Plus, PencilLine, Trash2, X } from 'lucide-vue-next';
+import { Plus, PencilLine, Trash2, X, Download, Upload, FileDown, FileUp } from 'lucide-vue-next';
 const { $api } = useNuxtApp();
+const { downloadTemplate: dlTemplate, importExcel, exportExcel } = useExcel();
 
 const definitions = ref([]);
 const currentId = ref(null);
 const showModal = ref(false);
 const loading = ref(false);
 const saving = ref(false);
+
+// Import Preview State
+const showImportPreview = ref(false);
+const previewData = ref([]);
+const importErrors = ref([]);
+const importing = ref(false);
+
+const importCols = [
+  { label: 'Mã ký hiệu', key: 'code' },
+  { label: 'Tên loại công', key: 'name' },
+  { label: 'Hệ số', key: 'multiplier' },
+];
 
 // Error Modal State
 const showErrorModal = ref(false);
@@ -128,6 +176,63 @@ const loadDefinitions = async () => {
     triggerError('Lỗi tải dữ liệu', 'Không thể lấy danh sách định nghĩa loại công.', e.message);
   } finally {
     loading.value = false;
+  }
+};
+
+const handleExport = async () => {
+  try {
+    await exportExcel('/attendance-definitions/export', 'danh_sach_loai_cong.xlsx');
+  } catch (err) {
+    triggerError('Lỗi xuất file', 'Không thể xuất danh sách loại công ra Excel.', err.message);
+  }
+};
+
+const handleDownloadTemplate = async () => {
+  try {
+    await dlTemplate('/attendance-definitions/download-template', 'mau_nhap_loai_cong.xlsx');
+  } catch (err) {
+    triggerError('Lỗi tải mẫu', 'Không thể tải xuống tệp tin mẫu nhập liệu.', err.message);
+  }
+};
+
+const handleImport = async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    loading.value = true;
+    const res = await $api.post('/attendance-definitions/import/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    previewData.value = res.data.data;
+    importErrors.value = res.data.errors;
+    showImportPreview.value = true;
+  } catch (err) {
+    const msg = err.response?.data?.message || 'Hệ thống không thể đọc nội dung file Excel này. Vui lòng kiểm tra lại định dạng hoặc template.';
+    triggerError('Lỗi nhập dữ liệu', msg, err.response?.data?.errors?.join('\n') || err.message);
+  } finally {
+    loading.value = false;
+    event.target.value = ''; // Reset input
+  }
+};
+
+const handleConfirmImport = async () => {
+  if (previewData.value.length === 0) return;
+  
+  importing.value = true;
+  try {
+    await $api.post('/attendance-definitions/import/confirm', previewData.value);
+    alert('Nhập dữ liệu thành công');
+    showImportPreview.value = false;
+    loadDefinitions();
+  } catch (err) {
+    triggerError('Lỗi lưu dữ liệu', 'Đã xảy ra lỗi khi lưu danh sách loại công mới vào hệ thống.', err.response?.data?.message || err.message);
+  } finally {
+    importing.value = false;
   }
 };
 

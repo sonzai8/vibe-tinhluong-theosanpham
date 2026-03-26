@@ -19,7 +19,8 @@ import java.util.stream.Collectors;
 public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
-    private final com.plywood.payroll.modules.organization.repository.TeamRepository teamRepository;
+    private final TeamRepository teamRepository;
+    private final TeamService teamService;
 
     public List<DepartmentResponse> getAll() {
         return departmentRepository.findAll().stream()
@@ -62,12 +63,12 @@ public class DepartmentService {
         response.setId(entity.getId());
         response.setName(entity.getName());
         
-        if (teamRepository != null) {
-            java.util.List<com.plywood.payroll.modules.organization.entity.Team> teams = teamRepository.findAll().stream()
-                .filter(t -> t.getDepartment() != null && t.getDepartment().getId().equals(entity.getId()))
-                .collect(java.util.stream.Collectors.toList());
+        // Lấy danh sách tổ đội thuộc phòng ban này
+        if (teamRepository != null && teamService != null) {
+            java.util.List<Team> teams = teamRepository.findByDepartmentId(entity.getId());
             response.setTeamCount(teams.size());
-            response.setTeamNames(teams.stream().map(com.plywood.payroll.modules.organization.entity.Team::getName).collect(java.util.stream.Collectors.toList()));
+            response.setTeamNames(teams.stream().map(Team::getName).collect(Collectors.toList()));
+            response.setTeams(teams.stream().map(teamService::mapToResponse).collect(Collectors.toList()));
         }
 
         response.setCreatedAt(entity.getCreatedAt());

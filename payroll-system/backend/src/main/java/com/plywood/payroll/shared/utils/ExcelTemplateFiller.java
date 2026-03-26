@@ -36,6 +36,10 @@ public class ExcelTemplateFiller {
             // Xóa các cột/dòng rỗng nếu đang dùng biểu mẫu ma trận có cột dư
             cleanupUnusedPlaceholders(workbook);
 
+            // Trigger re-calculation of formulas
+            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+            evaluator.evaluateAll();
+
             workbook.write(out);
             return out.toByteArray();
         }

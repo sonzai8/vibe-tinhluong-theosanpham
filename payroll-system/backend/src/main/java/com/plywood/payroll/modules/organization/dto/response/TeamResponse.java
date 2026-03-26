@@ -1,17 +1,25 @@
 package com.plywood.payroll.modules.organization.dto.response;
-import com.plywood.payroll.modules.production.dto.response.ProductionStepResponse;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class TeamResponse {
     private Long id;
     private String name;
-    private DepartmentResponse department;
-    private ProductionStepResponse productionStep;
+    private Long departmentId;
+    private String departmentName;
+    private Long productionStepId;
+    private String productionStepName;
     private Integer memberCount;
-    private java.util.List<String> memberNames;
+    private List<String> memberNames;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

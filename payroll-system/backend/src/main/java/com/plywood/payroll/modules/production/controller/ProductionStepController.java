@@ -112,11 +112,17 @@ public class ProductionStepController {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_DELETE, null));
     }
 
-    @PostMapping("/import")
+    @PostMapping("/import/preview")
     @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
-    @Operation(summary = "Nhập danh sách công đoạn từ Excel")
-    public ResponseEntity<ApiResponse<Void>> importExcel(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
-        List<ProductionStepRequest> requests = excelService.importProductionSteps(file);
+    @Operation(summary = "Xem trước dữ liệu import công đoạn")
+    public ResponseEntity<ApiResponse<com.plywood.payroll.modules.excel.dto.response.ImportResult<ProductionStepRequest>>> importPreview(@RequestParam("file") org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, excelService.importProductionStepsPreview(file)));
+    }
+
+    @PostMapping("/import/confirm")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")
+    @Operation(summary = "Xác nhận import công đoạn")
+    public ResponseEntity<ApiResponse<Void>> importConfirm(@Valid @RequestBody List<ProductionStepRequest> requests) {
         for (ProductionStepRequest req : requests) {
             productionStepService.create(req);
         }

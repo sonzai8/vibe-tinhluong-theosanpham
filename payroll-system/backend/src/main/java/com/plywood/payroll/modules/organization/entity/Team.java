@@ -25,6 +25,4 @@ public class Team extends BaseEntity {
     @JoinColumn(name = "department_id")
     private Department department;
 
-    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<TeamMember> members = new ArrayList<>();
 }

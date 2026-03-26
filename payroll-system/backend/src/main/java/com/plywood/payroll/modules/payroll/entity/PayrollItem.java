@@ -28,6 +28,9 @@ public class PayrollItem extends BaseEntity {
     private BigDecimal totalPenalty = BigDecimal.ZERO;    // Phạt
     private BigDecimal netSalary = BigDecimal.ZERO;       // Thực nhận
 
+    private BigDecimal insuranceSalary = BigDecimal.ZERO; // Lương đóng bảo hiểm
+    private BigDecimal cashSalary = BigDecimal.ZERO;      // Lương trả tiền mặt
+
     @Column(nullable = false)
     private String status = "DRAFT"; // DRAFT, CONFIRMED
 }

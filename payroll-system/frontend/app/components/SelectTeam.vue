@@ -97,7 +97,9 @@ const searchInput = ref(null);
 const fetchData = async () => {
   try {
     const res = await $api.get('/teams');
-    teams.value = res.data || [];
+    if (res.success) {
+      teams.value = res.data || [];
+    }
   } catch (err) {
     console.error('Lỗi tải tổ đội:', err);
   }

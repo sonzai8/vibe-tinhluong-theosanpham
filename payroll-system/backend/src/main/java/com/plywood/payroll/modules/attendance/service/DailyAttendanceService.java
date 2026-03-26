@@ -1,18 +1,16 @@
 package com.plywood.payroll.modules.attendance.service;
-import com.plywood.payroll.modules.organization.service.TeamService;
-import com.plywood.payroll.modules.employee.service.EmployeeService;
 
 import com.plywood.payroll.modules.attendance.dto.request.DailyAttendanceRequest;
 import com.plywood.payroll.modules.attendance.dto.response.DailyAttendanceResponse;
 import com.plywood.payroll.modules.attendance.entity.DailyAttendance;
 import com.plywood.payroll.modules.attendance.entity.AttendanceDefinition;
 import com.plywood.payroll.modules.attendance.repository.AttendanceDefinitionRepository;
-import com.plywood.payroll.modules.employee.entity.Employee;
-import com.plywood.payroll.modules.organization.entity.Team;
-import com.plywood.payroll.shared.exception.ResourceNotFoundException;
 import com.plywood.payroll.modules.attendance.repository.DailyAttendanceRepository;
+import com.plywood.payroll.modules.employee.entity.Employee;
 import com.plywood.payroll.modules.employee.repository.EmployeeRepository;
+import com.plywood.payroll.modules.organization.entity.Team;
 import com.plywood.payroll.modules.organization.repository.TeamRepository;
+import com.plywood.payroll.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -30,10 +28,7 @@ public class DailyAttendanceService {
     private final DailyAttendanceRepository attendanceRepository;
     private final EmployeeRepository employeeRepository;
     private final TeamRepository teamRepository;
-    private final EmployeeService employeeService;
-    private final TeamService teamService;
     private final AttendanceDefinitionRepository definitionRepository;
-    private final AttendanceDefinitionService definitionService;
 
     public List<DailyAttendanceResponse> getByFilters(LocalDate fromDate, LocalDate toDate, Integer month, Integer year, LocalDate date, List<Long> departmentIds, List<Long> teamIds) {
         Specification<DailyAttendance> spec = (root, query, cb) -> {
@@ -45,10 +40,16 @@ public class DailyAttendanceService {
             if (toDate != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("attendanceDate"), toDate));
             }
-            if (month != null) {
+            if (month != null && year != null) {
+                LocalDate firstDay = LocalDate.of(year, month, 1);
+                LocalDate lastDay = firstDay.withDayOfMonth(firstDay.lengthOfMonth());
+                predicates.add(cb.between(root.get("attendanceDate"), firstDay, lastDay));
+            } else if (month != null) {
+                // If only month is provided, we can't easily use between without a year,
+                // but usually month and year are provided together in this context.
+                // For safety, fallback to function if only month is provided, or handle as needed.
                 predicates.add(cb.equal(cb.function("MONTH", Integer.class, root.get("attendanceDate")), month));
-            }
-            if (year != null) {
+            } else if (year != null) {
                 predicates.add(cb.equal(cb.function("YEAR", Integer.class, root.get("attendanceDate")), year));
             }
             if (date != null) {
@@ -58,7 +59,7 @@ public class DailyAttendanceService {
                 predicates.add(root.get("employee").get("department").get("id").in(departmentIds));
             }
             if (teamIds != null && !teamIds.isEmpty()) {
-                predicates.add(root.get("actualTeam").get("id").in(teamIds));
+                predicates.add(root.get("originalTeam").get("id").in(teamIds));
             }
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
@@ -147,17 +148,30 @@ public class DailyAttendanceService {
 
     public DailyAttendanceResponse mapToResponse(DailyAttendance entity) {
         if (entity == null) return null;
-        DailyAttendanceResponse response = new DailyAttendanceResponse();
-        response.setId(entity.getId());
-        response.setAttendanceDate(entity.getAttendanceDate());
-        response.setEmployee(employeeService.mapToResponse(entity.getEmployee()));
-        response.setOriginalTeam(teamService.mapToResponse(entity.getOriginalTeam()));
-        response.setActualTeam(teamService.mapToResponse(entity.getActualTeam()));
-        if (entity.getAttendanceDefinition() != null) {
-            response.setAttendanceDefinition(definitionService.mapToResponse(entity.getAttendanceDefinition()));
-        }
-        response.setCreatedAt(entity.getCreatedAt());
-        response.setUpdatedAt(entity.getUpdatedAt());
-        return response;
+        
+        Employee emp = entity.getEmployee();
+        Team origTeam = entity.getOriginalTeam();
+        Team actualTeam = entity.getActualTeam();
+        AttendanceDefinition def = entity.getAttendanceDefinition();
+        
+        return DailyAttendanceResponse.builder()
+                .id(entity.getId())
+                .attendanceDate(entity.getAttendanceDate())
+                .employeeId(emp != null ? emp.getId() : null)
+                .employeeFullName(emp != null ? emp.getFullName() : null)
+                .employeeCode(emp != null ? emp.getCode() : null)
+                .employeeDepartmentId(emp != null && emp.getDepartment() != null ? emp.getDepartment().getId() : null)
+                .employeeTeamId(origTeam != null ? origTeam.getId() : null)
+                .originalTeamId(origTeam != null ? origTeam.getId() : null)
+                .originalTeamName(origTeam != null ? origTeam.getName() : null)
+                .actualTeamId(actualTeam != null ? actualTeam.getId() : null)
+                .actualTeamName(actualTeam != null ? actualTeam.getName() : null)
+                .attendanceDefinitionId(def != null ? def.getId() : null)
+                .attendanceDefinitionCode(def != null ? def.getCode() : null)
+                .attendanceDefinitionName(def != null ? def.getName() : null)
+                .attendanceDefinitionMultiplier(def != null ? def.getMultiplier() : 1.0)
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
     }
 }

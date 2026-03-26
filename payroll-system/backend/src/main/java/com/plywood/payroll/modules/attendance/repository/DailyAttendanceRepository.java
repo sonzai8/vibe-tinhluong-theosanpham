@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -16,16 +17,13 @@ public interface DailyAttendanceRepository extends JpaRepository<DailyAttendance
     @Query("SELECT a FROM DailyAttendance a WHERE " +
             "(:fromDate IS NULL OR a.attendanceDate >= :fromDate) AND " +
             "(:toDate IS NULL OR a.attendanceDate <= :toDate) AND " +
-            "(:month IS NULL OR EXTRACT(MONTH FROM a.attendanceDate) = :month) AND " +
-            "(:year IS NULL OR EXTRACT(YEAR FROM a.attendanceDate) = :year) AND " +
+            "(:date IS NULL OR a.attendanceDate = :date) AND " +
             "(:date IS NULL OR a.attendanceDate = :date) AND " +
             "(:deptIdsEmpty = true OR a.employee.department.id IN :departmentIds) AND " +
             "(:teamIdsEmpty = true OR a.actualTeam.id IN :teamIds)")
     List<DailyAttendance> findByFilters(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
-            @Param("month") Integer month,
-            @Param("year") Integer year,
             @Param("date") LocalDate date,
             @Param("departmentIds") List<Long> departmentIds,
             @Param("deptIdsEmpty") boolean deptIdsEmpty,
@@ -39,4 +37,5 @@ public interface DailyAttendanceRepository extends JpaRepository<DailyAttendance
     List<DailyAttendance> findByActualTeamIdAndAttendanceDate(Long teamId, LocalDate date);
 
     List<DailyAttendance> findByEmployeeIdAndAttendanceDateBetween(Long employeeId, LocalDate start, LocalDate end);
+    Optional<DailyAttendance> findByAttendanceDateAndEmployeeId(LocalDate date, Long employeeId);
 }

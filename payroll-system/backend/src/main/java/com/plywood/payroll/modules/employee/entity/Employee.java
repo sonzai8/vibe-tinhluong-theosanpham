@@ -2,7 +2,6 @@ package com.plywood.payroll.modules.employee.entity;
 
 import com.plywood.payroll.modules.organization.entity.Department;
 import com.plywood.payroll.modules.organization.entity.Role;
-import com.plywood.payroll.modules.organization.entity.Team;
 import com.plywood.payroll.shared.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -15,18 +14,18 @@ public class Employee extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String code;
 
+    @Column(unique = true)
+    private String zkDeviceId; // ID trên máy chấm công ZKTeco
+
     @Column(nullable = false)
     private String fullName;
 
-    // Tổ biên chế trực tiếp của nhân viên
-    @ManyToOne
-    @JoinColumn(name = "team_id")
-    private Team team;
-
-    // Giữ lại để backward compat (employee.department có thể suy ra từ team.department)
+    // Department represented in Employee as core affiliation
     @ManyToOne
     @JoinColumn(name = "department_id")
     private Department department;
+
+    private String bankAccountNumber;
 
     // Chức vụ (alias là Position, bao gồm phụ cấp ngày)
     @ManyToOne
@@ -45,7 +44,7 @@ public class Employee extends BaseEntity {
     @Column(length = 20)
     private String phone;
 
-    @Column(length = 20)
+    @Column(length = 20, unique = true)
     private String citizenId;
 
     private String gender;

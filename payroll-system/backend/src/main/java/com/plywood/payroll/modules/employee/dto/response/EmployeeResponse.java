@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class EmployeeResponse {
     private Long id;
     private String code;
+    private String zkDeviceId;
     private String fullName;
     private TeamResponse team;
     private DepartmentResponse department;
@@ -34,4 +35,8 @@ public class EmployeeResponse {
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private com.plywood.payroll.modules.employee.entity.SalaryType salaryType;
+    private java.math.BigDecimal baseSalaryConfig;
+    private java.math.BigDecimal insuranceSalaryConfig;
 }

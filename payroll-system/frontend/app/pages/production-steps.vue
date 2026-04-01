@@ -47,6 +47,7 @@
           <tr class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
             <th class="px-6 py-4 w-20">ID</th>
             <th class="px-6 py-4">Tên công đoạn</th>
+            <th class="px-6 py-4">Loại tính giá</th>
             <th class="px-6 py-4">Sản phẩm cho phép</th>
             <th class="px-6 py-4">Mô tả kỹ thuật</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
@@ -56,6 +57,12 @@
           <tr v-for="step in paginatedSteps" :key="step.id" class="hover:bg-slate-50/50 transition-colors group">
             <td class="px-6 py-4 text-sm font-black text-slate-400">#{{ step.id }}</td>
             <td class="px-6 py-4 font-bold text-primary-700">{{ step.name }}</td>
+            <td class="px-6 py-4">
+              <span :class="['px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter', 
+                             step.priceCalculationType === 'SIZE_ONLY' ? 'bg-amber-100 text-amber-700' : 'bg-primary-100 text-primary-700']">
+                {{ step.priceCalculationType === 'SIZE_ONLY' ? 'Chỉ kích thước' : 'Chất lượng & KT' }}
+              </span>
+            </td>
             <td class="px-6 py-4">
                <div class="flex flex-wrap gap-1">
                   <span v-for="p in step.products" :key="p.id" class="px-2 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-600 uppercase">{{ p.code }}</span>
@@ -133,6 +140,15 @@
 
         <form @submit.prevent="handleSubmit" class="space-y-6">
           <UiInput v-model="form.name" label="Tên công đoạn" placeholder="VD: Ép Nhiệt" required />
+          
+          <div class="space-y-1.5">
+            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Loại tính giá</label>
+            <select v-model="form.priceCalculationType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary-500 outline-none transition-all" required>
+              <option value="SIZE_ONLY">Chỉ theo kích thước (Công lao động)</option>
+              <option value="SIZE_AND_QUALITY">Theo kích thước & Chất lượng (Lương SP)</option>
+            </select>
+          </div>
+
           <UiInput v-model="form.description" label="Mô tả" placeholder="Mô tả về kỹ thuật công đoạn..." />
           
           <!-- Product Mapping Section -->
@@ -272,6 +288,7 @@ const currentStep = ref({});
 const form = reactive({
   name: '',
   description: '',
+  priceCalculationType: 'SIZE_AND_QUALITY',
   productIds: []
 });
 
@@ -312,12 +329,14 @@ const openModal = (step = null) => {
     currentStep.value = { ...step };
     form.name = step.name;
     form.description = step.description;
+    form.priceCalculationType = step.priceCalculationType || 'SIZE_AND_QUALITY';
     form.productIds = step.products.map(p => p.id);
     modalStepProducts.value = [...step.products];
   } else {
     currentStep.value = {};
     form.name = '';
     form.description = '';
+    form.priceCalculationType = 'SIZE_AND_QUALITY';
     form.productIds = [];
     modalStepProducts.value = [];
   }

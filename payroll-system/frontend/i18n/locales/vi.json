@@ -279,6 +279,8 @@
     "status": "Trạng thái",
     "config": "Cấu hình chuyên cần",
     "bulk_add": "Chấm công hàng loạt",
+    "add_new": "Thêm mới",
+    "bulk_attendance": "Chấm công theo tổ",
     "subtitle": "Ghi nhận sự hiện diện của nhân sự tại các tổ đội",
     "definition": {
       "title": "Danh mục Loại công",

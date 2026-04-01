@@ -10,5 +10,7 @@ public class ProductionStepRequest {
 
     private String description;
 
+    private com.plywood.payroll.modules.production.enums.PriceCalculationType priceCalculationType;
+
     private java.util.List<Long> productIds;
 }

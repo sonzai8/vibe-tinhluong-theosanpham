@@ -46,8 +46,12 @@
           :class="modelValue == e.id ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50'"
         >
           <div class="flex flex-col">
-            <span class="truncate">{{ e.fullName }}</span>
-            <span class="text-[9px] text-slate-400 uppercase tracking-tighter">{{ e.code }}</span>
+            <span class="font-medium text-slate-900">
+              {{ e.fullName }}
+            </span>
+            <span class="text-[10px] text-slate-500">
+              {{ e.code }} - {{ e.teamName || $t('common.noTeam') || 'Chưa có tổ' }}
+            </span>
           </div>
           <Check v-if="modelValue == e.id" class="w-3 h-3 text-primary-600" />
         </div>
@@ -70,7 +74,12 @@ const props = defineProps({
   label: String,
   placeholder: String,
   departmentId: [String, Number],
-  teamId: [String, Number]
+  teamId: [String, Number],
+  attendanceDate: String, // YYYY-MM-DD
+  excludeIds: {
+    type: Array,
+    default: () => []
+  }
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -83,12 +92,24 @@ const searchInput = ref(null);
 const searching = ref(false);
 
 const fetchData = async (query = '') => {
-  // Chỉ search khi từ 3 ký tự trở lên (hoặc chuỗi rỗng để reset)
-  if (query.trim().length > 0 && query.trim().length < 3) return;
-  
   searching.value = true;
   try {
-    const res = await $api.get('/employees/search', { params: { search: query } });
+    let res;
+    if (props.attendanceDate) {
+      // Tìm kiếm nhân viên chưa chấm công
+      res = await $api.get('/employees/unrecorded', { 
+        params: { 
+          date: props.attendanceDate,
+          teamId: props.teamId || null,
+          search: query,
+          limit: 20
+        } 
+      });
+    } else {
+      // Tìm kiếm thông thường
+      res = await $api.get('/employees/search', { params: { search: query } });
+    }
+    
     if (res.success) {
       employees.value = res.data || [];
     }
@@ -119,34 +140,41 @@ const fetchSelected = async (id) => {
 let timeout = null;
 watch(search, (val) => {
   if (timeout) clearTimeout(timeout);
-  if (val.trim().length >= 3) {
-    timeout = setTimeout(() => {
-      fetchData(val);
-    }, 500);
-  } else {
-    // Nếu < 3 ký tự thì hiện lại bản ghi đang chọn hoặc để trống
-    employees.value = selectedEmployee.value ? [selectedEmployee.value] : [];
-  }
+  timeout = setTimeout(() => {
+    fetchData(val);
+  }, 500);
 });
 
+// Watch for external dependency changes to re-fetch
+watch(() => [props.attendanceDate, props.teamId], () => {
+  if (isOpen.value) fetchData(search.value);
+}, { immediate: false });
+
 const filteredEmployees = computed(() => {
-  let result = employees.value;
-  if (props.departmentId) {
-    result = result.filter(e => e.department?.id == props.departmentId);
-  }
-  if (props.teamId) {
-    result = result.filter(e => e.team?.id == props.teamId);
-  }
-  return result;
+    let result = employees.value;
+    if (props.excludeIds && props.excludeIds.length > 0) {
+        result = result.filter(e => !props.excludeIds.includes(e.id));
+    }
+    
+    // Nếu chưa tìm kiếm, lọc theo phòng ban/tổ nếu có để thu hẹp dữ liệu ban đầu
+    if (!search.value.trim() && !props.attendanceDate) {
+        if (props.departmentId) {
+            result = result.filter(e => e.department?.id == props.departmentId);
+        }
+        if (props.teamId) {
+            result = result.filter(e => e.team?.id == props.teamId);
+        }
+    }
+    return result;
 });
 
 const selectedName = computed(() => {
   if (selectedEmployee.value && selectedEmployee.value.id == props.modelValue) {
-    return `${selectedEmployee.value.fullName} (${selectedEmployee.value.code})`;
+    return selectedEmployee.value.fullName;
   }
   if (!props.modelValue) return '';
   const emp = employees.value.find(e => e.id == props.modelValue);
-  return emp ? `${emp.fullName} (${emp.code})` : '';
+  return emp ? emp.fullName : '';
 });
 
 const selectOption = (emp) => {
@@ -163,6 +191,7 @@ const close = () => {
 
 watch(isOpen, (val) => {
   if (val) {
+    fetchData(search.value);
     nextTick(() => {
       searchInput.value?.focus();
     });

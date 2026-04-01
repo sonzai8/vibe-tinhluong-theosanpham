@@ -50,6 +50,9 @@ public class ProductionStepService {
         ProductionStep step = new ProductionStep();
         step.setName(request.getName());
         step.setDescription(request.getDescription());
+        if (request.getPriceCalculationType() != null) {
+            step.setPriceCalculationType(request.getPriceCalculationType());
+        }
         ProductionStep savedStep = productionStepRepository.save(step);
         
         if (request.getProductIds() != null && !request.getProductIds().isEmpty()) {
@@ -65,6 +68,9 @@ public class ProductionStepService {
                 .orElseThrow(() -> new ResourceNotFoundException("Công đoạn sản xuất", id));
         step.setName(request.getName());
         step.setDescription(request.getDescription());
+        if (request.getPriceCalculationType() != null) {
+            step.setPriceCalculationType(request.getPriceCalculationType());
+        }
         ProductionStep savedStep = productionStepRepository.save(step);
         
         if (request.getProductIds() != null) {
@@ -111,6 +117,7 @@ public class ProductionStepService {
         response.setId(entity.getId());
         response.setName(entity.getName());
         response.setDescription(entity.getDescription());
+        response.setPriceCalculationType(entity.getPriceCalculationType());
         response.setCreatedAt(entity.getCreatedAt());
         response.setUpdatedAt(entity.getUpdatedAt());
         

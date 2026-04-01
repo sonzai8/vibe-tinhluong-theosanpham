@@ -19,7 +19,8 @@ public class AttendanceDefinitionService {
     private final AttendanceDefinitionRepository definitionRepository;
 
     public List<AttendanceDefinitionResponse> getAll() {
-        return definitionRepository.findAll().stream()
+        return definitionRepository.findAllByOrderByNameAsc()
+                .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }

@@ -2,6 +2,7 @@ package com.plywood.payroll.modules.employee.controller;
 import com.plywood.payroll.modules.employee.dto.request.ResetPasswordRequest;
 import com.plywood.payroll.modules.employee.dto.response.EmployeeAuditLogResponse;
 
+import com.plywood.payroll.modules.excel.dto.response.ImportResult;
 import com.plywood.payroll.shared.constant.MessageConstants;
 
 
@@ -48,6 +49,18 @@ public class EmployeeController {
     @Operation(summary = "Tìm kiếm nhân viên (rút gọn)")
     public ResponseEntity<ApiResponse<List<EmployeeBasicResponse>>> searchBasic(@RequestParam("search") String search) {
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, employeeService.searchBasic(search)));
+    }
+
+    @GetMapping("/unrecorded")
+    @PreAuthorize("hasAuthority('SYSTEM_ADMIN') or hasAuthority('EMPLOYEE_VIEW') or hasAuthority('ATTENDANCE_VIEW') or hasAuthority('PRODUCTION_VIEW') or hasAuthority('PAYROLL_VIEW')")
+    @Operation(summary = "Lấy danh sách nhân viên chưa chấm công")
+    public ResponseEntity<ApiResponse<List<EmployeeBasicResponse>>> getUnrecorded(
+            @RequestParam("date") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date,
+            @RequestParam(value = "teamId", required = false) Long teamId,
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "limit", defaultValue = "10") int limit) {
+        return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, 
+                employeeService.findUnrecordedEmployees(date, teamId, search, limit)));
     }
 
     @GetMapping("/{id}")
@@ -109,8 +122,8 @@ public class EmployeeController {
     @PostMapping("/import/preview")
     @PreAuthorize("hasAuthority('EMPLOYEE_EDIT') or hasAuthority('SYSTEM_ADMIN')")
     @Operation(summary = "Xem trước danh sách nhân viên từ file Excel")
-    public ResponseEntity<ApiResponse<com.plywood.payroll.modules.excel.dto.response.ImportResult<EmployeeRequest>>> importPreview(@RequestParam("file") MultipartFile file) throws IOException {
-        com.plywood.payroll.modules.excel.dto.response.ImportResult<EmployeeRequest> result = excelService.importEmployeesPreview(file);
+    public ResponseEntity<ApiResponse<ImportResult<EmployeeRequest>>> importPreview(@RequestParam("file") MultipartFile file) throws IOException {
+        ImportResult<EmployeeRequest> result = excelService.importEmployeesPreview(file);
         return ResponseEntity.ok(ApiResponse.success(MessageConstants.SUCCESS_GET_LIST, result));
     }
 

@@ -361,11 +361,12 @@
 
         <form @submit.prevent="handleSubmit" class="space-y-8">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <UiSelect 
+            <SelectEmployee 
               v-model="form.employeeId" 
               :label="$t('attendance.employee')" 
-              :options="employeeOptions" 
               :placeholder="$t('common.select_employee') || 'Chọn nhân viên'"
+              :attendanceDate="form.attendanceDate"
+              :teamId="filterTeamIds[0]"
               @update:modelValue="onEmployeeSelect"
               required
             />
@@ -870,6 +871,16 @@ const fetchData = async () => {
     departments.value = Array.isArray(deptData) ? deptData : [];
     attendanceDefs.value = Array.isArray(defData) ? defData : [];
 
+    // Set default attendance definition if not already set
+    if (attendanceDefs.value.length > 0) {
+      if (!form.attendanceDefinitionId) {
+        form.attendanceDefinitionId = attendanceDefs.value[0].id;
+      }
+      if (!bulkForm.attendanceDefinitionId) {
+        bulkForm.attendanceDefinitionId = attendanceDefs.value[0].id;
+      }
+    }
+
     console.log('Data fetch results:', {
       attendances: attendances.value.length,
       employees: employees.value.length,
@@ -1063,7 +1074,7 @@ const openModal = (att = null) => {
     form.originalTeamId = null;
     form.actualTeamId = null;
     form.attendanceDate = filterDate.value;
-    form.attendanceDefinitionId = null;
+    form.attendanceDefinitionId = attendanceDefs.value.length > 0 ? attendanceDefs.value[0].id : null;
   }
   showModal.value = true;
 };

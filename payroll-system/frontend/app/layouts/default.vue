@@ -1,9 +1,9 @@
 <template>
-  <div class="h-screen flex flex-col md:flex-row bg-[#F8FAFC] overflow-hidden">
+  <div class="h-screen flex flex-col md:flex-row bg-[#F8FAFC] dark:bg-slate-950 overflow-hidden transition-colors duration-300">
     <!-- CMS Sidebar -->
     <aside 
       :class="[
-        'bg-white border-r border-[#E2E8F0] flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out h-full overflow-hidden',
+        'bg-white dark:bg-slate-900 border-r border-[#E2E8F0] dark:border-slate-800 flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out h-full overflow-hidden',
         isSidebarCollapsed ? 'w-24' : 'w-full md:w-80'
       ]"
     >
@@ -13,10 +13,10 @@
           <LayoutGrid class="w-7 h-7" />
         </div>
         <div v-if="!isSidebarCollapsed" class="animate-in fade-in duration-500">
-          <h1 class="font-black text-2xl text-slate-900 leading-tight tracking-tighter italic">DucLam</h1>
+          <h1 class="font-black text-2xl text-slate-900 dark:text-slate-100 leading-tight tracking-tighter italic">DucLam</h1>
           <div class="flex items-center gap-1.5">
             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-            <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">Payroll System</p>
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest">Payroll System</p>
           </div>
         </div>
       </div>
@@ -26,15 +26,15 @@
         <div v-for="group in menuGroups" :key="group.title" class="pb-4">
           <div 
             v-if="!isSidebarCollapsed" 
-            class="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-slate-50 rounded-xl transition-all group/header"
+            class="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all group/header"
             @click="toggleGroup(group.title)"
           >
-            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] animate-in fade-in duration-300">{{ $t(group.title) }}</p>
+            <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] animate-in fade-in duration-300">{{ $t(group.title) }}</p>
             <ChevronDown 
-              :class="['w-3.5 h-3.5 text-slate-300 transition-transform duration-300', isGroupCollapsed(group.title) ? '-rotate-90' : '']"
+              :class="['w-3.5 h-3.5 text-slate-300 dark:text-slate-600 transition-transform duration-300', isGroupCollapsed(group.title) ? '-rotate-90' : '']"
             />
           </div>
-          <div v-else class="h-px bg-slate-100 my-4 mx-2"></div>
+          <div v-else class="h-px bg-slate-100 dark:bg-slate-800 my-4 mx-2"></div>
           
           <div v-show="!isGroupCollapsed(group.title) || isSidebarCollapsed" class="space-y-1 mt-1 animate-in slide-in-from-top-2 duration-300">
             <template v-for="item in group.items" :key="item.to">
@@ -45,22 +45,22 @@
                 active-class="nav-link-v2-active"
               >
                 <div class="w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-sm shrink-0"
-                  :class="route.path === item.to ? 'bg-primary-600 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-primary-50 group-hover:text-primary-600'">
+                  :class="route.path === item.to ? 'bg-primary-600 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/30 group-hover:text-primary-600 dark:group-hover:text-primary-400'">
                   <component :is="item.icon" class="w-5 h-5" />
                 </div>
-                <span v-if="!isSidebarCollapsed" class="flex-1 font-bold text-[13.5px] tracking-tight whitespace-nowrap animate-in slide-in-from-left-2 duration-300">{{ $t(item.label) }}</span>
-                <ChevronRight v-if="!isSidebarCollapsed" class="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity" />
+                <span v-if="!isSidebarCollapsed" class="flex-1 font-bold text-[13.5px] tracking-tight whitespace-nowrap animate-in slide-in-from-left-2 duration-300 text-slate-700 dark:text-slate-300">{{ $t(item.label) }}</span>
+                <ChevronRight v-if="!isSidebarCollapsed" class="w-4 h-4 opacity-0 group-hover:opacity-40 transition-opacity dark:text-slate-600" />
                 
                 <!-- Tooltip for collapsed mode -->
-                <div v-if="isSidebarCollapsed" class="absolute left-full ml-4 px-3 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[60] whitespace-nowrap shadow-xl">
+                <div v-if="isSidebarCollapsed" class="absolute left-full ml-4 px-3 py-2 bg-slate-900 dark:bg-slate-800 text-white dark:text-slate-200 text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-[60] whitespace-nowrap shadow-xl">
                   {{ $t(item.label) }}
                 </div>
               </NuxtLink>
               <div v-else class="nav-link-v2 opacity-50 cursor-not-allowed">
-                <div class="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center shadow-sm shrink-0">
+                <div class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center shadow-sm shrink-0">
                   <component :is="item.icon" class="w-5 h-5" />
                 </div>
-                <span v-if="!isSidebarCollapsed" class="flex-1 font-bold text-[13.5px] tracking-tight">{{ item.label }}</span>
+                <span v-if="!isSidebarCollapsed" class="flex-1 font-bold text-[13.5px] tracking-tight text-slate-400">{{ item.label }}</span>
               </div>
             </template>
           </div>
@@ -71,9 +71,9 @@
       <div class="p-4 border-t border-slate-100 space-y-2">
         <button 
           @click="logout" 
-          class="w-full h-12 flex items-center gap-3 px-4 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all duration-300 font-bold text-sm group"
+          class="w-full h-12 flex items-center gap-3 px-4 text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-2xl transition-all duration-300 font-bold text-sm group"
         >
-          <div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center group-hover:bg-red-100 shrink-0">
+          <div class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center group-hover:bg-red-100 dark:group-hover:bg-red-900/30 shrink-0">
             <LogOut class="w-5 h-5 transition-transform group-hover:scale-110" />
           </div>
           <span v-if="!isSidebarCollapsed">{{ $t('common.logout') }}</span>
@@ -81,9 +81,9 @@
 
         <button 
           @click="isSidebarCollapsed = !isSidebarCollapsed"
-          class="w-full h-12 hidden md:flex items-center gap-3 px-4 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-2xl transition-all duration-300 font-bold"
+          class="w-full h-12 hidden md:flex items-center gap-3 px-4 text-slate-400 dark:text-slate-500 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-slate-800 rounded-2xl transition-all duration-300 font-bold"
         >
-          <div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0">
+          <div class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
             <component :is="isSidebarCollapsed ? ChevronRight : ChevronLeft" class="w-5 h-5" />
           </div>
           <span v-if="!isSidebarCollapsed" class="text-xs uppercase tracking-widest">{{ isSidebarCollapsed ? $t('common.expand') : $t('common.collapse') }}</span>
@@ -92,37 +92,51 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col min-w-0 bg-[#F8FAFC]">
+    <main class="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] dark:bg-slate-950 transition-colors duration-300">
       <!-- CMS Header -->
-      <header class="h-24 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 flex items-center justify-between z-40 sticky top-0 shrink-0">
+      <header class="h-24 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 px-8 flex items-center justify-between z-40 sticky top-0 shrink-0">
         <div class="flex items-center gap-8">
-          <button @click="isSidebarCollapsed = !isSidebarCollapsed" class="p-3 text-slate-400 hover:bg-slate-50 rounded-2xl">
+          <button @click="isSidebarCollapsed = !isSidebarCollapsed" class="p-3 text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-colors">
             <Menu class="w-6 h-6" />
           </button>
           
           <div class="flex flex-col">
-            <h2 class="text-xl font-black text-slate-900 tracking-tight">{{ $t(pageTitle) }}</h2>
-            <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest">{{ new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
+            <h2 class="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">{{ $t(pageTitle) }}</h2>
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest">{{ new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
           </div>
         </div>
 
         <div class="flex items-center gap-6">
+          <!-- Theme Switcher -->
+          <button 
+            @click="toggleTheme" 
+            class="w-12 h-12 flex items-center justify-center bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-2xl transition-all border border-slate-100 dark:border-slate-700 group shadow-sm"
+            :title="colorMode.value === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+          >
+            <component 
+              :is="colorMode.value === 'dark' ? Sun : Moon" 
+              class="w-5 h-5 text-slate-400 dark:text-slate-400 group-hover:text-primary-600 dark:group-hover:text-amber-400 transition-colors"
+            />
+          </button>
+
+          <div class="h-10 w-px bg-slate-100 dark:bg-slate-800"></div>
+
           <!-- Multi-language Switcher -->
           <div class="relative" id="lang-switcher">
             <button 
               @click="showLangDropdown = !showLangDropdown"
-              class="flex items-center gap-2 px-4 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all border border-slate-100 group"
+              class="flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-all border border-slate-100 dark:border-slate-700 group"
             >
-              <Languages class="w-4 h-4 text-slate-400 group-hover:text-primary-600" />
-              <span class="text-xs font-black text-slate-600 uppercase tracking-widest">{{ locale.toUpperCase() }}</span>
+              <Languages class="w-4 h-4 text-slate-400 dark:text-slate-500 group-hover:text-primary-600" />
+              <span class="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">{{ locale.toUpperCase() }}</span>
             </button>
-            <div v-if="showLangDropdown" class="absolute right-0 mt-2 w-40 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-[100] animate-in zoom-in slide-in-from-top-2 duration-200">
+            <div v-if="showLangDropdown" class="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 p-2 z-[100] animate-in zoom-in slide-in-from-top-2 duration-200">
               <button 
                 v-for="l in locales" 
                 :key="l.code"
                 @click="changeLanguage(l.code)"
                 class="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all"
-                :class="locale === l.code ? 'bg-primary-50 text-primary-600' : 'text-slate-500 hover:bg-slate-50'"
+                :class="locale === l.code ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'"
               >
                 {{ l.name }}
                 <Check v-if="locale === l.code" class="w-4 h-4" />
@@ -130,16 +144,16 @@
             </div>
           </div>
 
-          <div class="h-10 w-px bg-slate-100"></div>
+          <div class="h-10 w-px bg-slate-100 dark:bg-slate-800"></div>
 
           <div class="flex items-center gap-4">
             <div class="flex flex-col items-end">
-              <span class="text-sm font-black text-slate-900 leading-none">{{ user?.fullName || 'Administrator' }}</span>
+              <span class="text-sm font-black text-slate-900 dark:text-slate-100 leading-none">{{ user?.fullName || 'Administrator' }}</span>
               <span class="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1">{{ user?.roles?.[0] || 'System Manager' }}</span>
             </div>
             <div class="relative group">
-              <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-600 to-emerald-600 p-0.5 shadow-lg shadow-emerald-100 transition-transform group-hover:scale-105 duration-300">
-                <div class="w-full h-full bg-white rounded-[14px] flex items-center justify-center font-black text-primary-700">
+              <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-600 to-emerald-600 p-0.5 shadow-lg shadow-emerald-100/50 dark:shadow-none transition-transform group-hover:scale-105 duration-300">
+                <div class="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center font-black text-primary-700 dark:text-primary-400">
                   {{ userInitials }}
                 </div>
               </div>
@@ -149,7 +163,7 @@
       </header>
 
       <!-- Dynamic Page Slot -->
-      <div class="flex-1 overflow-y-auto p-10 bg-[#F8FAFC]">
+      <div class="flex-1 overflow-y-auto p-10 bg-[#F8FAFC] dark:bg-slate-950 transition-colors duration-300">
         <div class="max-w-[1600px] mx-auto">
           <slot />
         </div>
@@ -162,8 +176,14 @@
 import { 
   LayoutGrid, LayoutDashboard, Users, Briefcase, Users2, Package, Layers, 
   ClipboardCheck, History, Gavel, Wallet, LogOut, Bell, ChevronRight, Menu, Search, Settings2,
-  ShieldCheck, Tags, ShieldAlert, ChevronLeft, Languages, Check, CalendarCheck2, ChevronDown
+  ShieldCheck, Tags, ShieldAlert, ChevronLeft, Languages, Check, CalendarCheck2, ChevronDown,
+  Sun, Moon
 } from 'lucide-vue-next';
+
+const colorMode = useColorMode();
+const toggleTheme = () => {
+  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark';
+};
 
 const { locale, locales, setLocale } = useI18n();
 const localePath = useLocalePath();
@@ -304,7 +324,7 @@ onUnmounted(() => {
 }
 
 .nav-link-v2-active {
-  @apply bg-primary-50/50 text-primary-600 shadow-[0_8px_16px_rgba(16,185,129,0.08)];
+  @apply bg-primary-50/50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 shadow-[0_8px_16px_rgba(16,185,129,0.08)] dark:shadow-none;
 }
 
 .overflow-y-auto::-webkit-scrollbar {
@@ -316,12 +336,12 @@ onUnmounted(() => {
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #E2E8F0;
+  @apply bg-slate-200 dark:bg-slate-800;
   border-radius: 10px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #CBD5E1;
+  @apply bg-slate-300 dark:bg-slate-700;
 }
 
 /* Base CMS spacing and aesthetic */

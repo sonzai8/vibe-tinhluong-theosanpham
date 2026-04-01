@@ -8,28 +8,34 @@ html {
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased text-[13px];
+    @apply bg-slate-50 text-slate-900 font-sans antialiased text-[13px] transition-colors duration-300;
+    @apply dark:bg-slate-950 dark:text-slate-100;
   }
 }
 
 @layer components {
   .btn-primary {
     @apply px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium flex items-center justify-center gap-2;
+    @apply dark:bg-primary-500 dark:hover:bg-primary-400;
   }
   
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-slate-200;
+    @apply bg-white rounded-xl shadow-sm border border-slate-200 transition-all duration-300;
+    @apply dark:bg-slate-900 dark:border-slate-800 dark:shadow-none;
   }
   
   .input-field {
     @apply w-full px-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+    @apply dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100;
   }
 
   .nav-link {
     @apply flex items-center gap-3 px-4 py-3 text-slate-600 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all font-medium;
+    @apply dark:text-slate-400 dark:hover:text-primary-400 dark:hover:bg-slate-800;
   }
 
   .nav-link-active {
     @apply bg-primary-600 text-white shadow-lg shadow-primary-200 hover:bg-primary-600 hover:text-white;
+    @apply dark:bg-primary-500 dark:shadow-none;
   }
 }

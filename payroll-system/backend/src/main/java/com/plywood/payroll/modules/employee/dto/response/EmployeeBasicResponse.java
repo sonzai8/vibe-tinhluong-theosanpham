@@ -9,4 +9,5 @@ public class EmployeeBasicResponse {
     private Long id;
     private String code;
     private String fullName;
+    private String teamName;
 }

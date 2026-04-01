@@ -1,4 +1,5 @@
 package com.plywood.payroll.modules.employee.service;
+
 import com.plywood.payroll.modules.organization.entity.Department;
 import com.plywood.payroll.modules.organization.entity.Role;
 import com.plywood.payroll.modules.organization.service.RoleService;
@@ -27,6 +28,7 @@ import com.plywood.payroll.modules.organization.repository.TeamRepository;
 import com.plywood.payroll.shared.service.FileService;
 import com.plywood.payroll.shared.utils.NameUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,19 +64,20 @@ public class EmployeeService {
         } else {
             employees = employeeRepository.findAll();
         }
-        
+
         return employees.stream()
                 .map(this::mapToListResponse)
                 .collect(Collectors.toList());
     }
 
     public EmployeeListResponse mapToListResponse(Employee entity) {
-        if (entity == null) return null;
-        
+        if (entity == null)
+            return null;
+
         LocalDate today = LocalDate.now();
         TeamProcess currentTeamProc = teamProcessRepository.findEffectiveByDate(entity.getId(), today).orElse(null);
         SalaryProcess currentSalary = salaryProcessRepository.findEffectiveByDate(entity.getId(), today).orElse(null);
-        
+
         Team team = currentTeamProc != null ? currentTeamProc.getTeam() : null;
         Department dept = entity.getDepartment();
         Role role = entity.getRole();
@@ -89,18 +92,41 @@ public class EmployeeService {
                 .avatarUrl(entity.getAvatarPath())
                 .status(entity.getStatus())
                 .canLogin(entity.isCanLogin())
-                .departmentId(dept != null ? dept.getId() : (team != null && team.getDepartment() != null ? team.getDepartment().getId() : null))
-                .departmentName(dept != null ? dept.getName() : (team != null && team.getDepartment() != null ? team.getDepartment().getName() : null))
+                .departmentId(dept != null ? dept.getId()
+                        : (team != null && team.getDepartment() != null ? team.getDepartment().getId() : null))
+                .departmentName(dept != null ? dept.getName()
+                        : (team != null && team.getDepartment() != null ? team.getDepartment().getName() : null))
                 .teamId(team != null ? team.getId() : null)
                 .teamName(team != null ? team.getName() : null)
                 .roleId(role != null ? role.getId() : null)
                 .roleName(role != null ? role.getName() : null)
                 .salaryType(currentSalary != null ? currentSalary.getSalaryType().name() : null)
                 .baseSalaryConfig(currentSalary != null ? currentSalary.getBaseSalary() : java.math.BigDecimal.ZERO)
-                .insuranceSalaryConfig(currentSalary != null ? currentSalary.getInsuranceSalary() : java.math.BigDecimal.ZERO)
+                .insuranceSalaryConfig(
+                        currentSalary != null ? currentSalary.getInsuranceSalary() : java.math.BigDecimal.ZERO)
                 .build();
     }
-    
+
+    @Transactional(readOnly = true)
+    public List<EmployeeBasicResponse> findUnrecordedEmployees(LocalDate date, Long teamId, String search, int limit) {
+        String searchPattern = "%%";
+        Long effectiveTeamId = teamId;
+
+        if (search != null && !search.trim().isEmpty()) {
+            searchPattern = "%" + search.trim().toLowerCase() + "%";
+            effectiveTeamId = null;
+        }
+
+        return employeeRepository.findUnrecordedEmployeesNative(date, effectiveTeamId, searchPattern, limit, 0).stream()
+                .map(row -> EmployeeBasicResponse.builder()
+                        .id(((Number) row[0]).longValue())
+                        .code((String) row[1])
+                        .fullName((String) row[2])
+                        .teamName((String) row[3])
+                        .build())
+                .collect(Collectors.toList());
+    }
+
     @Transactional(readOnly = true)
     public List<EmployeeBasicResponse> searchBasic(String search) {
         if (search == null || search.trim().length() < 3) {
@@ -138,14 +164,14 @@ public class EmployeeService {
     public EmployeeNoteResponse addNote(Long employeeId, EmployeeNoteRequest request) {
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", employeeId));
-        
+
         com.plywood.payroll.modules.employee.entity.EmployeeNote note = new com.plywood.payroll.modules.employee.entity.EmployeeNote();
         note.setEmployee(employee);
         note.setContent(request.getContent());
         note.setMonth(request.getMonth());
         note.setYear(request.getYear());
         note.setCreatedBy("ADMIN"); // Có thể lấy từ SecurityContext nếu có
-        
+
         return mapNoteToResponse(employeeNoteRepository.save(note));
     }
 
@@ -165,7 +191,8 @@ public class EmployeeService {
         return r;
     }
 
-    private EmployeeAuditLogResponse mapToAuditResponse(com.plywood.payroll.modules.employee.entity.EmployeeAuditLog entity) {
+    private EmployeeAuditLogResponse mapToAuditResponse(
+            com.plywood.payroll.modules.employee.entity.EmployeeAuditLog entity) {
         return EmployeeAuditLogResponse.builder()
                 .id(entity.getId())
                 .action(entity.getAction())
@@ -181,7 +208,7 @@ public class EmployeeService {
     public EmployeeResponse create(EmployeeRequest request) {
         Employee employee = new Employee();
         mapRequestToEntity(request, employee);
-        
+
         // Tự động sinh mã nếu chưa có
         if (employee.getCode() == null || employee.getCode().trim().isEmpty()) {
             employee.setCode(generateNextEmployeeCode(employee.getFullName()));
@@ -195,13 +222,16 @@ public class EmployeeService {
         }
 
         Employee saved = employeeRepository.save(employee);
-        
+
         // Tạo tiến trình lương ban đầu
         SalaryProcess sp = new SalaryProcess();
         sp.setEmployee(saved);
-        sp.setSalaryType(request.getSalaryType() != null ? request.getSalaryType() : com.plywood.payroll.modules.employee.entity.SalaryType.PRODUCT_BASED);
-        sp.setBaseSalary(request.getBaseSalaryConfig() != null ? request.getBaseSalaryConfig() : java.math.BigDecimal.ZERO);
-        sp.setInsuranceSalary(request.getInsuranceSalaryConfig() != null ? request.getInsuranceSalaryConfig() : java.math.BigDecimal.ZERO);
+        sp.setSalaryType(request.getSalaryType() != null ? request.getSalaryType()
+                : com.plywood.payroll.modules.employee.entity.SalaryType.PRODUCT_BASED);
+        sp.setBaseSalary(
+                request.getBaseSalaryConfig() != null ? request.getBaseSalaryConfig() : java.math.BigDecimal.ZERO);
+        sp.setInsuranceSalary(request.getInsuranceSalaryConfig() != null ? request.getInsuranceSalaryConfig()
+                : java.math.BigDecimal.ZERO);
         sp.setStartDate(request.getJoinDate() != null ? request.getJoinDate() : LocalDate.now());
         salaryProcessRepository.save(sp);
 
@@ -222,18 +252,20 @@ public class EmployeeService {
     private String generateNextEmployeeCode(String fullName) {
         String prefix = NameUtils.generateCodePrefix(fullName);
         List<String> existingCodes = employeeRepository.findCodesByPrefix(prefix);
-        
+
         int maxSeq = 0;
         for (String code : existingCodes) {
             if (code.length() > prefix.length()) {
                 String seqStr = code.substring(prefix.length());
                 try {
                     int seq = Integer.parseInt(seqStr);
-                    if (seq > maxSeq) maxSeq = seq;
-                } catch (NumberFormatException ignored) {}
+                    if (seq > maxSeq)
+                        maxSeq = seq;
+                } catch (NumberFormatException ignored) {
+                }
             }
         }
-        
+
         return prefix + (maxSeq + 1);
     }
 
@@ -241,7 +273,7 @@ public class EmployeeService {
     public EmployeeResponse update(Long id, EmployeeRequest request) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", id));
-        
+
         LocalDate today = LocalDate.now();
         SalaryProcess currentSalary = salaryProcessRepository.findEffectiveByDate(id, today).orElse(null);
         TeamProcess currentTeamProc = teamProcessRepository.findEffectiveByDate(id, today).orElse(null);
@@ -255,17 +287,26 @@ public class EmployeeService {
 
         // Logic xử lý lịch sử Lương
         boolean salaryChanged = false;
-        if (currentSalary == null || 
-            currentSalary.getSalaryType() != request.getSalaryType() ||
-            currentSalary.getBaseSalary().compareTo(request.getBaseSalaryConfig() != null ? request.getBaseSalaryConfig() : java.math.BigDecimal.ZERO) != 0 ||
-            currentSalary.getInsuranceSalary().compareTo(request.getInsuranceSalaryConfig() != null ? request.getInsuranceSalaryConfig() : java.math.BigDecimal.ZERO) != 0) {
-            
+        if (currentSalary == null ||
+                currentSalary.getSalaryType() != request.getSalaryType() ||
+                currentSalary.getBaseSalary()
+                        .compareTo(request.getBaseSalaryConfig() != null ? request.getBaseSalaryConfig()
+                                : java.math.BigDecimal.ZERO) != 0
+                ||
+                currentSalary.getInsuranceSalary()
+                        .compareTo(request.getInsuranceSalaryConfig() != null ? request.getInsuranceSalaryConfig()
+                                : java.math.BigDecimal.ZERO) != 0) {
+
             salaryChanged = true;
             if (currentSalary != null && currentSalary.getStartDate().equals(today)) {
                 // Nếu đã có bản ghi bắt đầu từ hôm nay, cập nhật luôn bản ghi đó
-                currentSalary.setSalaryType(request.getSalaryType() != null ? request.getSalaryType() : com.plywood.payroll.modules.employee.entity.SalaryType.PRODUCT_BASED);
-                currentSalary.setBaseSalary(request.getBaseSalaryConfig() != null ? request.getBaseSalaryConfig() : java.math.BigDecimal.ZERO);
-                currentSalary.setInsuranceSalary(request.getInsuranceSalaryConfig() != null ? request.getInsuranceSalaryConfig() : java.math.BigDecimal.ZERO);
+                currentSalary.setSalaryType(request.getSalaryType() != null ? request.getSalaryType()
+                        : com.plywood.payroll.modules.employee.entity.SalaryType.PRODUCT_BASED);
+                currentSalary.setBaseSalary(request.getBaseSalaryConfig() != null ? request.getBaseSalaryConfig()
+                        : java.math.BigDecimal.ZERO);
+                currentSalary.setInsuranceSalary(
+                        request.getInsuranceSalaryConfig() != null ? request.getInsuranceSalaryConfig()
+                                : java.math.BigDecimal.ZERO);
                 salaryProcessRepository.save(currentSalary);
             } else {
                 if (currentSalary != null) {
@@ -274,19 +315,24 @@ public class EmployeeService {
                 }
                 SalaryProcess nextSalary = new SalaryProcess();
                 nextSalary.setEmployee(saved);
-                nextSalary.setSalaryType(request.getSalaryType() != null ? request.getSalaryType() : com.plywood.payroll.modules.employee.entity.SalaryType.PRODUCT_BASED);
-                nextSalary.setBaseSalary(request.getBaseSalaryConfig() != null ? request.getBaseSalaryConfig() : java.math.BigDecimal.ZERO);
-                nextSalary.setInsuranceSalary(request.getInsuranceSalaryConfig() != null ? request.getInsuranceSalaryConfig() : java.math.BigDecimal.ZERO);
+                nextSalary.setSalaryType(request.getSalaryType() != null ? request.getSalaryType()
+                        : com.plywood.payroll.modules.employee.entity.SalaryType.PRODUCT_BASED);
+                nextSalary.setBaseSalary(request.getBaseSalaryConfig() != null ? request.getBaseSalaryConfig()
+                        : java.math.BigDecimal.ZERO);
+                nextSalary.setInsuranceSalary(
+                        request.getInsuranceSalaryConfig() != null ? request.getInsuranceSalaryConfig()
+                                : java.math.BigDecimal.ZERO);
                 nextSalary.setStartDate(today);
                 salaryProcessRepository.save(nextSalary);
             }
         }
 
         // Logic xử lý lịch sử Tổ đội
-        if (request.getTeamId() != null && (currentTeamProc == null || !currentTeamProc.getTeam().getId().equals(request.getTeamId()))) {
+        if (request.getTeamId() != null
+                && (currentTeamProc == null || !currentTeamProc.getTeam().getId().equals(request.getTeamId()))) {
             Team newTeamEntity = teamRepository.findById(request.getTeamId())
                     .orElseThrow(() -> new ResourceNotFoundException("Tổ sản xuất", request.getTeamId()));
-                    
+
             if (currentTeamProc != null && currentTeamProc.getStartDate().equals(today)) {
                 // Cập nhật luôn nếu bản ghi hiện tại cũng bắt đầu từ hôm nay
                 currentTeamProc.setTeam(newTeamEntity);
@@ -302,7 +348,7 @@ public class EmployeeService {
                 nextTeamProc.setStartDate(today);
                 teamProcessRepository.save(nextTeamProc);
             }
-            
+
             logChange(saved, "UPDATE_TEAM", "team", oldTeamName, newTeamEntity.getName(), "ADMIN");
         } else if (request.getTeamId() == null && currentTeamProc != null) {
             if (currentTeamProc.getStartDate().equals(today)) {
@@ -329,13 +375,14 @@ public class EmployeeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", id));
         employee.setPassword(passwordEncoder.encode(newPassword));
         employeeRepository.save(employee);
-        
+
         logChange(employee, "RESET_PASSWORD", "password", "***", "***", "ADMIN");
     }
 
     private void logChange(Employee emp, String action, String field, String oldVal, String newVal, String by) {
-        if ((oldVal == null && newVal == null) || (oldVal != null && oldVal.equals(newVal))) return;
-        
+        if ((oldVal == null && newVal == null) || (oldVal != null && oldVal.equals(newVal)))
+            return;
+
         com.plywood.payroll.modules.employee.entity.EmployeeAuditLog log = new com.plywood.payroll.modules.employee.entity.EmployeeAuditLog();
         log.setEmployee(emp);
         log.setAction(action);
@@ -352,12 +399,13 @@ public class EmployeeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", id));
         employee.setStatus("INACTIVE");
         employeeRepository.save(employee);
-        
+
         logChange(employee, "SOFT_DELETE", "status", "ACTIVE", "INACTIVE", "ADMIN");
     }
 
     @Transactional
-    public String updateAvatar(Long id, org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+    public String updateAvatar(Long id, org.springframework.web.multipart.MultipartFile file)
+            throws java.io.IOException {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", id));
 
@@ -425,7 +473,8 @@ public class EmployeeService {
     }
 
     public EmployeeResponse mapToResponse(Employee entity) {
-        if (entity == null) return null;
+        if (entity == null)
+            return null;
         EmployeeResponse response = new EmployeeResponse();
         response.setId(entity.getId());
         response.setCode(entity.getCode());
@@ -436,7 +485,7 @@ public class EmployeeService {
         response.setCanLogin(entity.isCanLogin());
         response.setPhone(entity.getPhone());
         response.setCitizenId(entity.getCitizenId());
-        
+
         response.setGender(entity.getGender());
         response.setDob(entity.getDob());
         response.setJoinDate(entity.getJoinDate());
@@ -477,7 +526,8 @@ public class EmployeeService {
     }
 
     private DepartmentResponse mapDepartmentShallow(Department entity) {
-        if (entity == null) return null;
+        if (entity == null)
+            return null;
         DepartmentResponse res = new DepartmentResponse();
         res.setId(entity.getId());
         res.setName(entity.getName());
@@ -485,11 +535,14 @@ public class EmployeeService {
     }
 
     /**
-     * Mapper gọn nhẹ: Team → TeamResponse, KHÔNG gọi TeamService để tránh circular dep.
-     * Không include memberCount (tránh lazy loading N+1), chỉ cần id + name + department.
+     * Mapper gọn nhẹ: Team → TeamResponse, KHÔNG gọi TeamService để tránh circular
+     * dep.
+     * Không include memberCount (tránh lazy loading N+1), chỉ cần id + name +
+     * department.
      */
     private TeamResponse mapTeamShallow(Team team) {
-        if (team == null) return null;
+        if (team == null)
+            return null;
         Department dept = team.getDepartment();
         return TeamResponse.builder()
                 .id(team.getId())

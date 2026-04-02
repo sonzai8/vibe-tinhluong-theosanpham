@@ -44,7 +44,7 @@ public class Employee extends BaseEntity {
     @Column(length = 20)
     private String phone;
 
-    @Column(length = 20, unique = true)
+    @Column(length = 20)
     private String citizenId;
 
     private String gender;
@@ -52,6 +52,7 @@ public class Employee extends BaseEntity {
     private java.time.LocalDate joinDate;
     private java.time.LocalDate insuranceStartDate;
     private java.time.LocalDate citizenIdIssuedDate;
+    private java.time.LocalDate lastWorkingDate;
     private String citizenIdIssuedPlace;
     private String birthAddress;
     private String permanentAddress;

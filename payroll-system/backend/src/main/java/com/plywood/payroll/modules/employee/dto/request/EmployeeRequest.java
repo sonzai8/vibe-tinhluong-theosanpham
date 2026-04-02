@@ -29,6 +29,7 @@ public class EmployeeRequest {
     private java.time.LocalDate joinDate;
     private java.time.LocalDate insuranceStartDate;
     private java.time.LocalDate citizenIdIssuedDate;
+    private java.time.LocalDate lastWorkingDate;
     private String citizenIdIssuedPlace;
     private String birthAddress;
     private String permanentAddress;

@@ -163,7 +163,7 @@
       </header>
 
       <!-- Dynamic Page Slot -->
-      <div class="flex-1 overflow-y-auto p-10 bg-[#F8FAFC] dark:bg-slate-950 transition-colors duration-300">
+      <div class="flex-1 overflow-y-auto px-10 pb-10 bg-[#F8FAFC] dark:bg-slate-950 transition-colors duration-300">
         <div class="max-w-[1600px] mx-auto">
           <slot />
         </div>

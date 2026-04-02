@@ -276,6 +276,13 @@
               </select>
             </div>
 
+            <UiInput 
+              v-if="form.status !== 'ACTIVE'"
+              v-model="form.lastWorkingDate" 
+              type="date" 
+              :label="$t('last_working_date')" 
+            />
+
             <SelectDepartment 
               v-model="form.departmentId" 
               label="Phòng ban trực thuộc" 
@@ -632,7 +639,8 @@ const form = reactive({
   salaryType: 'PRODUCT_BASED',
   baseSalaryConfig: 0,
   insuranceSalaryConfig: 0,
-  zkDeviceId: ''
+  zkDeviceId: '',
+  lastWorkingDate: ''
 });
 
 watch(activeModalTab, (newTab) => {
@@ -750,6 +758,7 @@ const openModal = (emp = null) => {
     form.baseSalaryConfig = emp.baseSalaryConfig || 0;
     form.insuranceSalaryConfig = emp.insuranceSalaryConfig || 0;
     form.zkDeviceId = emp.zkDeviceId || '';
+    form.lastWorkingDate = emp.lastWorkingDate || '';
   } else {
     currentEmp.value = {};
     activeModalTab.value = 'form';
@@ -768,6 +777,7 @@ const openModal = (emp = null) => {
     form.baseSalaryConfig = 0;
     form.insuranceSalaryConfig = 0;
     form.zkDeviceId = '';
+    form.lastWorkingDate = '';
   }
   showModal.value = true;
 };

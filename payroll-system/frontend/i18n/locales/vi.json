@@ -415,6 +415,7 @@
     "borrowed_cost": "Lương quân mượn",
     "lend_cost": "Tổ Khác",
     "total_labor_cost": "Tổng chi phí lương",
+    "last_working_date": "Ngày làm việc cuối",
     "worker_details": "Chi tiết nhân sự ngày {date}",
     "is_borrowed": "Quân mượn",
     "from_team": "Từ tổ",

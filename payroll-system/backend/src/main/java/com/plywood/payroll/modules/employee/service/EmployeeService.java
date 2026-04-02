@@ -221,6 +221,13 @@ public class EmployeeService {
             employee.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
+        // Kiểm tra trùng CCCD nếu có nhập
+        if (employee.getCitizenId() != null) {
+            if (employeeRepository.existsByCitizenId(employee.getCitizenId())) {
+                throw new RuntimeException("Số CCCD đã tồn tại trên hệ thống");
+            }
+        }
+
         Employee saved = employeeRepository.save(employee);
 
         // Tạo tiến trình lương ban đầu
@@ -283,6 +290,14 @@ public class EmployeeService {
         String oldTeamName = currentTeamProc != null ? currentTeamProc.getTeam().getName() : "N/A";
 
         mapRequestToEntity(request, employee);
+
+        // Kiểm tra trùng CCCD nếu có nhập và khác với giá trị cũ
+        if (employee.getCitizenId() != null && !employee.getCitizenId().equals(oldCitizenId)) {
+            if (employeeRepository.existsByCitizenId(employee.getCitizenId())) {
+                throw new RuntimeException("Số CCCD đã tồn tại trên hệ thống");
+            }
+        }
+
         Employee saved = employeeRepository.save(employee);
 
         // Logic xử lý lịch sử Lương
@@ -405,7 +420,7 @@ public class EmployeeService {
 
     @Transactional
     public String updateAvatar(Long id, org.springframework.web.multipart.MultipartFile file)
-            throws java.io.IOException {
+            throws java.io.IOException, IllegalArgumentException {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", id));
 
@@ -414,7 +429,13 @@ public class EmployeeService {
             fileService.deleteAvatar(employee.getAvatarPath());
         }
 
+        // Check file size (max 2MB = 2 * 1024 * 1024 bytes)
+        // if (file.getSize() > 2 * 1024 * 1024) {
+        // throw new IllegalArgumentException("Ảnh đại diện không được vượt quá 2MB");
+        // }
+
         String fileName = fileService.saveAvatar(file);
+
         employee.setAvatarPath(fileName);
         employeeRepository.save(employee);
 
@@ -430,7 +451,11 @@ public class EmployeeService {
         employee.setUsername(request.getUsername());
         employee.setCanLogin(request.isCanLogin());
         employee.setPhone(request.getPhone());
-        employee.setCitizenId(request.getCitizenId());
+        String citizenId = request.getCitizenId();
+        if (citizenId != null && citizenId.trim().isEmpty()) {
+            citizenId = null;
+        }
+        employee.setCitizenId(citizenId);
         employee.setZkDeviceId(request.getZkDeviceId());
         employee.setGender(request.getGender());
         employee.setDob(request.getDob());
@@ -440,6 +465,7 @@ public class EmployeeService {
         employee.setCitizenIdIssuedPlace(request.getCitizenIdIssuedPlace());
         employee.setBirthAddress(request.getBirthAddress());
         employee.setPermanentAddress(request.getPermanentAddress());
+        employee.setLastWorkingDate(request.getLastWorkingDate());
         employee.setNotes(request.getNotes());
 
         if (request.getTeamId() != null) {
@@ -494,6 +520,7 @@ public class EmployeeService {
         response.setCitizenIdIssuedPlace(entity.getCitizenIdIssuedPlace());
         response.setBirthAddress(entity.getBirthAddress());
         response.setPermanentAddress(entity.getPermanentAddress());
+        response.setLastWorkingDate(entity.getLastWorkingDate());
         response.setNotes(entity.getNotes());
 
         if (entity.getAvatarPath() != null) {

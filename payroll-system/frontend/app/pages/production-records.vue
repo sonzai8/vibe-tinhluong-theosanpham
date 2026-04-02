@@ -505,6 +505,7 @@ import {
   Layers, Gavel, ChevronLeft, ChevronRight, User, ArrowRightLeft,
   ChevronDown, Check, LayoutList, Grid3X3
 } from 'lucide-vue-next';
+import { getToday, getCurrentMonthRange, getCurrentMonth } from '@/utils/date';
 
 const { $api } = useNuxtApp();
 const { t } = useI18n();
@@ -534,12 +535,8 @@ const saving = ref(false);
 const exporting = ref(false);
 const showModal = ref(false);
 
-const now = new Date();
-const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().substr(0, 10);
-const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().substr(0, 10);
+const { from: firstDayOfMonth, to: lastDayOfMonth } = getCurrentMonthRange();
 
-console.log("firstDay:" + firstDayOfMonth);
-console.log("lastDay:" + lastDayOfMonth);
 const filter = reactive({
   from: firstDayOfMonth,
   to: lastDayOfMonth,
@@ -553,14 +550,14 @@ const form = reactive({
   teamId: null,
   productId: null,
   qualityId: null,
-  productionDate: new Date().toISOString().substr(0, 10),
+  productionDate: getToday(),
   quantity: 0
 });
 
 const currentId = ref(null);
 
 const showBulkModal = ref(false);
-const bulkDate = ref(new Date().toISOString().substr(0, 10));
+const bulkDate = ref(getToday());
 const bulkRecords = ref([]);
 const bulkError = ref('');
 
@@ -579,7 +576,7 @@ const triggerError = (title, message, detail = '') => {
 
 // Calendar View State
 const viewMode = ref('list'); // 'list' or 'matrix'
-const viewMonth = ref(new Date().toISOString().substr(0, 7)); // YYYY-MM
+const viewMonth = ref(getCurrentMonth()); // YYYY-MM
 const viewWeek = ref(null); 
 
 // onMounted consolidatied at the end of the file

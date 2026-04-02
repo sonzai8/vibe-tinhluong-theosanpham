@@ -637,9 +637,10 @@
 <script setup>
 import { 
   CalendarPlus, Search, CalendarX, CheckCircle2, PencilLine, Trash2, X, Info,
-  Download, Upload, FileSpreadsheet, UserX, Users, Plus, Trash, ChevronLeft, ChevronRight,
-  ChevronDown, Check, LayoutList, Grid3x3
+  Download, Upload, FileSpreadsheet, UserX, Users, Plus, Trash,  ChevronLeft, ChevronRight, LayoutGrid, LayoutList, Grid3X3,
+  Undo2, History, AlertTriangle
 } from 'lucide-vue-next';
+import { getToday, getCurrentMonth } from '@/utils/date';
 
 const { $api } = useNuxtApp();
 
@@ -707,7 +708,7 @@ const form = reactive({
 const bulkEmployees = ref([]);
 const borrowedEmployees = ref([]);
 
-const filterDate = ref(new Date().toISOString().substr(0, 10));
+const filterDate = ref(getToday());
 const filterDeptIds = ref([]);
 const filterTeamIds = ref([]);
 const search = ref('');
@@ -730,7 +731,7 @@ const closeAttendanceMenu = () => {
 // View Mode State
 const viewMode = ref('matrix'); // 'list' or 'matrix'
 const matrixScope = ref('month'); // 'month' or 'week'
-const viewMonth = ref(new Date().toISOString().substr(0, 7));
+const viewMonth = ref(getCurrentMonth());
 const cellLoading = ref(null);
 
 // Get Monday of current week

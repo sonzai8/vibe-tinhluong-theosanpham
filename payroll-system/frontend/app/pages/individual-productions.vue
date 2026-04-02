@@ -171,6 +171,7 @@
 
 <script setup>
 import { Users, LayoutGrid, RefreshCw, Info, History } from 'lucide-vue-next';
+import dayjs from 'dayjs';
 
 const { $api } = useNuxtApp();
 const viewMode = ref('matrix');
@@ -191,8 +192,8 @@ const triggerError = (title, message, detail = '') => {
 };
 
 const filter = reactive({
-  month: new Date().getMonth() + 1,
-  year: new Date().getFullYear(),
+  month: dayjs().month() + 1,
+  year: dayjs().year(),
   departmentId: '',
   teamId: ''
 });

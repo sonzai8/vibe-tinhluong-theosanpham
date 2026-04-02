@@ -49,10 +49,21 @@
           </div>
         </div>
 
-        <UiButton @click="handleCalculate" class="w-full h-16 text-xl font-black rounded-2xl shadow-xl shadow-primary-100" :loading="calculating">
-          <Play class="w-6 h-6 fill-current" />
-          Bắt đầu tính lương
-        </UiButton>
+        <div class="flex gap-4 w-full">
+          <UiButton @click="handleCalculate" class="flex-1 h-16 text-xl font-black rounded-2xl shadow-xl shadow-primary-100" :loading="calculating">
+            <Play class="w-6 h-6 fill-current" />
+            Bắt đầu tính lương
+          </UiButton>
+          
+          <button 
+            @click="handleReset" 
+            class="px-6 h-16 bg-white border-2 border-red-100 text-red-500 hover:bg-red-50 font-black rounded-2xl transition-all shadow-lg shadow-red-50 flex items-center justify-center gap-2 min-w-[240px]"
+            :disabled="calculating"
+          >
+            <Trash2 class="w-5 h-5" />
+            Xóa dữ liệu để tính lại
+          </button>
+        </div>
       </div>
     </div>
 
@@ -324,7 +335,7 @@
 </template>
 
 <script setup>
-import { Calculator, Play, Wallet, CheckCircle2, ChevronLeft, ChevronRight, X, Download } from 'lucide-vue-next';
+import { Calculator, Play, Wallet, CheckCircle2, ChevronLeft, ChevronRight, X, Download, Trash2 } from 'lucide-vue-next';
 
 const { $api } = useNuxtApp();
 const viewMode = ref('list');
@@ -430,6 +441,23 @@ const handleCalculate = async () => {
     fetchPayrolls();
   } catch (err) {
     triggerError('Lỗi tính lương', 'Quá trình tính toán lương gặp sự cố.', err.response?.data?.message || err.message);
+  } finally {
+    calculating.value = false;
+  }
+};
+
+const handleReset = async () => {
+  if (!confirm(`CẢNH BÁO: Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu (Chấm công, Sản lượng, Thưởng/Phạt) của tháng ${calcForm.month}/${calcForm.year}?\n\nThao tác này KHÔNG THỂ khôi phục và chỉ thực hiện được nếu bảng lương chưa chốt.`)) {
+    return;
+  }
+
+  calculating.value = true;
+  try {
+    const res = await $api.delete(`/payrolls/${calcForm.year}/${calcForm.month}/reset`);
+    alert(res.message || 'Đã reset dữ liệu thành công.');
+    fetchPayrolls();
+  } catch (err) {
+    triggerError('Lỗi reset dữ liệu', 'Không thể xóa dữ liệu tháng này. Có thể bảng lương đã chốt hoặc lỗi hệ thống.', err.response?.data?.message || err.message);
   } finally {
     calculating.value = false;
   }

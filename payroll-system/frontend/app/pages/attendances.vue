@@ -528,6 +528,7 @@
               :label="$t('attendance.definition.name')" 
               :options="attendanceDefOptions" 
               :placeholder="$t('common.select_type') || 'Chọn loại công'"
+              @update:modelValue="syncGlobalAttendanceType"
             />
           </div>
 
@@ -551,6 +552,7 @@
                     <th class="px-4 py-3">{{ $t('attendance.employee') }}</th>
                     <th class="px-4 py-3">{{ $t('attendance.original_team') }}</th>
                     <th class="px-4 py-3 w-48">{{ $t('attendance.actual_team') }}</th>
+                    <th class="px-4 py-3 w-48">{{ $t('attendance.definition.name') || 'Loại công' }}</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -568,6 +570,11 @@
                     <td class="px-4 py-3">
                       <select v-model="emp.actualTeamId" class="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
                         <option v-for="opt in teamOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                      </select>
+                    </td>
+                    <td class="px-4 py-3">
+                      <select v-model="emp.attendanceDefinitionId" class="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+                        <option v-for="opt in attendanceDefOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                       </select>
                     </td>
                   </tr>
@@ -591,19 +598,23 @@
             <div v-else class="space-y-3">
               <div v-for="(b, index) in borrowedEmployees" :key="index" class="flex gap-4 items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                 <div class="flex-1">
-                  <UiSelect 
+                  <SelectEmployee 
                     v-model="b.employeeId" 
-                    :options="availableBorrowedEmployees(index)" 
                     :placeholder="$t('common.select_borrowed') || 'Chọn nhân sự mượn...'" 
+                    :attendanceDate="filterDate"
+                    label=""
                     @update:modelValue="e => onBorrowedEmployeeSelect(e, index)"
                   />
                 </div>
                 <div class="w-48">
-                  <UiSelect 
-                    v-model="b.actualTeamId" 
-                    :options="teamOptions" 
-                    :placeholder="$t('attendance.actual_team')" 
-                  />
+                  <select v-model="b.actualTeamId" class="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+                    <option v-for="opt in teamOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                  </select>
+                </div>
+                <div class="w-48">
+                  <select v-model="b.attendanceDefinitionId" class="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+                    <option v-for="opt in attendanceDefOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                  </select>
                 </div>
                 <button @click="removeBorrowedEmployee(index)" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0">
                   <Trash class="w-4 h-4" />
@@ -1131,18 +1142,32 @@ const handleSubmit = async () => {
   }
 };
 
-const openBulkModal = () => {
+const openBulkModal = async () => {
   bulkForm.departmentId = filterDeptIds.value[0] || null;
   bulkForm.teamId = filterTeamIds.value[0] || null;
   bulkForm.attendanceDefinitionId = null;
   borrowedEmployees.value = [];
-  loadBulkEmployees();
-  showBulkModal.value = true;
+  
+  // Fetch fresh attendance for the target date before loading bulk list
+  loading.value = true;
+  try {
+    const res = await $api.get(`/attendances/date/${filterDate.value}`);
+    // Temporarily update attendances local state just for this specific date
+    // Or just use the returned list to filter. Let's update attendances for consistency.
+    attendances.value = res.data || [];
+    loadBulkEmployees();
+    showBulkModal.value = true;
+  } catch (err) {
+    console.error('Error fetching fresh attendance for bulk:', err);
+  } finally {
+    loading.value = false;
+  }
 };
 
 const loadBulkEmployees = () => {
+  const targetDate = filterDate.value;
   const attendedIds = new Set(attendances.value
-    .filter(a => a.attendanceDate === filterDate.value)
+    .filter(a => a.attendanceDate === targetDate)
     .map(a => a.employeeId)
   );
   
@@ -1163,8 +1188,18 @@ const loadBulkEmployees = () => {
       code: e.code,
       originalTeamId: e.teamId,
       originalTeamName: e.teamName,
-      actualTeamId: e.teamId || null
+      actualTeamId: e.teamId || null,
+      attendanceDefinitionId: bulkForm.attendanceDefinitionId
     }));
+};
+
+const syncGlobalAttendanceType = (defId) => {
+  bulkEmployees.value.forEach(emp => {
+    emp.attendanceDefinitionId = defId;
+  });
+  borrowedEmployees.value.forEach(b => {
+    b.attendanceDefinitionId = defId;
+  });
 };
 
 const isAllBulkSelected = computed(() => bulkEmployees.value.length > 0 && bulkEmployees.value.every(e => e.selected));
@@ -1178,7 +1213,11 @@ const totalBulkSelected = computed(() => {
 });
 
 const addBorrowedEmployee = () => {
-  borrowedEmployees.value.push({ employeeId: null, actualTeamId: bulkForm.teamId || null });
+  borrowedEmployees.value.push({ 
+    employeeId: null, 
+    actualTeamId: bulkForm.teamId || null,
+    attendanceDefinitionId: bulkForm.attendanceDefinitionId
+  });
 };
 const removeBorrowedEmployee = (index) => {
   borrowedEmployees.value.splice(index, 1);
@@ -1194,15 +1233,7 @@ const onBorrowedEmployeeSelect = (empId, index) => {
   }
 };
 
-const availableBorrowedEmployees = (index) => {
-  const attendedIds = new Set(attendances.value.map(a => a.employeeId));
-  const primaryIds = new Set(bulkEmployees.value.map(e => e.id));
-  const otherBorrowedIds = new Set(borrowedEmployees.value.filter((b, i) => i !== index && b.employeeId).map(b => b.employeeId));
-  
-  return employees.value
-    .filter(e => e.status === 'ACTIVE' && !attendedIds.has(e.id) && !primaryIds.has(e.id) && !otherBorrowedIds.has(e.id))
-    .map(e => ({ value: e.id, label: `${e.fullName} (${e.code}) - Tổ: ${e.teamName || 'N/A'}` }));
-};
+// Redundant with SelectEmployee handling search and filtering by date
 
 const handleBulkSubmit = async () => {
   const payload = [];
@@ -1213,7 +1244,7 @@ const handleBulkSubmit = async () => {
       originalTeamId: e.originalTeamId || null,
       actualTeamId: e.actualTeamId,
       attendanceDate: filterDate.value,
-      attendanceDefinitionId: bulkForm.attendanceDefinitionId
+      attendanceDefinitionId: e.attendanceDefinitionId
     });
   });
   
@@ -1224,7 +1255,7 @@ const handleBulkSubmit = async () => {
       originalTeamId: emp?.teamId || null,
       actualTeamId: b.actualTeamId,
       attendanceDate: filterDate.value,
-      attendanceDefinitionId: bulkForm.attendanceDefinitionId
+      attendanceDefinitionId: b.attendanceDefinitionId
     });
   });
   

@@ -169,12 +169,18 @@ const filteredEmployees = computed(() => {
 });
 
 const selectedName = computed(() => {
-  if (selectedEmployee.value && selectedEmployee.value.id == props.modelValue) {
-    return selectedEmployee.value.fullName;
+  let empFound = null;
+  if (selectedEmployee.value && (selectedEmployee.value.id == props.modelValue)) {
+    empFound = selectedEmployee.value;
+  } else if (props.modelValue) {
+    empFound = employees.value.find(e => e.id == props.modelValue);
   }
-  if (!props.modelValue) return '';
-  const emp = employees.value.find(e => e.id == props.modelValue);
-  return emp ? emp.fullName : '';
+
+  if (empFound) {
+    const teamName = empFound.teamName || (empFound.department ? empFound.department.name : '') || (empFound.team ? empFound.team.name : '');
+    return teamName ? `${empFound.fullName} - ${teamName}` : empFound.fullName;
+  }
+  return '';
 });
 
 const selectOption = (emp) => {

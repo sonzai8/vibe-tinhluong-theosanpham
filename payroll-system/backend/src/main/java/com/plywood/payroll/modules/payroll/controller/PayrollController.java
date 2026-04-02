@@ -101,4 +101,16 @@ public class PayrollController {
             throw new RuntimeException("Lỗi khi xuất file Excel phiếu lương", e);
         }
     }
+
+    @DeleteMapping("/{year}/{month}/reset")
+    @Operation(summary = "Xóa toàn bộ dữ liệu (chấm công, sản lượng, phạt/thưởng) của một tháng nếu chưa chốt")
+    public ResponseEntity<ApiResponse<Void>> deleteMonthlyData(
+            @PathVariable("year") int year,
+            @PathVariable("month") int month) {
+        payrollService.resetMonthlyData(month, year);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Đã xóa toàn bộ dữ liệu tháng " + month + "/" + year + " để tính toán lại.",
+                null
+        ));
+    }
 }

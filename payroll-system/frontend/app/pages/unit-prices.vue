@@ -210,7 +210,7 @@
                             <template v-for="s in sizeOnlySteps" :key="s.id">
                                 <td v-for="p in getStepProducts(s.id)" :key="p.id" class="px-4 py-3 border-r border-slate-100 text-center">
                                     <div class="flex items-center justify-center gap-2">
-                                        <span class="font-black text-slate-700 text-xs">{{ formatCurrency(getSizeOnlyRate(p.id, s.id)?.priceHigh) }}</span>
+                                        <span class="font-bold text-primary-500 text-xs">{{ formatCurrency(getSizeOnlyRate(p.id, s.id)?.priceHigh) }}</span>
                                         <button @click="openModal(getSizeOnlyRate(p.id, s.id))" v-if="getSizeOnlyRate(p.id, s.id)" class="p-1 hover:bg-slate-100 rounded transition-colors group/edit">
                                             <PencilLine class="w-3 h-3 text-slate-300 group-hover/edit:text-primary-500" />
                                         </button>
@@ -245,21 +245,21 @@
                 <table class="w-full text-left border-collapse min-w-max border border-slate-200 bg-white rounded-xl shadow-sm overflow-hidden">
                     <thead class="sticky top-0 z-30">
                         <tr class="bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border-b border-slate-200">
-                            <th rowspan="2" class="px-6 py-5 sticky left-0 z-40 bg-slate-100 border-r border-slate-200 min-w-[150px] shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Chất lượng</th>
-                            <th rowspan="2" class="px-4 py-5 sticky left-[150px] z-40 bg-slate-100 border-r border-slate-200 min-w-[100px] shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Loại giá</th>
+                            <th rowspan="2" class="px-6 py-5 sticky text-center left-0 z-40 bg-slate-100 border-r border-slate-200 min-w-[50px] shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Chất lượng</th>
+                            <th rowspan="2" class="px-4 py-5 sticky text-center left-[150px] z-40 bg-slate-100 border-r border-slate-200 min-w-[60px] shadow-[2px_0_5px_rgba(0,0,0,0.02)]">Loại giá</th>
                             <th v-for="s in qualitySteps" :key="s.id" :colspan="getStepProducts(s.id).length || 1" class="px-6 py-3 text-center border-r border-slate-200 bg-primary-50/50 text-primary-700">
                                 {{ s.name }}
                             </th>
                         </tr>
                         <tr class="bg-slate-50 text-slate-500 text-[9px] font-black uppercase tracking-widest border-b border-slate-200">
                             <template v-for="s in qualitySteps" :key="s.id">
-                                <th v-for="p in getStepProducts(s.id)" :key="p.id" class="px-4 py-3 text-center border-r border-slate-200 min-w-[140px]">
+                                <th v-for="p in getStepProducts(s.id)" :key="p.id" class="px-4 py-3 text-center border-r border-slate-200 min-w-[100px]">
                                     <div class="flex flex-col">
                                         <span>{{ p.code }}</span>
                                         <span class="text-[8px] opacity-60">{{ p.thickness }}x{{ p.length }}x{{ p.width }}</span>
                                     </div>
                                 </th>
-                                <th v-if="getStepProducts(s.id).length === 0" class="px-4 py-3 text-center border-r border-slate-200 min-w-[140px] italic opacity-40">N/A</th>
+                                <th v-if="getStepProducts(s.id).length === 0" class="px-4 py-3 text-center border-r border-slate-200 min-w-[100px] italic opacity-40">N/A</th>
                             </template>
                         </tr>
                     </thead>
@@ -273,8 +273,8 @@
                                 <td class="px-4 py-3 sticky left-[150px] z-20 bg-white border-r border-slate-200 font-bold text-[9px] uppercase tracking-tighter text-emerald-600 shadow-[2px_0_5px_rgba(0,0,0,0.02)] text-center">Giá Cao</td>
                                 <template v-for="s in qualitySteps" :key="s.id">
                                     <td v-for="p in getStepProducts(s.id)" :key="p.id" class="px-4 py-3 border-r border-slate-100 text-center">
-                                        <div class="flex items-center justify-center gap-2">
-                                            <span class="font-black text-slate-700 text-xs">{{ formatCurrency(getRate(p.id, s.id, q.id)?.priceHigh) }}</span>
+                                        <div class="flex items-start gap-2">
+                                            <span class="text-primary-500 font-bold text-xs">{{ formatCurrency(getRate(p.id, s.id, q.id)?.priceHigh) }}</span>
                                             <button @click="openModal(getRate(p.id, s.id, q.id))" v-if="getRate(p.id, s.id, q.id)" class="p-1 hover:bg-slate-100 rounded transition-colors group/edit">
                                                 <PencilLine class="w-3 h-3 text-slate-300 group-hover/edit:text-primary-500" />
                                             </button>
@@ -290,7 +290,7 @@
                             <tr class="hover:bg-slate-50/30 transition-all border-b border-slate-200">
                                 <td class="px-4 py-3 sticky left-[150px] z-20 bg-white border-r border-slate-200 font-bold text-[9px] uppercase tracking-tighter text-slate-400 shadow-[2px_0_5px_rgba(0,0,0,0.02)] text-center">Giá Thấp</td>
                                 <template v-for="s in qualitySteps" :key="s.id">
-                                    <td v-for="p in getStepProducts(s.id)" :key="p.id" class="px-4 py-3 border-r border-slate-100 text-center">
+                                    <td v-for="p in getStepProducts(s.id)" :key="p.id" class="px-4 py-3 border-r border-slate-100 text-start">
                                         <span class="font-black text-slate-500 text-xs">{{ formatCurrency(getRate(p.id, s.id, q.id)?.priceLow) }}</span>
                                     </td>
                                     <td v-if="getStepProducts(s.id).length === 0" class="px-4 py-3 border-r border-slate-100 bg-slate-50/30"></td>

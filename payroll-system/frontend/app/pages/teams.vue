@@ -90,6 +90,7 @@
             <th class="px-6 py-4">Phòng ban</th>
             <th class="px-6 py-4">Công đoạn sản xuất</th>
             <th class="px-6 py-4 text-center">Thành viên</th>
+            <th class="px-6 py-4 text-right">Quỹ đầu chuyền</th>
             <th class="px-6 py-4 text-right">Thao tác</th>
           </tr>
         </thead>
@@ -129,6 +130,9 @@
                 </div>
               </span>
               <span v-else class="text-[10px] font-black text-slate-300 uppercase italic">Chưa có thành viên</span>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <span class="text-sm font-black text-slate-900">{{ team.leadFundAmount ? team.leadFundAmount.toLocaleString() : '0' }}đ</span>
             </td>
             <td class="px-6 py-4 text-right pr-6">
               <div class="flex items-center justify-end gap-2 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -213,6 +217,13 @@
             required
           />
           <UiInput v-model="form.name" label="Tên tổ" placeholder="VD: Tổ Sấy Phôi" required />
+          
+          <UiNumericInput
+            v-model="form.leadFundAmount"
+            label="Quỹ đầu chuyền (VND/ngày)"
+            placeholder="VD: 20.000"
+            isCurrency
+          />
           
           <div class="flex gap-3 pt-2">
             <button type="button" @click="showModal = false" class="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">Hủy</button>
@@ -341,7 +352,8 @@ const currentTeam = ref({});
 const form = reactive({
   name: '',
   productionStepId: '',
-  departmentId: ''
+  departmentId: '',
+  leadFundAmount: 0
 });
 
 const stepOptions = computed(() => 
@@ -373,11 +385,13 @@ const openModal = (team = null) => {
     form.name = team.name;
     form.productionStepId = team.productionStepId || '';
     form.departmentId = team.departmentId || '';
+    form.leadFundAmount = team.leadFundAmount || 0;
   } else {
     currentTeam.value = {};
     form.name = '';
     form.productionStepId = '';
     form.departmentId = '';
+    form.leadFundAmount = 0;
   }
   showModal.value = true;
 };
@@ -388,7 +402,8 @@ const handleSubmit = async () => {
     const payload = {
       name: form.name,
       productionStepId: parseInt(form.productionStepId),
-      departmentId: form.departmentId ? parseInt(form.departmentId) : null
+      departmentId: form.departmentId ? parseInt(form.departmentId) : null,
+      leadFundAmount: form.leadFundAmount || 0
     };
     
     if (currentTeam.value.id) {

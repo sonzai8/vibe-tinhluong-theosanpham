@@ -21,6 +21,9 @@ public class TeamWageResponse {
     // Tổng giá trị sản phẩm tổ làm ra (Fund của tổ)
     private BigDecimal totalTeamIncome;
     
+    // Quỹ đầu chuyền (trừ vào doanh thu trước khi chia)
+    private BigDecimal leadFundAmount;
+    
     // Chi phí nhân sự (lương trả cho công nhân)
     private BigDecimal internalLaborCost;  // Lương của người trong tổ
     private BigDecimal borrowedLaborCost;  // Lương của người mượn từ tổ khác

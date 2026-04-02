@@ -51,6 +51,7 @@ public class TeamService {
     public TeamResponse create(TeamRequest request) {
         Team team = new Team();
         team.setName(request.getName());
+        team.setLeadFundAmount(request.getLeadFundAmount() != null ? request.getLeadFundAmount() : java.math.BigDecimal.ZERO);
         
         ProductionStep step = productionStepRepository.findById(request.getProductionStepId())
                 .orElseThrow(() -> new ResourceNotFoundException("Công đoạn", request.getProductionStepId()));
@@ -72,6 +73,7 @@ public class TeamService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tổ sản xuất", id));
                 
         team.setName(request.getName());
+        team.setLeadFundAmount(request.getLeadFundAmount() != null ? request.getLeadFundAmount() : java.math.BigDecimal.ZERO);
         
         ProductionStep step = productionStepRepository.findById(request.getProductionStepId())
                 .orElseThrow(() -> new ResourceNotFoundException("Công đoạn", request.getProductionStepId()));
@@ -162,6 +164,7 @@ public class TeamService {
                 .departmentName(dept != null ? dept.getName() : null)
                 .productionStepId(step != null ? step.getId() : null)
                 .productionStepName(step != null ? step.getName() : null)
+                .leadFundAmount(entity.getLeadFundAmount())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt());
 

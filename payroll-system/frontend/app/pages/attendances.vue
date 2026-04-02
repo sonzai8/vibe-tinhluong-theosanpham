@@ -1146,7 +1146,7 @@ const handleSubmit = async () => {
 const openBulkModal = async () => {
   bulkForm.departmentId = filterDeptIds.value[0] || null;
   bulkForm.teamId = filterTeamIds.value[0] || null;
-  bulkForm.attendanceDefinitionId = null;
+  bulkForm.attendanceDefinitionId = attendanceDefs.value.length > 0 ? attendanceDefs.value[0].id : null;
   borrowedEmployees.value = [];
   
   // Fetch fresh attendance for the target date before loading bulk list
@@ -1190,7 +1190,7 @@ const loadBulkEmployees = () => {
       originalTeamId: e.teamId,
       originalTeamName: e.teamName,
       actualTeamId: e.teamId || null,
-      attendanceDefinitionId: bulkForm.attendanceDefinitionId
+      attendanceDefinitionId: bulkForm.attendanceDefinitionId || (attendanceDefs.value.length > 0 ? attendanceDefs.value[0].id : null)
     }));
 };
 

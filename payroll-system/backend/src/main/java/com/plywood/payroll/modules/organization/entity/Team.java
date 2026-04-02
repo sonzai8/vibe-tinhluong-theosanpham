@@ -25,4 +25,7 @@ public class Team extends BaseEntity {
     @JoinColumn(name = "department_id")
     private Department department;
 
+    @Column(precision = 19, scale = 2)
+    private java.math.BigDecimal leadFundAmount = java.math.BigDecimal.ZERO;
+
 }

@@ -163,10 +163,18 @@ public class PayrollService {
                     boolean isDiligent = attendanceCountMap.getOrDefault(empId, BigDecimal.ZERO).compareTo(BigDecimal.valueOf(minAttendanceDays)) >= 0;
 
                     BigDecimal dailyEarnings = BigDecimal.ZERO;
+                    // Lấy quỹ đầu chuyền của tổ thực tế
+                    BigDecimal leadFund = att.getActualTeam().getLeadFundAmount() != null ? att.getActualTeam().getLeadFundAmount() : BigDecimal.ZERO;
+
                     for (RecordCalculation c : calcs) {
                         BigDecimal rate = isDiligent ? c.priceHigh : c.priceLow;
-                        BigDecimal share = rate.add(c.surcharge)
-                                .multiply(BigDecimal.valueOf(c.quantity))
+                        BigDecimal totalRevenue = rate.add(c.surcharge).multiply(BigDecimal.valueOf(c.quantity));
+                        
+                        // Trừ quỹ đầu chuyền khỏi tổng doanh thu trước khi chia
+                        BigDecimal distributableRevenue = totalRevenue.subtract(leadFund.divide(BigDecimal.valueOf(calcs.size()), 2, RoundingMode.HALF_UP));
+                        if (distributableRevenue.compareTo(BigDecimal.ZERO) < 0) distributableRevenue = BigDecimal.ZERO;
+
+                        BigDecimal share = distributableRevenue
                                 .multiply(userMultiplier)
                                 .divide(totalTeamMultiplier, 2, RoundingMode.HALF_UP);
                         dailyEarnings = dailyEarnings.add(share);
@@ -514,9 +522,19 @@ public class PayrollService {
                         BigDecimal userMultiplier = BigDecimal.valueOf(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getMultiplier() : 1.0);
                         boolean isDiligent = attendanceCountMap.getOrDefault(emp.getId(), BigDecimal.ZERO).compareTo(BigDecimal.valueOf(minAttendanceDays)) >= 0;
                         BigDecimal dailyEarnings = BigDecimal.ZERO;
+                        
+                        // Quỹ đầu chuyền của tổ
+                        BigDecimal leadFund = team.getLeadFundAmount() != null ? team.getLeadFundAmount() : BigDecimal.ZERO;
+
                         for (RecordCalculation c : calcs) {
                             BigDecimal rate = isDiligent ? c.priceHigh : c.priceLow;
-                            dailyEarnings = dailyEarnings.add(rate.add(c.surcharge).multiply(BigDecimal.valueOf(c.quantity)).multiply(userMultiplier).divide(totalTeamMultiplier, 2, RoundingMode.HALF_UP));
+                            BigDecimal totalRevenue = rate.add(c.surcharge).multiply(BigDecimal.valueOf(c.quantity));
+                            
+                            // Trừ quỹ đầu chuyền
+                            BigDecimal distributableRevenue = totalRevenue.subtract(leadFund.divide(BigDecimal.valueOf(calcs.size()), 2, RoundingMode.HALF_UP));
+                            if (distributableRevenue.compareTo(BigDecimal.ZERO) < 0) distributableRevenue = BigDecimal.ZERO;
+
+                            dailyEarnings = dailyEarnings.add(distributableRevenue.multiply(userMultiplier).divide(totalTeamMultiplier, 2, RoundingMode.HALF_UP));
                         }
                         boolean isBorrowed = att.getOriginalTeam() != null && !att.getOriginalTeam().getId().equals(teamId);
                         if (isBorrowed) borrowedLaborCost = borrowedLaborCost.add(dailyEarnings);
@@ -573,7 +591,9 @@ public class PayrollService {
                 if (teamProductionValue.compareTo(BigDecimal.ZERO) > 0 || internalLaborCost.compareTo(BigDecimal.ZERO) > 0 || borrowedLaborCost.compareTo(BigDecimal.ZERO) > 0 || lendLaborCost.compareTo(BigDecimal.ZERO) > 0) {
                     responseList.add(TeamWageResponse.builder()
                             .teamId(teamId).teamName(team.getName()).date(currentDate)
-                            .totalTeamIncome(teamProductionValue).internalLaborCost(internalLaborCost)
+                            .totalTeamIncome(teamProductionValue)
+                            .leadFundAmount(team.getLeadFundAmount() != null ? team.getLeadFundAmount() : BigDecimal.ZERO)
+                            .internalLaborCost(internalLaborCost)
                             .borrowedLaborCost(borrowedLaborCost).lendLaborCost(lendLaborCost).details(details).build());
                 }
             }

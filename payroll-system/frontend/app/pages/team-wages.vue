@@ -54,6 +54,10 @@
             <div class="w-3 h-3 rounded-full bg-indigo-500"></div>
             <span class="text-[11px] font-black uppercase tracking-wider text-slate-500">{{ $t('team_wages.lend_cost') }}</span>
           </div>
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 rounded-full bg-rose-500"></div>
+            <span class="text-[11px] font-black uppercase tracking-wider text-slate-500">Quỹ đầu chuyền</span>
+          </div>
         </div>
       </div>
 
@@ -105,6 +109,10 @@
                     </div>
                     <!-- Labor Costs -->
                     <div class="grid grid-cols-1 gap-0.5">
+                      <div v-if="getDayData(teamId, day).leadFundAmount" class="flex items-center justify-between px-2 text-[10px] font-bold text-rose-600">
+                        <span>LFUN</span>
+                        <span>-{{ formatMoney(getDayData(teamId, day).leadFundAmount) }}</span>
+                      </div>
                       <div class="flex items-center justify-between px-2 text-[10px] font-bold text-blue-600">
                         <span>LCL</span>
                         <span>{{ formatMoney(getDayData(teamId, day).internalLaborCost) }}</span>
@@ -128,6 +136,10 @@
                     <span class="text-xs font-black text-emerald-800 dark:text-emerald-200">{{ formatMoney(getTeamTotal(teamId, 'totalTeamIncome')) }}</span>
                   </div>
                   <div class="w-full flex flex-col gap-0.5 px-1">
+                    <div class="flex items-center justify-between text-[10px] font-bold text-rose-600">
+                      <span>T.LFUN</span>
+                      <span>-{{ formatMoney(getTeamTotal(teamId, 'leadFundAmount')) }}</span>
+                    </div>
                     <div class="flex items-center justify-between text-[10px] font-bold text-amber-600">
                       <span>T.BRW</span>
                       <span>{{ formatMoney(getTeamTotal(teamId, 'borrowedLaborCost')) }}</span>

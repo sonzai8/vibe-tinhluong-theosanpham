@@ -14,4 +14,6 @@ public class TeamRequest {
 
     // Phòng ban phụ trách tổ này (optional, thêm mới)
     private Long departmentId;
+
+    private java.math.BigDecimal leadFundAmount;
 }

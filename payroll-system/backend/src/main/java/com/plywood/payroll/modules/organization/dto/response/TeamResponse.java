@@ -20,6 +20,7 @@ public class TeamResponse {
     private String productionStepName;
     private Integer memberCount;
     private List<String> memberNames;
+    private java.math.BigDecimal leadFundAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

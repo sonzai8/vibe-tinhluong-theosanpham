@@ -274,6 +274,7 @@ const menuGroups = [
     items: [
       { to: '/production-records', label: 'menu.production_records', icon: Layers },
       { to: '/individual-productions', label: 'menu.individual_production', icon: Users },
+      { to: '/team-wages', label: 'menu.team_wages', icon: Wallet },
     ]
   },
   {

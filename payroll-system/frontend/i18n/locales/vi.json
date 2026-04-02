@@ -17,6 +17,7 @@
     "production_ops": "Vận hành Sản xuất",
     "team_production": "Sản lượng theo tổ",
     "individual_production": "Sản lượng cá nhân",
+    "team_wages": "Theo dõi tiền công",
     "production_records": "Nhật ký sản xuất",
     "system_catalog": "Danh mục Hệ thống",
     "products": "Sản phẩm",
@@ -404,5 +405,19 @@
       "delete_confirm": "Bạn có chắc chắn muốn xóa bản ghi lịch sử lương này không? Hành động này không thể hoàn tác.",
       "deactivate_confirm": "Xác nhận dừng áp dụng bản ghi lương này? Ngày kết thúc sẽ được đặt thành hôm nay."
     }
+  },
+  "team_wages": {
+    "title": "Theo dõi Tiền công",
+    "subtitle": "Theo dõi thu nhập và chi phí tổ đội hàng ngày",
+    "matrix_view": "Bảng tổng hợp tiền công",
+    "team_income": "Thu nhập tổ (Sản lượng)",
+    "internal_cost": "Lương quân nhà",
+    "borrowed_cost": "Lương quân mượn",
+    "lend_cost": "Tổ Khác",
+    "total_labor_cost": "Tổng chi phí lương",
+    "worker_details": "Chi tiết nhân sự ngày {date}",
+    "is_borrowed": "Quân mượn",
+    "from_team": "Từ tổ",
+    "amount": "Số tiền"
   }
 }

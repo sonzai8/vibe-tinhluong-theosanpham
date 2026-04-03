@@ -80,7 +80,7 @@
             </div>
 
             <div class="flex flex-col gap-1.5 min-w-[200px]">
-              <SelectTeam 
+              <SelectTeamTree 
                 v-model="filterTeamIds" 
                 multiple
                 :departmentId="filterDeptIds.length === 1 ? filterDeptIds[0] : null"
@@ -270,54 +270,55 @@
                 <thead class="sticky top-0 z-20 bg-white">
                   <tr class="text-[9px] font-black uppercase text-slate-400 tracking-widest border-b border-slate-100">
                     <th class="p-4 w-64 bg-white sticky left-0 z-30 border-r border-slate-100">{{ $t('attendance.employee') }}</th>
-                    <th class="p-4 w-20 text-center bg-slate-50 font-black text-slate-900 border-r border-slate-100 sticky left-64 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">{{ $t('common.total') }}</th>
-                    <th v-for="d in displayDays" :key="d.key" :class="['p-2 w-10 text-center border-r border-slate-50', d.isSunday ? 'bg-red-50 text-red-400' : '']">
+                    <th class="p-4 w-28 text-center bg-slate-50 font-black text-slate-900 border-r border-slate-100 sticky left-64 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">{{ $t('common.total') || 'Tổng' }}</th>
+                    <th v-for="d in displayDays" :key="d.key" :class="['p-2 w-20 text-center border-r border-slate-50', d.isSunday ? 'bg-red-50 text-red-400' : '']">
                       <div>{{ d.label }}</div>
                       <div class="text-[8px] opacity-60">{{ d.dayName }}</div>
                     </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
-                  <tr v-for="emp in filteredEmployees" :key="emp.id" class="hover:bg-slate-50 group">
+                  <tr v-for="row in paginatedMatrixRows" :key="row.id + '_' + row.displayTeamId" class="hover:bg-slate-50 group">
                     <td class="p-4 bg-white sticky left-0 z-10 border-r border-slate-100 shadow-[2px_0_5px_rgba(0,0,0,0.02)] group-hover:bg-slate-50">
                       <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:bg-primary-600 group-hover:text-white transition-all">
-                          {{ emp.fullName[0] }}
+                          {{ row.fullName[0] }}
                         </div>
                         <div>
-                          <p class="text-xs font-black text-slate-900 line-clamp-1">{{ emp.fullName }}</p>
+                          <p class="text-xs font-black text-slate-900 line-clamp-1">{{ row.fullName }}</p>
                           <div class="flex items-center gap-2">
-                             <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ emp.code }}</p>
-                             <span v-if="emp.teamName" class="text-[8px] font-black text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded uppercase">{{ emp.teamName }}</span>
+                             <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ row.code }}</p>
+                             <span v-if="row.displayTeamName" :class="['text-[8px] font-black px-1.5 py-0.5 rounded uppercase', !row.isOrgTeam ? 'bg-amber-50 text-amber-600' : 'bg-primary-50 text-primary-600']">{{ row.displayTeamName }}</span>
                           </div>
                         </div>
                       </div>
                     </td>
                     <td class="p-4 text-center bg-slate-50/80 font-black text-primary-600 text-xs border-r border-slate-100 sticky left-64 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] group-hover:bg-slate-100">
-                      {{ getEmployeeTotalAttendance(emp.id) }}
+                      {{ getEmployeeTotalAttendance(row.id, row.displayTeamId) }}
                     </td>
                     <td v-for="d in displayDays" :key="d.key" :class="['p-0 border-r border-slate-50 text-center relative group/cell', d.isSunday ? 'bg-red-50/30' : '']">
                        <div class="relative w-full h-full">
                          <AttendanceCell 
-                           :status="getAttendanceMatrixValue(emp.id, d.fullDate).status" 
-                           :definitionCode="getAttendanceMatrixValue(emp.id, d.fullDate).defCode"
-                           :definitionName="getAttendanceMatrixValue(emp.id, d.fullDate).defName"
-                           :loading="cellLoading === `${emp.id}_${d.fullDate}`" 
-                           @click="toggleAttendanceMenu(emp.id, d.fullDate, $event)"
+                           :status="getAttendanceMatrixValue(row.id, d.fullDate, row.displayTeamId).status" 
+                           :definitionCode="getAttendanceMatrixValue(row.id, d.fullDate, row.displayTeamId).defCode"
+                           :definitionName="getAttendanceMatrixValue(row.id, d.fullDate, row.displayTeamId).defName"
+                           :actualTeamName="getAttendanceMatrixValue(row.id, d.fullDate, row.displayTeamId).actualTeamName"
+                           :loading="cellLoading === `${row.id}_${d.fullDate}_${row.displayTeamId}`" 
+                           :isOldTeam="!row.isOrgTeam"
+                           @click="toggleAttendanceMenu(row.id, d.fullDate, row.displayTeamId, $event)"
                          />
                          
-                         <!-- Quick Selector Menu -->
-                         <div v-if="activeMenu?.empId === emp.id && activeMenu?.date === d.fullDate" 
+                         <div v-if="activeMenu?.empId === row.id && activeMenu?.date === d.fullDate && activeMenu?.orgTeamId === row.displayTeamId" 
                                class="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-xl shadow-2xl border border-slate-100 z-[100] p-1.5 flex flex-col gap-1 min-w-[120px] animate-in zoom-in duration-150"
                                v-click-outside="closeAttendanceMenu">
                            <button v-for="def in attendanceDefs" :key="def.id" 
-                                   @click.stop="performAttendanceAction(emp.id, d.fullDate, def.id)"
+                                   @click.stop="performAttendanceAction(row.id, d.fullDate, def.id, row.displayTeamId)"
                                    class="flex items-center justify-between px-3 py-2 hover:bg-primary-50 rounded-lg transition-all group/item">
                              <span class="text-[10px] font-black uppercase text-slate-600 group-hover/item:text-primary-700">{{ def.code }}</span>
                              <span class="text-[9px] font-bold text-slate-400">{{ def.name }}</span>
                            </button>
                            <div class="h-px bg-slate-100 my-0.5"></div>
-                           <button @click.stop="performAttendanceAction(emp.id, d.fullDate, null)"
+                           <button @click.stop="performAttendanceAction(row.id, d.fullDate, null, row.displayTeamId)"
                                    class="flex items-center justify-between px-3 py-2 hover:bg-red-50 rounded-lg transition-all group/item text-red-500">
                              <Trash2 class="w-3 h-3" />
                              <span class="text-[9px] font-bold uppercase tracking-widest">{{ $t('common.delete') }}</span>
@@ -512,15 +513,16 @@
                <SelectDepartment 
                  v-model="bulkForm.departmentId" 
                  :label="$t('common.filter_by_dept') || 'Lọc theo phòng ban'" 
-                 @update:modelValue="loadBulkEmployees"
+                 @update:modelValue="refreshBulkEmployees"
                />
             </div>
             <div class="w-full">
-               <SelectTeam 
+               <SelectTeamTree 
                  v-model="bulkForm.teamId" 
                  :departmentId="bulkForm.departmentId"
                  :label="$t('attendance.original_team')"
-                 @update:modelValue="loadBulkEmployees"
+                 :allowAll="true"
+                 @update:modelValue="refreshBulkEmployees"
                />
             </div>
             <UiSelect 
@@ -716,11 +718,11 @@ const search = ref('');
 
 const activeMenu = ref(null);
 
-const toggleAttendanceMenu = (empId, date, event) => {
-  if (activeMenu.value?.empId === empId && activeMenu.value?.date === date) {
+const toggleAttendanceMenu = (empId, date, orgTeamId, event) => {
+  if (activeMenu.value?.empId === empId && activeMenu.value?.date === date && activeMenu.value?.orgTeamId === orgTeamId) {
     activeMenu.value = null;
   } else {
-    activeMenu.value = { empId, date };
+    activeMenu.value = { empId, date, orgTeamId };
   }
 };
 
@@ -733,6 +735,7 @@ const viewMode = ref('matrix'); // 'list' or 'matrix'
 const matrixScope = ref('month'); // 'month' or 'week'
 const viewMonth = ref(getCurrentMonth());
 const cellLoading = ref(null);
+const historicalEmployees = ref([]);
 
 // Get Monday of current week
 const getMonday = (d) => {
@@ -809,13 +812,20 @@ const handleMonthChange = () => {
 // Pagination
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
-const totalPages = computed(() => Math.ceil(filteredAttendances.value.length / itemsPerPage.value) || 1);
 
 const paginatedAttendances = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
   return filteredAttendances.value.slice(start, end);
 });
+
+const paginatedMatrixRows = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return matrixRows.value.slice(start, end);
+});
+
+const totalPages = computed(() => Math.ceil((viewMode.value === 'matrix' ? matrixRows.value.length : filteredAttendances.value.length) / itemsPerPage.value) || 1);
 
 watch([filterDate, filterDeptIds, filterTeamIds, search, itemsPerPage], () => {
   currentPage.value = 1;
@@ -844,12 +854,14 @@ const fetchData = async () => {
       params.append('toDate', sunday.toISOString().split('T')[0]);
     }
 
-    if (filterDeptIds.value.length > 0) {
-      params.append('departmentIds', filterDeptIds.value.join(','));
+    if (filterDeptIds.value && (Array.isArray(filterDeptIds.value) ? filterDeptIds.value.length > 0 : !!filterDeptIds.value)) {
+      const ids = Array.isArray(filterDeptIds.value) ? filterDeptIds.value.join(',') : filterDeptIds.value;
+      params.append('departmentIds', ids);
     }
     
-    if (filterTeamIds.value.length > 0) {
-      params.append('teamIds', filterTeamIds.value.join(','));
+    if (filterTeamIds.value && (Array.isArray(filterTeamIds.value) ? filterTeamIds.value.length > 0 : !!filterTeamIds.value)) {
+      const ids = Array.isArray(filterTeamIds.value) ? filterTeamIds.value.join(',') : filterTeamIds.value;
+      params.append('teamIds', ids);
     }
 
     // Call API specialized for date or month
@@ -863,18 +875,26 @@ const fetchData = async () => {
         return res.data || res || fallback;
       } catch (err) {
         // Handle 404 specifically as empty list for attendances
-        if (err.response?.status === 404) return [];
+        if (err?.response?.status === 404) return [];
         console.error('Fetch error:', err);
         return fallback;
       }
     };
 
-    const [attData, empData, teamData, deptData, defData] = await Promise.all([
+    let matrixEmployeesPromise = Promise.resolve([]);
+    if (viewMode.value !== 'list') {
+        matrixEmployeesPromise = fetchWrapper($api.get('/employees/history-period', { 
+            params: { fromDate: params.get('fromDate'), toDate: params.get('toDate') } 
+        }));
+    }
+
+    const [attData, empData, teamData, deptData, defData, matrixEmpData] = await Promise.all([
       fetchWrapper($api.get(endpoint, { params: Object.fromEntries(params) })),
       fetchWrapper($api.get('/employees')),
       fetchWrapper($api.get('/teams')),
       fetchWrapper($api.get('/departments')),
-      fetchWrapper($api.get('/attendance-definitions'))
+      fetchWrapper($api.get('/attendance-definitions')),
+      matrixEmployeesPromise
     ]);
     
     attendances.value = Array.isArray(attData) ? attData : [];
@@ -882,6 +902,7 @@ const fetchData = async () => {
     teams.value = Array.isArray(teamData) ? teamData : [];
     departments.value = Array.isArray(deptData) ? deptData : [];
     attendanceDefs.value = Array.isArray(defData) ? defData : [];
+    historicalEmployees.value = Array.isArray(matrixEmpData) ? matrixEmpData : [];
 
     // Set default attendance definition if not already set
     if (attendanceDefs.value.length > 0) {
@@ -912,14 +933,17 @@ const fetchAttendances = () => fetchData();
 const isFilterActive = (val) => val && val !== 'null' && val !== '';
 
 const filteredAttendances = computed(() => {
+  const deptFilter = filterDeptIds.value;
+  const teamFilter = filterTeamIds.value;
+
   return attendances.value.filter(a => {
     const matchSearch = !search.value || 
                        a.employeeFullName.toLowerCase().includes(search.value.toLowerCase()) ||
                        a.employeeCode.toLowerCase().includes(search.value.toLowerCase());
                        
-    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(a.employeeDepartmentId);
+    const matchDept = !deptFilter || (Array.isArray(deptFilter) ? (deptFilter.length === 0 || deptFilter.includes(a.employeeDepartmentId)) : a.employeeDepartmentId === deptFilter);
     
-    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(a.employeeTeamId);
+    const matchTeam = !teamFilter || (Array.isArray(teamFilter) ? (teamFilter.length === 0 || teamFilter.includes(a.employeeTeamId)) : a.employeeTeamId === teamFilter);
     
     return matchSearch && matchDept && matchTeam;
   }).sort((a, b) => {
@@ -930,6 +954,9 @@ const filteredAttendances = computed(() => {
 });
 
 const filteredEmployees = computed(() => {
+  const deptFilter = filterDeptIds.value;
+  const teamFilter = filterTeamIds.value;
+
   return employees.value.filter(e => {
     if (e.status !== 'ACTIVE') return false;
     
@@ -937,9 +964,9 @@ const filteredEmployees = computed(() => {
                        e.fullName.toLowerCase().includes(search.value.toLowerCase()) ||
                        e.code.toLowerCase().includes(search.value.toLowerCase());
 
-    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(e.departmentId);
+    const matchDept = !deptFilter || (Array.isArray(deptFilter) ? (deptFilter.length === 0 || deptFilter.includes(e.departmentId)) : e.departmentId === deptFilter);
     
-    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(e.teamId);
+    const matchTeam = !teamFilter || (Array.isArray(teamFilter) ? (teamFilter.length === 0 || teamFilter.includes(e.teamId)) : e.teamId === teamFilter);
     
     return matchSearch && matchDept && matchTeam;
   }).sort((a, b) => {
@@ -949,53 +976,132 @@ const filteredEmployees = computed(() => {
   });
 });
 
-const getAttendanceMatrixValue = (empId, targetDate) => {
-  const record = attendances.value.find(a => a.employeeId === empId && a.attendanceDate === targetDate);
+const matrixRows = computed(() => {
+  if (viewMode.value !== 'matrix') return [];
+
+  const rowsMap = new Map(); // key: "empId_orgTeamId"
+  
+  // Use historicalEmployees for matrix rows if available, else current employees
+  const sourceEmployees = historicalEmployees.value.length > 0 ? historicalEmployees.value : employees.value;
+
+  // Filter the source base list using current search and team filters
+  const deptFilter = filterDeptIds.value;
+  const teamFilter = filterTeamIds.value;
+
+  const baseList = sourceEmployees.filter(e => {
+    if (e.status !== 'ACTIVE') return false;
+    const matchSearch = !search.value || 
+                       e.fullName.toLowerCase().includes(search.value.toLowerCase()) ||
+                       e.code.toLowerCase().includes(search.value.toLowerCase());
+    
+    const empDeptId = e.department?.id || e.departmentId;
+    const empTeamId = e.team?.id || e.teamId;
+
+    const matchDept = !deptFilter || (Array.isArray(deptFilter) ? (deptFilter.length === 0 || deptFilter.includes(empDeptId)) : empDeptId === deptFilter);
+    const matchTeam = !teamFilter || (Array.isArray(teamFilter) ? (teamFilter.length === 0 || teamFilter.includes(empTeamId)) : empTeamId === teamFilter);
+
+    return matchSearch && matchDept && matchTeam;
+  });
+
+  // Init default rows
+  baseList.forEach(emp => {
+      const tId = emp.team?.id || emp.teamId || 0;
+      const tName = emp.team?.name || emp.teamName;
+      const key = `${emp.id}_${tId}`;
+      if (!rowsMap.has(key)) {
+        rowsMap.set(key, { 
+            ...emp, 
+            teamId: tId,
+            teamName: tName,
+            displayTeamId: tId, 
+            displayTeamName: tName, 
+            isOrgTeam: true 
+        });
+      }
+  });
+
+  // Bổ sung từ attendances (cho những điểm danh khác tổ hiện tại)
+  attendances.value.forEach(att => {
+     const key = `${att.employeeId}_${att.originalTeamId || 0}`;
+     if (!rowsMap.has(key)) {
+         // Tìm emp tương ứng
+         const baseEmp = employees.value.find(e => e.id === att.employeeId);
+         if (baseEmp) {
+            console.log("check: " + baseEmp.teamId, att.originalTeamId);
+             // Có cần hiện row này không? Dựa vào filter!
+             const matchDept = !deptFilter || (Array.isArray(deptFilter) ? (deptFilter.length === 0 || deptFilter.includes(baseEmp.departmentId)) : baseEmp.departmentId === deptFilter);
+             const matchTeam = !teamFilter || (Array.isArray(teamFilter) ? (teamFilter.length === 0 || teamFilter.includes(att.originalTeamId)) : att.originalTeamId === teamFilter);
+             const matchSearch = !search.value || 
+                                baseEmp.fullName.toLowerCase().includes(search.value.toLowerCase()) ||
+                                baseEmp.code.toLowerCase().includes(search.value.toLowerCase());
+             
+             if (matchDept && matchTeam && matchSearch) {
+                 rowsMap.set(key, {
+                     ...baseEmp,
+                     displayTeamId: att.originalTeamId,
+                     displayTeamName: att.originalTeamName,
+                     isOrgTeam: baseEmp.teamId === att.actualTeamId
+                 });
+             }
+         }
+     }
+  });
+
+  return Array.from(rowsMap.values()).sort((a, b) => {
+     if (a.fullName === b.fullName) {
+        return a.isOrgTeam === b.isOrgTeam ? 0 : a.isOrgTeam ? -1 : 1;
+     }
+     return a.fullName.localeCompare(b.fullName, 'vi');
+  });
+});
+
+const getAttendanceMatrixValue = (empId, targetDate, orgTeamId) => {
+  const record = attendances.value.find(a => a.employeeId === empId && a.attendanceDate === targetDate && (a.originalTeamId == orgTeamId || (!a.originalTeamId && !orgTeamId)));
   if (record) {
     return { 
-      status: 'PRESENT', 
+      status: record.actualTeamId !== record.originalTeamId ? 'borrowed' : 'PRESENT', 
       id: record.id, 
       defCode: record.attendanceDefinitionCode,
-      defName: record.attendanceDefinitionName
+      defName: record.attendanceDefinitionName,
+      actualTeamName: record.actualTeamName
     };
   }
   
   const date = new Date(targetDate);
-  if (date.getDay() === 0) return { status: 'SUNDAY', id: null };
+  if (date.getDay() === 0) return { status: 'SUNDAY', id: null, defCode: '', defName: '' };
   
   // Check if today or past
   const todayStr = new Date().toISOString().substr(0, 10);
-  if (targetDate <= todayStr) return { status: 'ABSENT', id: null };
+  if (targetDate <= todayStr) return { status: 'ABSENT', id: null, defCode: '', defName: '' };
   
-  return { status: null, id: null };
+  return { status: null, id: null, defCode: '', defName: '' };
 };
 
-
-const performAttendanceAction = async (empId, targetDate, defId) => {
-  const { status, id } = getAttendanceMatrixValue(empId, targetDate);
+const performAttendanceAction = async (empId, targetDate, defId, orgTeamId) => {
+  const { status, id } = getAttendanceMatrixValue(empId, targetDate, orgTeamId);
   closeAttendanceMenu();
   
-  cellLoading.value = `${empId}_${targetDate}`;
+  cellLoading.value = `${empId}_${targetDate}_${orgTeamId}`;
   try {
     if (defId === null) {
-      if (status === 'PRESENT') await $api.delete(`/attendances/${id}`);
+      if (status !== 'ABSENT' && status !== 'SUNDAY' && status !== null) await $api.delete(`/attendances/${id}`);
     } else {
       const emp = employees.value.find(e => e.id === empId);
-      if (status === 'PRESENT') {
+      if (status !== 'ABSENT' && status !== 'SUNDAY' && status !== null) {
         const record = attendances.value.find(a => a.id === id);
         await $api.put(`/attendances/${id}`, {
           employeeId: empId,
           attendanceDate: targetDate,
-          originalTeamId: emp?.teamId || null,
-          actualTeamId: record?.actualTeamId || emp?.teamId || null,
+          originalTeamId: orgTeamId || emp?.teamId || null,
+          actualTeamId: record?.actualTeamId || orgTeamId || emp?.teamId || null,
           attendanceDefinitionId: defId
         });
       } else {
         await $api.post('/attendances', {
           employeeId: empId,
           attendanceDate: targetDate,
-          originalTeamId: emp?.teamId || null,
-          actualTeamId: emp?.teamId || null,
+          originalTeamId: orgTeamId || emp?.teamId || null,
+          actualTeamId: orgTeamId || emp?.teamId || null,
           attendanceDefinitionId: defId
         });
       }
@@ -1009,14 +1115,17 @@ const performAttendanceAction = async (empId, targetDate, defId) => {
   }
 };
 
-const getEmployeeTotalAttendance = (empId) => {
+const getEmployeeTotalAttendance = (empId, orgTeamId) => {
   const total = attendances.value
-    .filter(a => a.employeeId === empId)
+    .filter(a => a.employeeId === empId && a.originalTeamId == orgTeamId)
     .reduce((sum, a) => sum + (a.attendanceDefinitionMultiplier || 0), 0);
   return Math.round(total * 10) / 10;
 };
 
 const absentEmployees = computed(() => {
+  const deptFilter = filterDeptIds.value;
+  const teamFilter = filterTeamIds.value;
+
   const attendedIds = new Set(attendances.value.map(a => a.employeeId));
   return employees.value.filter(e => {
     // Chỉ lấy nhân viên Đang làm việc (ACTIVE)
@@ -1025,19 +1134,21 @@ const absentEmployees = computed(() => {
     if (attendedIds.has(e.id)) return false;
     
     // Áp dụng bộ lọc phòng ban/tổ đội nếu đang chọn
-    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(e.departmentId);
-    
-    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(e.teamId);
+    const matchDept = !deptFilter || (Array.isArray(deptFilter) ? (deptFilter.length === 0 || deptFilter.includes(e.departmentId)) : e.departmentId === deptFilter);
+    const matchTeam = !teamFilter || (Array.isArray(teamFilter) ? (teamFilter.length === 0 || teamFilter.includes(e.teamId)) : e.teamId === teamFilter);
     
     return matchDept && matchTeam;
   });
 });
 
 const statistics = computed(() => {
+  const deptFilter = filterDeptIds.value;
+  const teamFilter = filterTeamIds.value;
+
   const activeEmployees = employees.value.filter(e => {
     if (e.status !== 'ACTIVE') return false;
-    const matchDept = filterDeptIds.value.length === 0 || filterDeptIds.value.includes(e.departmentId);
-    const matchTeam = filterTeamIds.value.length === 0 || filterTeamIds.value.includes(e.teamId);
+    const matchDept = !deptFilter || (Array.isArray(deptFilter) ? (deptFilter.length === 0 || deptFilter.includes(e.departmentId)) : e.departmentId === deptFilter);
+    const matchTeam = !teamFilter || (Array.isArray(teamFilter) ? (teamFilter.length === 0 || teamFilter.includes(e.teamId)) : e.teamId === teamFilter);
     return matchDept && matchTeam;
   });
 
@@ -1156,7 +1267,7 @@ const openBulkModal = async () => {
     // Temporarily update attendances local state just for this specific date
     // Or just use the returned list to filter. Let's update attendances for consistency.
     attendances.value = res.data || [];
-    loadBulkEmployees();
+    await loadBulkEmployees();
     showBulkModal.value = true;
   } catch (err) {
     console.error('Error fetching fresh attendance for bulk:', err);
@@ -1165,33 +1276,49 @@ const openBulkModal = async () => {
   }
 };
 
-const loadBulkEmployees = () => {
+const loadBulkEmployees = async () => {
   const targetDate = filterDate.value;
   const attendedIds = new Set(attendances.value
     .filter(a => a.attendanceDate === targetDate)
     .map(a => a.employeeId)
   );
+
+  let validEmployees = [];
+  if (isFilterActive(bulkForm.teamId)) {
+    try {
+      saving.value = true;
+      const res = await $api.get('/employees/active-at-date', { params: { teamId: bulkForm.teamId, date: targetDate } });
+      validEmployees = res.data || res || [];
+    } catch (e) {
+      console.error(e);
+      validEmployees = [];
+    } finally {
+      saving.value = false;
+    }
+  } else {
+    validEmployees = employees.value.filter(e => {
+        if (e.status !== 'ACTIVE') return false;
+        const matchDept = !isFilterActive(bulkForm.departmentId) || e.departmentId == bulkForm.departmentId;
+        return matchDept;
+    });
+  }
   
-  bulkEmployees.value = employees.value
-    .filter(e => {
-      if (e.status !== 'ACTIVE') return false;
-      if (attendedIds.has(e.id)) return false;
-      
-      const matchDept = !isFilterActive(bulkForm.departmentId) || e.departmentId == bulkForm.departmentId;
-      const matchTeam = !isFilterActive(bulkForm.teamId) || e.teamId == bulkForm.teamId;
-      
-      return matchDept && matchTeam;
-    })
+  bulkEmployees.value = validEmployees
+    .filter(e => !attendedIds.has(e.id))
     .map(e => ({
       selected: true,
       id: e.id,
       fullName: e.fullName,
       code: e.code,
-      originalTeamId: e.teamId,
-      originalTeamName: e.teamName,
-      actualTeamId: e.teamId || null,
+      originalTeamId: bulkForm.teamId || e.team?.id || e.teamId,
+      originalTeamName: e.team?.name || e.teamName || '',
+      actualTeamId: bulkForm.teamId || e.team?.id || e.teamId || null,
       attendanceDefinitionId: bulkForm.attendanceDefinitionId || (attendanceDefs.value.length > 0 ? attendanceDefs.value[0].id : null)
     }));
+};
+
+const refreshBulkEmployees = async () => {
+  await loadBulkEmployees();
 };
 
 const syncGlobalAttendanceType = (defId) => {

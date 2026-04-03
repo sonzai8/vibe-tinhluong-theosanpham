@@ -36,7 +36,7 @@ public class PayrollController {
         ));
     }
 
-    @GetMapping("/{year}/{month}")
+    @GetMapping("/{year}/{month}/items")
     @Operation(summary = "Lấy danh sách các bản ghi lương trong tháng")
     public ResponseEntity<ApiResponse<List<PayrollItemResponse>>> getItems(
             @PathVariable("year") int year,
@@ -56,7 +56,7 @@ public class PayrollController {
         ));
     }
 
-    @GetMapping("/items/{id}/details")
+    @GetMapping("/items/{id}/daily-details")
     @Operation(summary = "Lấy chi tiết lương hàng ngày của một nhân viên")
     public ResponseEntity<ApiResponse<List<PayrollDailyDetailResponse>>> getDetails(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -75,7 +75,7 @@ public class PayrollController {
         return ResponseEntity.ok(ApiResponse.success("Đã xác nhận lương cho tổ", null));
     }
 
-    @GetMapping("/{year}/{month}/export")
+    @GetMapping("/{year}/{month}/export-payslips")
     @Operation(summary = "Xuất file Excel phiếu lương cho toàn bộ nhân viên")
     public ResponseEntity<ByteArrayResource> exportExcel(
             @PathVariable("year") int year,

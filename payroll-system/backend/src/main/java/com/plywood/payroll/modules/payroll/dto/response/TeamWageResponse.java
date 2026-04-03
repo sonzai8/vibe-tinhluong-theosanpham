@@ -44,6 +44,8 @@ public class TeamWageResponse {
         private String originalTeamName;
         private String actualTeamName;
         private BigDecimal amount;
+        private double multiplier; // Trọng số công (ví dụ: 0.5, 1.0)
+        private String attendanceCode; // Loại công (ví dụ: NG, P)
         private boolean isBorrowed; // true nếu người này từ tổ khác đến
         private String status; // INTERNAL, BORROWED, LEND
     }

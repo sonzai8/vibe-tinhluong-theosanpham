@@ -49,7 +49,7 @@
             </div>
 
             <div class="flex flex-col gap-1.5 min-w-[200px]">
-              <SelectTeam 
+              <SelectTeamTree 
                 v-model="filter.teamIds" 
                 multiple
                 :departmentId="filter.departmentIds.length === 1 ? filter.departmentIds[0] : null"

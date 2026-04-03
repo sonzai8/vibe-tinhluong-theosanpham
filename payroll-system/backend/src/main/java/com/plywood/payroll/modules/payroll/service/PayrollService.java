@@ -1,5 +1,6 @@
 package com.plywood.payroll.modules.payroll.service;
 
+import com.plywood.payroll.modules.employee.entity.TeamProcess;
 import com.plywood.payroll.modules.organization.repository.TeamDailyFundRepository;
 import com.plywood.payroll.modules.production.repository.ProductionRecordRepository;
 import com.plywood.payroll.modules.pricing.repository.ProductStepRateRepository;
@@ -176,7 +177,7 @@ public class PayrollService {
 
                         BigDecimal share = distributableRevenue
                                 .multiply(userMultiplier)
-                                .divide(totalTeamMultiplier, 2, RoundingMode.HALF_UP);
+                                .divide(totalTeamMultiplier, 1, RoundingMode.UP);
                         dailyEarnings = dailyEarnings.add(share);
                     }
                     employeeDailySalaryMap
@@ -282,13 +283,13 @@ public class PayrollService {
 
             item.setPayroll(payroll);
             item.setEmployee(emp);
-            item.setTotalStepSalary(stepSalary);
-            item.setTotalBenefit(benefit);
-            item.setTotalBonus(bonusMap.getOrDefault(empId, BigDecimal.ZERO));
-            item.setTotalPenalty(penaltyMap.getOrDefault(empId, BigDecimal.ZERO));
-            item.setNetSalary(netSalary);
-            item.setInsuranceSalary(insuranceSalary);
-            item.setCashSalary(netSalary.subtract(insuranceSalary));
+            item.setTotalStepSalary(roundMoney(stepSalary));
+            item.setTotalBenefit(roundMoney(benefit));
+            item.setTotalBonus(roundMoney(bonusMap.getOrDefault(empId, BigDecimal.ZERO)));
+            item.setTotalPenalty(roundMoney(penaltyMap.getOrDefault(empId, BigDecimal.ZERO)));
+            item.setNetSalary(roundMoney(netSalary));
+            item.setInsuranceSalary(roundMoney(insuranceSalary));
+            item.setCashSalary(roundMoney(netSalary.subtract(insuranceSalary)));
             item.setStatus("DRAFT");
             payrollItemRepository.save(item);
         }
@@ -313,10 +314,33 @@ public class PayrollService {
     }
 
     public List<PayrollItemResponse> getPayrollItems(int month, int year) {
+        YearMonth ym = YearMonth.of(year, month);
+        LocalDate startDate = ym.atDay(1);
+        LocalDate endDate = ym.atEndOfMonth();
+
         return payrollRepository.findByMonthAndYear(month, year)
-                .map(p -> payrollItemRepository.findByPayrollId(p.getId()).stream()
-                        .map(this::mapItemToResponse)
-                        .collect(Collectors.toList()))
+                .map(payroll -> {
+                    List<PayrollItem> items = payrollItemRepository.findByPayrollId(payroll.getId());
+                    if (items.isEmpty()) return Collections.<PayrollItemResponse>emptyList();
+
+                    // Batch fetch team assignments for the month
+                    List<TeamProcess> assignments = teamProcessRepository.findAllOverlapping(startDate, endDate);
+                    Map<Long, List<TeamProcess>> assignmentsByEmployee = assignments.stream()
+                            .collect(Collectors.groupingBy(tp -> tp.getEmployee().getId()));
+
+                    return items.stream()
+                            .map(item -> {
+                                List<TeamProcess> empAssignments = assignmentsByEmployee.getOrDefault(item.getEmployee().getId(), Collections.emptyList());
+                                // Choice logic: Latest in the month, preferably the one effective at month end
+                                TeamProcess selectedProcess = empAssignments.stream()
+                                        .sorted(Comparator.comparing(TeamProcess::getStartDate).reversed())
+                                        .filter(tp -> !tp.getStartDate().isAfter(endDate))
+                                        .findFirst()
+                                        .orElse(null);
+                                return mapItemToResponse(item, selectedProcess);
+                            })
+                            .collect(Collectors.toList());
+                })
                 .orElse(Collections.emptyList());
     }
 
@@ -340,6 +364,10 @@ public class PayrollService {
     }
 
     public PayrollItemResponse mapItemToResponse(PayrollItem entity) {
+        return mapItemToResponse(entity, null);
+    }
+
+    public PayrollItemResponse mapItemToResponse(PayrollItem entity, TeamProcess teamProcess) {
         if (entity == null) return null;
         PayrollItemResponse response = new PayrollItemResponse();
         response.setId(entity.getId());
@@ -356,20 +384,27 @@ public class PayrollService {
                 response.setDepartmentId(entity.getEmployee().getDepartment().getId());
                 response.setDepartmentName(entity.getEmployee().getDepartment().getName());
             }
-            LocalDate lastDay = LocalDate.of(entity.getPayroll().getYear(), entity.getPayroll().getMonth(), 1).plusMonths(1).minusDays(1);
-            teamProcessRepository.findEffectiveByDate(entity.getEmployee().getId(), lastDay).ifPresent(tp -> {
-                response.setTeamId(tp.getTeam().getId());
-                response.setTeamName(tp.getTeam().getName());
-            });
+
+            if (teamProcess != null && teamProcess.getTeam() != null) {
+                response.setTeamId(teamProcess.getTeam().getId());
+                response.setTeamName(teamProcess.getTeam().getName());
+            } else {
+                // Fallback for single record mapping if batch and pre-filled data is absent
+                LocalDate lastDay = LocalDate.of(entity.getPayroll().getYear(), entity.getPayroll().getMonth(), 1).plusMonths(1).minusDays(1);
+                teamProcessRepository.findEffectiveByDate(entity.getEmployee().getId(), lastDay).ifPresent(tp -> {
+                    response.setTeamId(tp.getTeam().getId());
+                    response.setTeamName(tp.getTeam().getName());
+                });
+            }
         }
-        response.setProductSalary(entity.getTotalStepSalary());
-        response.setBenefitSalary(entity.getTotalBenefit());
+        response.setProductSalary(roundMoney(entity.getTotalStepSalary()));
+        response.setBenefitSalary(roundMoney(entity.getTotalBenefit()));
         BigDecimal bonus = entity.getTotalBonus() != null ? entity.getTotalBonus() : BigDecimal.ZERO;
         BigDecimal penalty = entity.getTotalPenalty() != null ? entity.getTotalPenalty() : BigDecimal.ZERO;
-        response.setTotalPenaltyBonus(bonus.subtract(penalty));
-        response.setTotalSalary(entity.getNetSalary());
-        response.setInsuranceSalary(entity.getInsuranceSalary());
-        response.setCashSalary(entity.getCashSalary());
+        response.setTotalPenaltyBonus(roundMoney(bonus.subtract(penalty)));
+        response.setTotalSalary(roundMoney(entity.getNetSalary()));
+        response.setInsuranceSalary(roundMoney(entity.getInsuranceSalary()));
+        response.setCashSalary(roundMoney(entity.getCashSalary()));
         response.setStatus(entity.getStatus());
         return response;
     }
@@ -433,10 +468,10 @@ public class PayrollService {
                     .date(date)
                     .attendanceSymbol(att != null && att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "-")
                     .teamName(att != null && att.getActualTeam() != null ? att.getActualTeam().getName() : "N/A")
-                    .productSalary(productSalary)
-                    .benefitSalary(att != null ? (employee.getRole() != null ? employee.getRole().getDailyBenefit().multiply(BigDecimal.valueOf(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getMultiplier() : 1.0)) : BigDecimal.ZERO) : BigDecimal.ZERO)
-                    .bonus(bonus)
-                    .penalty(penalty)
+                    .productSalary(roundMoney(productSalary))
+                    .benefitSalary(roundMoney(att != null ? (employee.getRole() != null ? employee.getRole().getDailyBenefit().multiply(BigDecimal.valueOf(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getMultiplier() : 1.0)) : BigDecimal.ZERO) : BigDecimal.ZERO))
+                    .bonus(roundMoney(bonus))
+                    .penalty(roundMoney(penalty))
                     .note(att != null ? "" : "Nghỉ")
                     .build());
         }
@@ -536,15 +571,20 @@ public class PayrollService {
 
                             dailyEarnings = dailyEarnings.add(distributableRevenue.multiply(userMultiplier).divide(totalTeamMultiplier, 2, RoundingMode.HALF_UP));
                         }
-                        boolean isBorrowed = att.getOriginalTeam() != null && !att.getOriginalTeam().getId().equals(teamId);
+                        // Xác định tổ biên chế (Original Team) tại ngày 'currentDate'
+                        Team originalTeamAtDate = att.getOriginalTeam();
+                        
+                        boolean isBorrowed = originalTeamAtDate != null && !originalTeamAtDate.getId().equals(teamId);
                         if (isBorrowed) borrowedLaborCost = borrowedLaborCost.add(dailyEarnings);
                         else internalLaborCost = internalLaborCost.add(dailyEarnings);
 
                         details.add(TeamWageResponse.WorkerWageDetail.builder()
                                 .employeeId(emp.getId()).employeeName(emp.getFullName()).employeeCode(emp.getCode())
-                                .originalTeamName(att.getOriginalTeam() != null ? att.getOriginalTeam().getName() : "N/A")
+                                .originalTeamName(originalTeamAtDate != null ? originalTeamAtDate.getName() : "N/A")
                                 .actualTeamName(team.getName())
-                                .amount(isBorrowed ? dailyEarnings.negate() : dailyEarnings)
+                                .amount(roundMoney(isBorrowed ? dailyEarnings.negate() : dailyEarnings))
+                                .multiplier(userMultiplier.doubleValue())
+                                .attendanceCode(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "NG")
                                 .isBorrowed(isBorrowed)
                                 .status(isBorrowed ? "BORROWED" : "INTERNAL")
                                 .build());
@@ -553,7 +593,11 @@ public class PayrollService {
 
                 BigDecimal lendLaborCost = BigDecimal.ZERO;
                 List<DailyAttendance> lendAttendances = allAttendances.stream()
-                        .filter(a -> a.getAttendanceDate().equals(currentDate) && a.getOriginalTeam() != null && a.getOriginalTeam().getId().equals(teamId) && a.getActualTeam() != null && !a.getActualTeam().getId().equals(teamId))
+                        .filter(a -> {
+                            if (!a.getAttendanceDate().equals(currentDate) || a.getActualTeam() == null || a.getActualTeam().getId().equals(teamId)) return false;
+                            Team originalTeamAtDate = a.getOriginalTeam();
+                            return originalTeamAtDate != null && originalTeamAtDate.getId().equals(teamId);
+                        })
                         .toList();
 
                 for (DailyAttendance att : lendAttendances) {
@@ -571,14 +615,22 @@ public class PayrollService {
                     BigDecimal earned = BigDecimal.ZERO;
                     BigDecimal m = BigDecimal.valueOf(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getMultiplier() : 1.0);
                     for (RecordCalculation c : altCalcs) {
-                        earned = earned.add((isDiligent ? c.priceHigh : c.priceLow).add(c.surcharge).multiply(BigDecimal.valueOf(c.quantity)).multiply(m).divide(sumMult, 2, RoundingMode.HALF_UP));
+                        BigDecimal rate = isDiligent ? c.priceHigh : c.priceLow;
+                        BigDecimal totalRev = rate.add(c.surcharge).multiply(BigDecimal.valueOf(c.quantity));
+                        BigDecimal altLeadFund = att.getActualTeam().getLeadFundAmount() != null ? att.getActualTeam().getLeadFundAmount() : BigDecimal.ZERO;
+                        BigDecimal distRev = totalRev.subtract(altLeadFund.divide(BigDecimal.valueOf(altCalcs.size()), 2, RoundingMode.HALF_UP));
+                        if (distRev.compareTo(BigDecimal.ZERO) < 0) distRev = BigDecimal.ZERO;
+                        
+                        earned = earned.add(distRev.multiply(m).divide(sumMult, 2, RoundingMode.HALF_UP));
                     }
                     lendLaborCost = lendLaborCost.add(earned);
                     details.add(TeamWageResponse.WorkerWageDetail.builder()
                             .employeeId(att.getEmployee().getId()).employeeName(att.getEmployee().getFullName()).employeeCode(att.getEmployee().getCode())
                             .originalTeamName(team.getName())
                             .actualTeamName(att.getActualTeam().getName())
-                            .amount(earned)
+                            .amount(roundMoney(earned))
+                            .multiplier(m.doubleValue())
+                            .attendanceCode(att.getAttendanceDefinition() != null ? att.getAttendanceDefinition().getCode() : "NG")
                             .isBorrowed(false)
                             .status("LEND")
                             .build());
@@ -586,18 +638,26 @@ public class PayrollService {
 
                 borrowedLaborCost = borrowedLaborCost.negate();
 
-                BigDecimal teamProductionValue = calcs.stream().map(c -> c.priceHigh.add(c.surcharge).multiply(BigDecimal.valueOf(c.quantity))).reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal rawTeamProductionValue = calcs.stream().map(c -> c.priceHigh.add(c.surcharge).multiply(BigDecimal.valueOf(c.quantity))).reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal actualLeadFund = team.getLeadFundAmount() != null ? team.getLeadFundAmount() : BigDecimal.ZERO;
+                BigDecimal teamProductionValue = rawTeamProductionValue.subtract(actualLeadFund);
+                if (teamProductionValue.compareTo(BigDecimal.ZERO) < 0) teamProductionValue = BigDecimal.ZERO;
 
                 if (teamProductionValue.compareTo(BigDecimal.ZERO) > 0 || internalLaborCost.compareTo(BigDecimal.ZERO) > 0 || borrowedLaborCost.compareTo(BigDecimal.ZERO) > 0 || lendLaborCost.compareTo(BigDecimal.ZERO) > 0) {
                     responseList.add(TeamWageResponse.builder()
                             .teamId(teamId).teamName(team.getName()).date(currentDate)
-                            .totalTeamIncome(teamProductionValue)
-                            .leadFundAmount(team.getLeadFundAmount() != null ? team.getLeadFundAmount() : BigDecimal.ZERO)
-                            .internalLaborCost(internalLaborCost)
-                            .borrowedLaborCost(borrowedLaborCost).lendLaborCost(lendLaborCost).details(details).build());
+                            .totalTeamIncome(roundMoney(teamProductionValue))
+                            .leadFundAmount(roundMoney(actualLeadFund))
+                            .internalLaborCost(roundMoney(internalLaborCost))
+                            .borrowedLaborCost(roundMoney(borrowedLaborCost)).lendLaborCost(roundMoney(lendLaborCost)).details(details).build());
                 }
             }
         }
         return responseList;
+    }
+
+    private BigDecimal roundMoney(BigDecimal amount) {
+        if (amount == null) return BigDecimal.ZERO;
+        return amount.setScale(1, RoundingMode.UP);
     }
 }

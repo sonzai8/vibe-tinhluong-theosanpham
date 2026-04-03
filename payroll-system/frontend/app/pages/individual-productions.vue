@@ -63,10 +63,11 @@
         </div>
 
         <div class="space-y-2">
-          <SelectTeam 
+          <SelectTeamTree 
             v-model="filter.teamId" 
             :departmentId="filter.departmentId"
             :label="$t('common.team')" 
+            :allowAll="true"
           />
         </div>
 

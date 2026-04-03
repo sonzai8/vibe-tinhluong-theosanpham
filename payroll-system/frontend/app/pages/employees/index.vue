@@ -60,7 +60,7 @@
           <SelectDepartment v-model="filterDept" :placeholder="$t('employee.all_departments')" />
         </div>
         <div class="w-full md:w-64">
-          <SelectTeam v-model="filterTeamId" :departmentId="filterDept" :placeholder="$t('employee.all_teams')" />
+          <SelectTeamTree v-model="filterTeamId" :departmentId="filterDept" :placeholder="$t('employee.all_teams')" :allowAll="true" />
         </div>
         <select v-model="filterStatus" class="bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-600 focus:ring-2 focus:ring-primary-500 transition-all">
           <option value="">{{ $t('employee.all_statuses') }}</option>
@@ -290,12 +290,11 @@
               :allowAll="false"
             />
 
-            <SelectTeam 
+            <SelectTeamTree 
               v-model="form.teamId" 
               label="Tổ đội sản xuất (Ván dán)" 
               placeholder="Chọn tổ đội"
               :departmentId="form.departmentId"
-              :allowAll="false"
             />
 
             <UiSelect 

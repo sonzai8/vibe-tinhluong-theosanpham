@@ -244,7 +244,15 @@
              </div>
              <div class="space-y-1.5">
                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{{ $t('common.team') }}</label>
-                <SelectTeam v-model="form.teamId" />
+                <div class="flex items-center gap-3">
+                   <div class="flex-1 px-4 py-2.5 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 border border-slate-100">
+                      {{ employee.team?.name || 'Chưa gán tổ' }}
+                   </div>
+                   <NuxtLink :to="`/work-histories`" class="p-2.5 bg-primary-50 text-primary-600 rounded-xl border border-primary-100 hover:bg-primary-100 transition-all" title="Điều chuyển & Lịch sử công tác">
+                      <History class="w-5 h-5" />
+                   </NuxtLink>
+                </div>
+                <p class="text-[9px] font-medium text-slate-400 mt-1 italic">* Để điều chuyển tổ, vui lòng sang trang Lịch sử công tác</p>
              </div>
              <UiNumericInput v-model="form.baseSalaryConfig" :label="$t('employee.base_salary')" is-currency />
              <UiNumericInput v-model="form.insuranceSalaryConfig" :label="$t('employee.insurance_salary')" is-currency />
@@ -292,7 +300,7 @@
                   </div>
                   <p class="text-sm font-black text-slate-700 mb-1">{{ item.team?.name || '---' }}</p>
                   <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 inline-block">
-                    {{ item.team?.department?.name }}
+                    {{ item.team?.departmentName }}
                   </p>
                   <p class="text-[10px] font-bold text-slate-400 mt-3 flex items-center gap-1.5">
                     <Clock class="w-3 h-3" />

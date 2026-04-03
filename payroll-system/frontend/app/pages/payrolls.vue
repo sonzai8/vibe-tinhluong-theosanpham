@@ -78,7 +78,7 @@
       </div>
 
       <div class="flex flex-col gap-1.5 min-w-[200px]">
-        <SelectTeam 
+        <SelectTeamTree 
           v-model="selectedTeams" 
           multiple
           :departmentId="selectedDepartments.length === 1 ? selectedDepartments[0] : null"
@@ -435,7 +435,7 @@ const fetchDeptsAndTeams = async () => {
 const handleCalculate = async () => {
   calculating.value = true;
   try {
-    const res = await $api.post('/payrolls/calculate', calcForm);
+    const res = await $api.post(`/payrolls/${calcForm.year}/${calcForm.month}/calculate`);
     alert(res.message);
     viewMode.value = 'list';
     fetchPayrolls();
@@ -469,7 +469,7 @@ const handleConfirm = async (p) => {
     // API chốt toàn bộ Payroll (vì status ở Payroll entity) 
     // Hoặc nếu muốn chốt lẻ thì cần logic Backend khác. 
     // Hiện tại confirmPayroll(id) chốt thực thể Payroll.
-    await $api.put(`/payrolls/${p.payrollId}/confirm`);
+    await $api.post(`/payrolls/${p.payrollId}/confirm`);
     fetchPayrolls();
   } catch (err) {
     triggerError('Lỗi chốt lương', 'Không thể chốt lương cho cá nhân này.', err.response?.data?.message || err.message);
@@ -481,6 +481,7 @@ const showConfirmTeam = async (p) => {
   if (!confirm(`Xác nhận chốt bảng lương cho toàn bộ [${p.teamName}]?`)) return;
   
   try {
+    await $api.post(`/payrolls/${calcForm.year}/${calcForm.month}/confirm-by-team?teamId=${p.teamId}`);
     alert(`Đã chốt lương cho tổ ${p.teamName}`);
     fetchPayrolls();
   } catch (err) {
@@ -503,7 +504,7 @@ const showDetails = async (p) => {
   } catch (err) {
     triggerError('Lỗi tải chi tiết', 'Không thể lấy thông tin chi tiết các ngày làm việc.', err.message);
   } finally {
-    loading.value = false;
+    loadingDetails.value = false;
   }
 };
 

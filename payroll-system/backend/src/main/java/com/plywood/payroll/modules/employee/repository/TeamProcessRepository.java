@@ -16,10 +16,18 @@ public interface TeamProcessRepository extends JpaRepository<TeamProcess, Long> 
     Optional<TeamProcess> findEffectiveByDate(@Param("employeeId") Long employeeId, @Param("date") LocalDate date);
 
     @Query("SELECT t FROM TeamProcess t WHERE t.employee.id = :employeeId " +
+           "AND t.startDate <= :date AND (t.endDate IS NULL OR t.endDate >= :date) " +
+           "ORDER BY t.startDate DESC")
+    List<TeamProcess> findEffectiveByDateList(@Param("employeeId") Long employeeId, @Param("date") LocalDate date);
+
+    @Query("SELECT t FROM TeamProcess t WHERE t.employee.id = :employeeId " +
            "AND t.startDate <= :endDate AND (t.endDate IS NULL OR t.endDate >= :startDate)")
     List<TeamProcess> findOverlapping(@Param("employeeId") Long employeeId, 
                                      @Param("startDate") LocalDate startDate, 
                                      @Param("endDate") LocalDate endDate);
+
+    @Query("SELECT t FROM TeamProcess t WHERE t.startDate <= :endDate AND (t.endDate IS NULL OR t.endDate >= :startDate)")
+    List<TeamProcess> findAllOverlapping(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
     List<TeamProcess> findByEmployeeIdOrderByStartDateDesc(Long employeeId);
 

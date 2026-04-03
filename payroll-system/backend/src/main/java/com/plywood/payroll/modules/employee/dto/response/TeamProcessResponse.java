@@ -10,5 +10,12 @@ public class TeamProcessResponse {
     private TeamResponse team;
     private LocalDate startDate;
     private LocalDate endDate;
+    private String note;
     private boolean isCurrent;
+    
+    // Auditing fields
+    private String createdBy;
+    private java.time.LocalDateTime createdAt;
+    private String updatedBy;
+    private java.time.LocalDateTime updatedAt;
 }

@@ -44,7 +44,7 @@
         </div>
 
         <SelectDepartment v-model="filterDeptId" label="Phòng ban" />
-        <SelectTeam v-model="filterTeamId" :departmentId="filterDeptId" label="Tổ sản xuất" />
+        <SelectTeamTree v-model="filterTeamId" :departmentId="filterDeptId" label="Tổ sản xuất" :allowAll="true" />
       </div>
       
       <UiButton @click="fetchSummary" :loading="loading" class="w-full md:w-auto px-8">

@@ -14,7 +14,9 @@ public class EmployeeRequest {
     private Long departmentId;
 
     // Tổ biên chế trực tiếp (thêm mới)
+    // Tổ biên chế trực tiếp (thêm mới)
     private Long teamId;
+    private java.time.LocalDate transferDate;
 
     // roleId = chức vụ (Position), giữ nguyên để backward compat
     private Long roleId;

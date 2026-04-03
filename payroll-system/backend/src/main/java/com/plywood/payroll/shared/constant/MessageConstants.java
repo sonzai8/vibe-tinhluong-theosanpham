@@ -20,5 +20,7 @@ public final class MessageConstants {
     public static final String ERR_RESOURCE_NOT_FOUND = "Không tìm thấy %s với ID: %d";
     public static final String ERR_USERNAME_EXISTED = "Tên đăng nhập đã tồn tại";
     public static final String ERR_EMPLOYEE_CODE_EXISTED = "Mã nhân viên đã tồn tại";
+    public static final String ERROR_NOT_FOUND = "Không tìm thấy tài nguyên";
+
 
 }

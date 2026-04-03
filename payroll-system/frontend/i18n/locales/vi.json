@@ -8,6 +8,7 @@
     "departments": "Phòng ban công ty",
     "positions": "Xây dựng Chức vụ",
     "teams": "Tổ đội sản xuất",
+    "work_histories": "Lịch sử công tác",
     "salary_config_process": "Quản lý Lịch sử Lương",
     "attendance_rewards": "Chấm công & Thưởng phạt",
     "attendance": "Quản lý Chấm công",
@@ -215,6 +216,7 @@
     "salary_history": "Lịch sử lương",
     "team_history": "Lịch sử tổ đội",
     "effective_date": "Ngày hiệu lực",
+    "transfer_date": "Ngày điều chuyển",
     "end_date": "Ngày kết thúc",
     "current": "Hiện tại"
   },

@@ -254,6 +254,7 @@ const menuGroups = [
     title: 'menu.hr_mgmt',
     items: [
       { to: '/employees', label: 'menu.employees', icon: Users },
+      { to: '/work-histories', label: 'menu.work_histories', icon: History },
       { to: '/salary-processes', label: 'menu.salary_config_process', icon: History },
       { to: '/teams', label: 'menu.teams', icon: Users2 },
       { to: '/departments', label: 'menu.departments', icon: Briefcase },

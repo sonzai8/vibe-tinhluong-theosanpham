@@ -53,7 +53,7 @@
       </div>
       
       <div class="w-64">
-        <SelectTeam v-model="filters.teamId" />
+        <SelectTeamTree v-model="filters.teamId" :allowAll="true" label="Tổ đội" />
       </div>
 
       <div class="w-64">

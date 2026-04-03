@@ -23,7 +23,7 @@
     <div class="card p-4 bg-white/80 backdrop-blur-md border-none shadow-sm flex flex-col md:flex-row gap-4 items-end">
       <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
         <SelectDepartment v-model="filterDeptId" :label="$t('common.department')" />
-        <SelectTeam v-model="filterTeamId" :departmentId="filterDeptId" :label="$t('common.team')" />
+        <SelectTeamTree v-model="filterTeamId" :departmentId="filterDeptId" :label="$t('common.team')" :allowAll="true" />
       </div>
       <div class="w-full md:w-auto self-end">
         <UiButton variant="outline" @click="resetFilters" class="w-full">
@@ -55,7 +55,7 @@
       <div class="card p-4 bg-white/80 backdrop-blur-md border-none shadow-sm flex flex-col md:flex-row gap-4 items-end">
         <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
           <SelectDepartment v-model="filterDeptId" :label="$t('common.department')" />
-          <SelectTeam v-model="filterTeamId" :departmentId="filterDeptId" :label="$t('common.team')" />
+          <SelectTeamTree v-model="filterTeamId" :departmentId="filterDeptId" :label="$t('common.team')" :allowAll="true" />
         </div>
         <div class="w-full md:w-auto self-end">
           <UiButton variant="outline" @click="resetFilters" class="w-full">

@@ -102,7 +102,7 @@
                   <div class="flex flex-col gap-1">
                     <!-- Income -->
                     <div class="flex items-center justify-between px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
-                      <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400">IN</span>
+                      <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400">{{ getWeightedCount(getDayData(teamId, day).details) }}</span>
                       <span class="text-[11px] font-black text-emerald-700 dark:text-emerald-300 underline decoration-dotted decoration-emerald-300">
                         {{ formatMoney(getDayData(teamId, day).totalTeamIncome) }}
                       </span>
@@ -129,10 +129,10 @@
                   </div>
                 </div>
               </td>
-              <td class="p-4 bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 sticky right-0 z-10 shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
+              <td class="p-4 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky right-0 z-10 shadow-[-4px_0_12px_rgba(0,0,0,0.02)]">
                 <div class="flex flex-col gap-1.5 items-center">
                   <div class="w-full flex items-center justify-between px-3 py-1 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800">
-                    <span class="text-[10px] font-black text-emerald-700 dark:text-emerald-400">T.IN</span>
+                    <span class="text-[10px] font-black text-emerald-700 dark:text-emerald-400">{{ getTeamTotalWeighted(teamId) }}</span>
                     <span class="text-xs font-black text-emerald-800 dark:text-emerald-200">{{ formatMoney(getTeamTotal(teamId, 'totalTeamIncome')) }}</span>
                   </div>
                   <div class="w-full flex flex-col gap-0.5 px-1">
@@ -194,6 +194,7 @@
             <thead>
               <tr class="bg-slate-50 dark:bg-slate-800/50">
                 <th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('common.employee') }}</th>
+                <th class="px-4 py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('attendance.type') || 'Loại công' }}</th>
                 <th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('attendance.original_team') }}</th>
                 <th class="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('attendance.actual_team') }}</th>
                 <th class="px-4 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ $t('team_wages.amount') }}</th>
@@ -206,6 +207,12 @@
                   <div class="flex flex-col">
                     <span class="font-bold text-slate-700 dark:text-slate-200">{{ worker.employeeName }}</span>
                     <span class="text-[10px] font-black text-slate-400">{{ worker.employeeCode }}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <div class="flex flex-col items-center">
+                    <span class="text-sm font-black text-slate-700">{{ worker.attendanceCode }}</span>
+                    <span class="text-[10px] font-bold text-slate-400">x{{ worker.multiplier }}</span>
                   </div>
                 </td>
                 <td class="px-4 py-3">
@@ -327,6 +334,21 @@ const getTeamTotal = (teamId, field = 'totalTeamIncome') => {
   return matrixData.value
     .filter(item => item.teamId == teamId)
     .reduce((sum, item) => sum + (item[field] || 0), 0);
+};
+
+const getWeightedCount = (details) => {
+  if (!details) return 0;
+  return details.reduce((sum, d) => sum + (d.multiplier || 0), 0).toFixed(1);
+};
+
+const getTeamTotalWeighted = (teamId) => {
+  const total = matrixData.value
+    .filter(item => item.teamId == teamId)
+    .reduce((sum, item) => {
+      const daySum = item.details?.reduce((dSum, d) => dSum + (d.multiplier || 0), 0) || 0;
+      return sum + daySum;
+    }, 0);
+  return total.toFixed(1);
 };
 
 const showDetails = (teamId, day) => {

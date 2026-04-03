@@ -3,7 +3,6 @@ package com.plywood.payroll.modules.employee.service;
 import com.plywood.payroll.modules.organization.entity.Department;
 import com.plywood.payroll.modules.organization.entity.Role;
 import com.plywood.payroll.modules.organization.service.RoleService;
-import com.plywood.payroll.modules.organization.service.DepartmentService;
 
 import com.plywood.payroll.modules.employee.dto.request.EmployeeRequest;
 import com.plywood.payroll.modules.employee.dto.response.EmployeeResponse;
@@ -19,7 +18,9 @@ import com.plywood.payroll.modules.employee.entity.SalaryProcess;
 import com.plywood.payroll.modules.employee.entity.TeamProcess;
 import com.plywood.payroll.modules.employee.repository.SalaryProcessRepository;
 import com.plywood.payroll.modules.employee.repository.TeamProcessRepository;
+import com.plywood.payroll.shared.constant.MessageConstants;
 import com.plywood.payroll.shared.exception.ResourceNotFoundException;
+import com.plywood.payroll.shared.exception.BusinessException;
 import com.plywood.payroll.modules.organization.repository.DepartmentRepository;
 import com.plywood.payroll.modules.employee.repository.EmployeeRepository;
 import com.plywood.payroll.modules.employee.repository.EmployeeAuditLogRepository;
@@ -28,7 +29,6 @@ import com.plywood.payroll.modules.organization.repository.TeamRepository;
 import com.plywood.payroll.shared.service.FileService;
 import com.plywood.payroll.shared.utils.NameUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -146,6 +146,52 @@ public class EmployeeService {
         return employeeRepository.findById(id)
                 .map(this::mapToResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", id));
+    }
+
+    public List<EmployeeResponse> getEmployeesActiveAtDate(Long teamId, LocalDate date) {
+        return teamProcessRepository.findEffectiveByTeamId(teamId, date).stream()
+                .filter(tp -> "ACTIVE".equals(tp.getEmployee().getStatus()))
+                .map(tp -> {
+                    Employee e = tp.getEmployee();
+                    EmployeeResponse res = mapToResponse(e);
+                    if (tp.getTeam() != null) {
+                        com.plywood.payroll.modules.organization.dto.response.TeamResponse tr = new com.plywood.payroll.modules.organization.dto.response.TeamResponse();
+                        tr.setId(tp.getTeam().getId());
+                        tr.setName(tp.getTeam().getName());
+                        res.setTeam(tr);
+                        if (tp.getTeam().getDepartment() != null) {
+                            com.plywood.payroll.modules.organization.dto.response.DepartmentResponse dr = new com.plywood.payroll.modules.organization.dto.response.DepartmentResponse();
+                            dr.setId(tp.getTeam().getDepartment().getId());
+                            dr.setName(tp.getTeam().getDepartment().getName());
+                            res.setDepartment(dr);
+                        }
+                    }
+                    return res;
+                })
+                .collect(Collectors.toList());
+    }
+
+    public List<EmployeeResponse> getEmployeesInHistoryPeriod(LocalDate startDate, LocalDate endDate) {
+        return teamProcessRepository.findAllOverlapping(startDate, endDate).stream()
+                .filter(tp -> "ACTIVE".equals(tp.getEmployee().getStatus()))
+                .map(tp -> {
+                    Employee e = tp.getEmployee();
+                    EmployeeResponse res = mapToResponse(e);
+                    if (tp.getTeam() != null) {
+                        com.plywood.payroll.modules.organization.dto.response.TeamResponse tr = new com.plywood.payroll.modules.organization.dto.response.TeamResponse();
+                        tr.setId(tp.getTeam().getId());
+                        tr.setName(tp.getTeam().getName());
+                        res.setTeam(tr);
+                        if (tp.getTeam().getDepartment() != null) {
+                            com.plywood.payroll.modules.organization.dto.response.DepartmentResponse dr = new com.plywood.payroll.modules.organization.dto.response.DepartmentResponse();
+                            dr.setId(tp.getTeam().getDepartment().getId());
+                            dr.setName(tp.getTeam().getDepartment().getName());
+                            res.setDepartment(dr);
+                        }
+                    }
+                    return res;
+                })
+                .collect(Collectors.toList());
     }
 
     public List<EmployeeAuditLogResponse> getAuditLogs(Long employeeId) {
@@ -343,33 +389,38 @@ public class EmployeeService {
         }
 
         // Logic xử lý lịch sử Tổ đội
+        LocalDate transferDate = request.getTransferDate() != null ? request.getTransferDate() : today;
         if (request.getTeamId() != null
                 && (currentTeamProc == null || !currentTeamProc.getTeam().getId().equals(request.getTeamId()))) {
             Team newTeamEntity = teamRepository.findById(request.getTeamId())
                     .orElseThrow(() -> new ResourceNotFoundException("Tổ sản xuất", request.getTeamId()));
 
-            if (currentTeamProc != null && currentTeamProc.getStartDate().equals(today)) {
-                // Cập nhật luôn nếu bản ghi hiện tại cũng bắt đầu từ hôm nay
-                currentTeamProc.setTeam(newTeamEntity);
-                teamProcessRepository.save(currentTeamProc);
+            // Tìm bản ghi đang hiệu lực tại ngày transferDate (Lấy List để tránh IncorrectResultSizeDataAccessException nếu data bị trùng)
+            List<TeamProcess> activeProcessList = teamProcessRepository.findEffectiveByDateList(id, transferDate);
+            TeamProcess effectiveAtTransfer = activeProcessList.isEmpty() ? null : activeProcessList.get(0);
+
+            if (effectiveAtTransfer != null && effectiveAtTransfer.getStartDate().equals(transferDate)) {
+                // Cập nhật luôn nếu bản ghi hiệu lực tại ngày đó cũng bắt đầu từ đúng ngày đó
+                effectiveAtTransfer.setTeam(newTeamEntity);
+                teamProcessRepository.save(effectiveAtTransfer);
             } else {
-                if (currentTeamProc != null) {
-                    currentTeamProc.setEndDate(today.minusDays(1));
-                    teamProcessRepository.save(currentTeamProc);
+                if (effectiveAtTransfer != null) {
+                    effectiveAtTransfer.setEndDate(transferDate.minusDays(1));
+                    teamProcessRepository.save(effectiveAtTransfer);
                 }
                 TeamProcess nextTeamProc = new TeamProcess();
                 nextTeamProc.setEmployee(saved);
                 nextTeamProc.setTeam(newTeamEntity);
-                nextTeamProc.setStartDate(today);
+                nextTeamProc.setStartDate(transferDate);
                 teamProcessRepository.save(nextTeamProc);
             }
 
             logChange(saved, "UPDATE_TEAM", "team", oldTeamName, newTeamEntity.getName(), "ADMIN");
         } else if (request.getTeamId() == null && currentTeamProc != null) {
-            if (currentTeamProc.getStartDate().equals(today)) {
+            if (currentTeamProc.getStartDate().equals(transferDate)) {
                 teamProcessRepository.delete(currentTeamProc);
             } else {
-                currentTeamProc.setEndDate(today.minusDays(1));
+                currentTeamProc.setEndDate(transferDate.minusDays(1));
                 teamProcessRepository.save(currentTeamProc);
             }
             logChange(saved, "UPDATE_TEAM", "team", oldTeamName, "N/A", "ADMIN");
@@ -609,7 +660,40 @@ public class EmployeeService {
         res.setTeam(mapTeamShallow(entity.getTeam()));
         res.setStartDate(entity.getStartDate());
         res.setEndDate(entity.getEndDate());
+        res.setNote(entity.getNote());
         res.setCurrent(entity.getEndDate() == null);
+        
+        // Auditing mapping
+        res.setCreatedBy(entity.getCreatedBy());
+        res.setCreatedAt(entity.getCreatedAt());
+        res.setUpdatedBy(entity.getUpdatedBy());
+        res.setUpdatedAt(entity.getUpdatedAt());
         return res;
+    }
+
+    @Transactional
+    public void updateTeamHistoryRecord(Long id, Long teamId, LocalDate startDate, LocalDate endDate, String note, String updatedBy) {
+        TeamProcess process = teamProcessRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(MessageConstants.ERROR_NOT_FOUND));
+        
+        String oldVal = String.format("Team: %s, Start: %s, End: %s, Note: %s", process.getTeam().getId(), process.getStartDate(), process.getEndDate(), process.getNote());
+        
+        if (teamId != null && !teamId.equals(process.getTeam().getId())) {
+             Team newTeam = teamRepository.findById(teamId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy tổ đội"));
+             process.setTeam(newTeam);
+        }
+
+        String newVal = String.format("Team: %s, Start: %s, End: %s, Note: %s", process.getTeam().getId(), startDate, endDate, note);
+        
+        // Cập nhật thông tin
+        process.setStartDate(startDate);
+        process.setEndDate(endDate);
+        process.setNote(note);
+        
+        TeamProcess saved = teamProcessRepository.save(process);
+        
+        // Ghi log thay đổi vào hệ thống log tập trung của Employee
+        logChange(saved.getEmployee(), "UPDATE_WORK_HISTORY", "workHistory#" + id, oldVal, newVal, updatedBy);
     }
 }

@@ -7,14 +7,15 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-@Getter @Setter
+@Getter
+@Setter
 @Entity
 @Table(name = "employees")
 public class Employee extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String code;
 
-    @Column(unique = true)
+    @Column(unique = true, nullable = true)
     private String zkDeviceId; // ID trên máy chấm công ZKTeco
 
     @Column(nullable = false)
@@ -56,9 +57,9 @@ public class Employee extends BaseEntity {
     private String citizenIdIssuedPlace;
     private String birthAddress;
     private String permanentAddress;
-    
+
     @Column(columnDefinition = "TEXT")
     private String notes;
-    
+
     private String avatarPath;
 }
